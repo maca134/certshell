@@ -368,3 +368,25 @@ docker compose up -d
 - May be internet-exposed behind an HTTPS reverse proxy; §3.3 is accepted on that basis.
 - Break-glass SSH stays offline, **not** signed by this CA, with no dependency on this app.
 - `openid-client` and a PTY library work under Bun. Verify in step 1.
+
+## 11. Rejected alternatives
+
+Don't re-propose these without new information.
+
+- **VPN SSH / browser client** — owner doesn't want VPN handling SSH.
+- **Teleport** — owner ruled it out.
+- **step-ca + self-hosted OIDC issuer** (original design) — the app minted the tokens step-ca trusted, so no security gain; cost a child daemon, first-boot init, and step-ca fetching its own issuer through Traefik. Replaced by `ssh-keygen -s`.
+- **Built-in passkeys / accounts** — owner doesn't want to own an auth system. OIDC only.
+- **Menu-style jump host** (for native access) — terminates SSH, so `scp`/`sftp`/VS Code Remote break.
+- **Push-approved client certs** (for native access) — viable, but native SSH is out of scope.
+- **Separate signer service** (signs only against a fresh IdP token) — would stop a web RCE minting certs; owner chose hardening only (§3.3).
+- **`source-address` on certs** — certs never leave the app, so stealing one already implies a compromise that can mint new ones.
+
+## 12. Parked (later, not v1 blockers)
+
+- Admin "kill sessions" for a user: IdP revocation blocks new connections within 1h, but open terminals live up to 8h.
+- Un-enrolling a host (UI + a removal snippet).
+- Audit log retention.
+- License choice.
+- Image owner (`ghcr.io/<owner>/web-ssh`).
+- CA rotation (§8).
