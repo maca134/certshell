@@ -63,13 +63,16 @@ Check every item that the diff touches. Skip items for code that doesn't exist y
 
 ## Output
 
-Findings first, most severe first. For each:
+The reader is dyslexic: **short**. No prose paragraphs. Max ~15 lines unless there are many findings.
 
 ```
-[CRITICAL|HIGH|MEDIUM|LOW] path/to/file.ts:LINE — one-line defect
-  Scenario: concrete input/state → what goes wrong
-  Spec: §x.y (if it violates a stated rule)
-  Fix: minimal change
+[HIGH] src/x.ts:42 — defect, ≤12 words
+  → fix, ≤12 words (or a 1–3 line code snippet)
+
+bun test: 7 pass / 0 fail
+Checked: auth, signing, headers
 ```
 
-Then one line: `bun test: N pass / M fail`. Then "Checked, no issues:" with the checklist areas you actually covered. If there are no findings, say so plainly — don't invent any. Be concise.
+- Most severe first. No findings → `No findings.`
+- Add `Spec: §x.y` only if it breaks a stated rule.
+- Prefer a code snippet over describing a fix.
