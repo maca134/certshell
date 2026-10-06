@@ -74,15 +74,18 @@ Per terminal session:
 const allowed = await db.allowedGroups(host.id, login);   // set in the UI (§4)
 if (!user.groups.some(g => allowed.includes(g))) throw new Forbidden();
 const dir = await mkdtemp("/tmp/s-");
-await $`ssh-keygen -q -t ed25519 -N "" -f ${dir}/id`;
-await $`ssh-keygen -q -s /data/ca/user_ca -P ${caPassword ?? ""} -I ${`${user.email}/${user.sub}/${session.id}`}
-        -n ${`ws:${host.id}:${login}`} -V +15m -z ${serial} -O clear -O permit-pty ${dir}/id.pub`;
+await run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", `${dir}/id`]);
+await run(["ssh-keygen", "-q", "-s", "/data/ca/user_ca", "-I", `${user.email}/${user.sub}/${session.id}`,
+  "-n", `ws:${host.id}:${login}`, "-V", "+15m", "-z", serial, "-O", "clear", "-O", "permit-pty",
+  `${dir}/id.pub`], caPassword && caPassphraseEnv(caPassword));
 const ssh = spawnPty(["ssh", "-i", `${dir}/id`,
   "-o", `UserKnownHostsFile=${knownHostsFile}`, "-o", "StrictHostKeyChecking=yes",
   "--", `${login}@${host.address}`]);
 ssh.exited.finally(() => rm(dir, { recursive: true }));
 ```
 
+- `run()` = `Bun.spawn` with an argv array. Not Bun's `$`: it drops empty-string args (`-N ""` → bare `-N`).
+- CA passphrase goes via `SSH_ASKPASS` (`caPassphraseEnv`), never argv — argv is visible in `ps` on the Docker host.
 - A cert works on exactly one host as exactly one login.
 - `-O clear -O permit-pty`: no port/agent/X11 forwarding, no `~/.ssh/rc`. A cert can open a terminal and nothing else, so a minted cert can't pivot through a target.
 - Logins are validated (`^[a-z_][a-z0-9_-]*$`) when added to the access map; a comma would inject extra principals into `ssh-keygen -n`.
@@ -232,8 +235,12 @@ ENTRYPOINT ["bun","run","src/main.ts"]
 ```ts
 if (!exists("/data/ca/user_ca")) {
   await mkdir("/data/ca", { recursive: true, mode: 0o700 });
-  if (!caPassword) log.warn("no ca_password secret: CA key stored unencrypted");
-  await $`ssh-keygen -q -t ed25519 -f /data/ca/user_ca -C ${CA_NAME} -N ${caPassword ?? ""}`;
+  const cmd = ["ssh-keygen", "-q", "-t", "ed25519", "-f", "/data/ca/user_ca", "-C", CA_NAME];
+  if (caPassword) await run(cmd, caPassphraseEnv(caPassword));
+  else {
+    log.warn("no ca_password secret: CA key stored unencrypted");
+    await run([...cmd, "-N", ""]);
+  }
 }
 ```
 
@@ -353,7 +360,7 @@ docker compose up -d
 
 1. Skeleton container: Bun app, `/healthz` green, first boot writes `/data/ca`. Verify under the hardened compose (non-root, read-only rootfs): `openid-client`, PTY spawning, and `ssh` with a read-only home.
 2. OIDC login against Pocket ID; `groups` claim → session; admin gate. Confirm Pocket ID image tag and setup path.
-3. Spike: sign a `ws:<hostId>:root` cert (confirm `ssh-keygen -s -P` works) → `ssh` into one hand-configured target using `AuthorizedPrincipalsCommand`.
+3. Spike: sign a `ws:<hostId>:root` cert (signing via `SSH_ASKPASS` confirmed in step 1) → `ssh` into one hand-configured target using `AuthorizedPrincipalsCommand`.
 4. Web terminal: login → access check → sign → connect → xterm.js; idle/max timeouts.
 5. Enroll endpoint + snippet generator + host inventory + access map UI.
 6. Audit log, rate limits, security headers.

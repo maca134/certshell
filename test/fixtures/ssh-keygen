@@ -1,0 +1,3 @@
+#!/bin/sh
+printf "%s\n" "$*" >> "$ARGV_LOG"
+exec /usr/bin/ssh-keygen "$@"

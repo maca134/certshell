@@ -1,6 +1,10 @@
 // Not Bun's `$`: it silently drops empty-string args, so `-N ${""}` becomes a bare `-N`.
-export async function run(cmd: string[]) {
-    const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
+export async function run(cmd: string[], env?: Record<string, string>) {
+    const proc = Bun.spawn(cmd, {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env, ...env },
+    });
     const [stdout, stderr, code] = await Promise.all([
         new Response(proc.stdout).text(),
         new Response(proc.stderr).text(),
