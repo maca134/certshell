@@ -1,0 +1,21 @@
+{
+    "name": "web-ssh",
+    "module": "src/main.ts",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "lint": "biome check",
+        "format": "biome check --write"
+    },
+    "dependencies": {
+        "hono": "^4.13.13",
+        "openid-client": "^6.8.8"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "2.5.15",
+        "@types/bun": "latest"
+    },
+    "peerDependencies": {
+        "typescript": "^5"
+    }
+}

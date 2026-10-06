@@ -1,0 +1,20 @@
+name: web-ssh
+
+services:
+  web-ssh:
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      CA_NAME: "Mac SSH CA"
+    secrets: [ca_password]
+    volumes: ["./data:/data"]
+    read_only: true
+    tmpfs: ["/tmp:noexec,nosuid,size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    mem_limit: 512m
+
+secrets:
+  ca_password: { file: ./secrets/ca_password }
