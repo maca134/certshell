@@ -322,7 +322,7 @@ mkdir -p secrets && openssl rand -base64 32 > secrets/ca_password   # optional, 
 echo "POCKET_ID_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env
 docker compose up -d pocket-id
 # reverse proxy: https://ssh.example.com → 127.0.0.1:3000, https://id.example.com → 127.0.0.1:1411
-# https://id.example.com/login/setup → admin account + passkeys
+# https://id.example.com/setup → admin account + passkeys
 # Pocket ID: create group web-ssh-admins, add yourself
 #   create OIDC client web-ssh: callback https://ssh.example.com/auth/callback
 #   → append OIDC_CLIENT_ID/OIDC_CLIENT_SECRET to .env
