@@ -11,7 +11,13 @@ test("/healthz returns 200 with no body", async () => {
         OIDC_CLIENT_SECRET: "y",
     });
     const getOidc = () => Promise.reject(new Error("unused"));
-    const app = createApp({ config, db: openDb(":memory:"), getOidc });
+    const db = openDb(":memory:");
+    const app = createApp({
+        config,
+        db,
+        getOidc,
+        terminal: { db, caKey: "", caPassword: undefined, idleMs: 0, maxMs: 0 },
+    });
     const res = await app.request("/healthz");
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("");

@@ -11,5 +11,26 @@ export function openDb(path: string) {
         groups TEXT NOT NULL,
         expires_at INTEGER NOT NULL
     )`);
+    db.run(`CREATE TABLE IF NOT EXISTS hosts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        host_key TEXT NOT NULL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS access (
+        host_id TEXT NOT NULL REFERENCES hosts(id),
+        login TEXT NOT NULL,
+        grp TEXT NOT NULL,
+        PRIMARY KEY (host_id, login, grp)
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS signs (
+        serial INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at INTEGER NOT NULL,
+        sub TEXT NOT NULL,
+        email TEXT,
+        principal TEXT NOT NULL,
+        host_id TEXT NOT NULL,
+        session_id TEXT NOT NULL
+    )`);
     return db;
 }

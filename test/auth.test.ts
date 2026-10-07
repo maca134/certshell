@@ -21,7 +21,12 @@ let db: ReturnType<typeof openDb>;
 let app: ReturnType<typeof createApp>;
 beforeEach(() => {
     db = openDb(":memory:");
-    app = createApp({ config, db, getOidc: lazyDiscovery(config, insecure) });
+    app = createApp({
+        config,
+        db,
+        getOidc: lazyDiscovery(config, insecure),
+        terminal: { db, caKey: "", caPassword: undefined, idleMs: 0, maxMs: 0 },
+    });
     app.get("/api/admin/ping", (c) => c.text("pong"));
     idp.nextClaims = {
         sub: "user-1",
@@ -161,7 +166,12 @@ test("IdP down → 503, then retries discovery", async () => {
     const real = lazyDiscovery(config, insecure);
     const flaky = () =>
         ++calls === 1 ? Promise.reject(new Error("down")) : real();
-    app = createApp({ config, db, getOidc: flaky });
+    app = createApp({
+        config,
+        db,
+        getOidc: flaky,
+        terminal: { db, caKey: "", caPassword: undefined, idleMs: 0, maxMs: 0 },
+    });
     expect((await get("/auth/login")).status).toBe(503);
     expect((await get("/auth/login")).status).toBe(302);
 });

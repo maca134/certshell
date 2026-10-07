@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { readCaPassword } from "../src/ca";
 import { mintUserCert } from "../src/certs";
 import { run } from "../src/exec";
+import { startApp } from "./helpers/app";
 
 const target = process.env.SSH_TARGET;
 
@@ -125,5 +126,29 @@ describe.skipIf(!target)("ssh-target", () => {
         expect(await new Response(proc.stderr).text()).toMatch(
             /administratively prohibited|refused/i,
         );
+    });
+
+    test("web terminal: WS → signed cert → ssh → shell", async () => {
+        const hostKey = (await Bun.file(knownHosts).text())
+            .split("\n")
+            .find((l) => l.startsWith(`${target} `))
+            ?.slice(`${target} `.length);
+        const ctx = await startApp({
+            caKey: "/data/ca/user_ca",
+            caPassword,
+        });
+        try {
+            ctx.addHost("dev00001", target ?? "", hostKey ?? "", {
+                alice: "admins",
+            });
+            const t = ctx.connect("host=dev00001&login=alice");
+            await t.opened;
+            t.send({ t: "in", d: "echo me=$(whoami)\r" });
+            await t.waitFor("me=alice");
+            t.send({ t: "in", d: "exit\r" });
+            expect((await t.closed).reason).toBe("exited");
+        } finally {
+            await ctx.stop();
+        }
     });
 });

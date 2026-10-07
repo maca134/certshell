@@ -5,7 +5,8 @@
     "private": true,
     "scripts": {
         "lint": "biome check",
-        "format": "biome check --write"
+        "format": "biome check --write",
+        "build": "bun build src/web/main.tsx --outdir dist/assets --target browser --production"
     },
     "dependencies": {
         "hono": "^4.13.13",
@@ -13,7 +14,13 @@
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.15",
-        "@types/bun": "latest"
+        "@types/bun": "latest",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@xterm/addon-fit": "^0.11.0",
+        "@xterm/xterm": "^6.0.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0"
     },
     "peerDependencies": {
         "typescript": "^5"
