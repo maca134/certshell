@@ -1,5 +1,6 @@
-// Integration test against the dev `ssh-target` compose service (hostId dev00001). Run:
+// Integration test against the dev `ssh-target` compose service, after enrolling it via the UI. Run:
 // docker compose run --rm --no-deps -T -v ./apps/api/test:/app/apps/api/test:ro -e SSH_TARGET=ssh-target -w /app/apps/api --entrypoint bun web-ssh test
+import { Database } from "bun:sqlite";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,14 +15,22 @@ describe.skipIf(!target)("ssh-target", () => {
     let root = "";
     let caPassword: string | undefined;
     let knownHosts = "";
+    let hostId = "";
+    let hostKey = "";
     beforeAll(async () => {
+        const db = new Database("/data/app.sqlite", { readonly: true });
+        const row = db
+            .query<{ id: string; host_key: string }, [string]>(
+                "SELECT id, host_key FROM hosts WHERE address = ? AND host_key IS NOT NULL",
+            )
+            .get(target ?? "");
+        db.close();
+        if (!row) throw new Error(`enroll ${target} via the web UI first`);
+        ({ id: hostId, host_key: hostKey } = row);
         root = await mkdtemp(`${tmpdir()}/s-`);
         caPassword = await readCaPassword();
         knownHosts = `${root}/known_hosts`;
-        await Bun.write(
-            knownHosts,
-            await run(["ssh-keyscan", "-t", "ed25519", target ?? ""]),
-        );
+        await Bun.write(knownHosts, `${target} ${hostKey}\n`);
     });
     afterAll(() => rm(root, { recursive: true, force: true }));
 
@@ -69,22 +78,22 @@ describe.skipIf(!target)("ssh-target", () => {
         };
     }
 
-    test("cert for ws:dev00001:root logs in as root", async () => {
-        expect(await sshAs("root", "ws:dev00001:root")).toMatchObject({
+    test("cert for ws:<hostId>:root logs in as root", async () => {
+        expect(await sshAs("root", `ws:${hostId}:root`)).toMatchObject({
             code: 0,
             out: "root",
         });
     });
 
-    test("cert for ws:dev00001:alice logs in as alice", async () => {
-        expect(await sshAs("alice", "ws:dev00001:alice")).toMatchObject({
+    test("cert for ws:<hostId>:alice logs in as alice", async () => {
+        expect(await sshAs("alice", `ws:${hostId}:alice`)).toMatchObject({
             code: 0,
             out: "alice",
         });
     });
 
     test("wrong login → rejected", async () => {
-        expect((await sshAs("alice", "ws:dev00001:root")).code).toBe(255);
+        expect((await sshAs("alice", `ws:${hostId}:root`)).code).toBe(255);
     });
 
     test("wrong hostId → rejected", async () => {
@@ -93,13 +102,13 @@ describe.skipIf(!target)("ssh-target", () => {
 
     test("expired cert → rejected", async () => {
         expect(
-            (await sshAs("root", "ws:dev00001:root", { validity: "-10m:-5m" }))
+            (await sshAs("root", `ws:${hostId}:root`, { validity: "-10m:-5m" }))
                 .code,
         ).toBe(255);
     });
 
     test("-O clear: port forwarding refused", async () => {
-        const { code, err } = await sshAs("root", "ws:dev00001:root", {
+        const { code, err } = await sshAs("root", `ws:${hostId}:root`, {
             args: ["-o", "ExitOnForwardFailure=yes", "-W", "127.0.0.1:22"],
             command: [],
         });
@@ -108,19 +117,15 @@ describe.skipIf(!target)("ssh-target", () => {
     });
 
     test("web terminal: WS → signed cert → ssh → shell", async () => {
-        const hostKey = (await Bun.file(knownHosts).text())
-            .split("\n")
-            .find((l) => l.startsWith(`${target} `))
-            ?.slice(`${target} `.length);
         const ctx = await startApp({
             caKey: "/data/ca/user_ca",
             caPassword,
         });
         try {
-            ctx.addHost("dev00001", target ?? "", hostKey ?? "", {
+            ctx.addHost(hostId, target ?? "", hostKey, {
                 alice: "admins",
             });
-            const t = ctx.connect("host=dev00001&login=alice");
+            const t = ctx.connect(`host=${hostId}&login=alice`);
             await t.opened;
             t.send({ t: "in", d: "echo me=$(whoami)\r" });
             await t.waitFor("me=alice");

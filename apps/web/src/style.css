@@ -33,14 +33,14 @@ header .muted {
     margin-left: auto;
     color: var(--muted);
 }
-main ul {
+main ul.cards {
     list-style: none;
     padding: 16px;
     margin: 0;
     display: grid;
     gap: 8px;
 }
-main li {
+main .cards li {
     display: flex;
     gap: 8px;
     align-items: center;
@@ -48,7 +48,7 @@ main li {
     background: var(--panel);
     border-radius: 6px;
 }
-main li strong {
+main .cards li > strong {
     margin-right: auto;
 }
 main p {
@@ -74,4 +74,63 @@ button {
     min-height: 0;
     padding: 4px;
     background: #000;
+}
+nav {
+    display: flex;
+    gap: 4px;
+}
+button.link {
+    background: none;
+    color: var(--accent);
+    padding: 4px 8px;
+}
+input {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid #333a44;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font: inherit;
+    min-width: 0;
+}
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+main > form.row {
+    padding: 16px 16px 0;
+}
+.cards.admin li {
+    flex-direction: column;
+    align-items: stretch;
+}
+.ok {
+    color: #3fb950;
+}
+.warn {
+    color: #d29922;
+}
+.error {
+    color: #f85149;
+}
+.snippet pre {
+    background: #000;
+    padding: 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 13px;
+    margin: 8px 0 0;
+}
+.access {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.chip {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 2px 4px 2px 12px;
 }

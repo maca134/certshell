@@ -5,6 +5,7 @@ import { serveStatic, upgradeWebSocket } from "hono/bun";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import * as oidc from "openid-client";
+import { adminRoutes, enrollRoute } from "./admin";
 import type { Config } from "./config";
 import { accessibleHosts, allowedHost, type Host } from "./hosts";
 import type { GetOidc } from "./oidc";
@@ -32,6 +33,8 @@ const PUBLIC_ROUTES = new Set([
     "GET /healthz",
     "GET /auth/login",
     "GET /auth/callback",
+    "GET /api/enroll",
+    "POST /api/enroll",
 ]);
 
 type Env = { Variables: { user: User; host: Host; login: string } };
@@ -91,6 +94,9 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
     });
 
     app.get("/healthz", (c) => c.body(null, 200));
+    const caPubPath = `${terminal.caKey}.pub`;
+    app.route("/", enrollRoute({ config, db, caPubPath }));
+    app.route("/api/admin", adminRoutes({ config, db }));
 
     app.get("/auth/login", async (c) => {
         let oidcConfig: oidc.Configuration;

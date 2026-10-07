@@ -13,7 +13,8 @@ export function accessibleHosts(db: Database, groups: string[]): HostSummary[] {
         .query<{ id: string; name: string; login: string }, [string]>(
             `SELECT DISTINCT h.id, h.name, a.login FROM hosts h
              JOIN access a ON a.host_id = h.id
-             WHERE a.grp IN (SELECT value FROM json_each(?))
+             WHERE h.host_key IS NOT NULL
+               AND a.grp IN (SELECT value FROM json_each(?))
              ORDER BY h.name, a.login`,
         )
         .all(JSON.stringify(groups));
@@ -37,7 +38,8 @@ export function allowedHost(
             .query<Host, [string, string, string]>(
                 `SELECT h.id, h.name, h.address, h.host_key FROM hosts h
                  JOIN access a ON a.host_id = h.id
-                 WHERE h.id = ? AND a.login = ? AND a.grp IN (SELECT value FROM json_each(?))
+                 WHERE h.id = ? AND a.login = ? AND h.host_key IS NOT NULL
+                   AND a.grp IN (SELECT value FROM json_each(?))
                  LIMIT 1`,
             )
             .get(hostId, login, JSON.stringify(groups)) ?? undefined

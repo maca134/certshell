@@ -43,7 +43,7 @@ services:
   ssh-target:
     build: apps/api/test/ssh-target
     restart: unless-stopped
-    volumes: ["./data/ca/user_ca.pub:/etc/ssh/web_ssh_user_ca.pub:ro"]
+    volumes: ["ssh-target-etc:/etc/ssh"]   # keeps host keys + enrollment across rebuilds
     networks: [ingress]
 
   ingress:
@@ -61,6 +61,9 @@ services:
 
 secrets:
   ca_password: { file: ./secrets/ca_password }
+
+volumes:
+  ssh-target-etc: {}
 
 networks:
   ingress:

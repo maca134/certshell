@@ -15,7 +15,12 @@ export function openDb(path: string) {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         address TEXT NOT NULL,
-        host_key TEXT NOT NULL
+        host_key TEXT
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS enroll_tokens (
+        token_hash TEXT PRIMARY KEY,
+        host_id TEXT NOT NULL REFERENCES hosts(id),
+        expires_at INTEGER NOT NULL
     )`);
     db.run(`CREATE TABLE IF NOT EXISTS access (
         host_id TEXT NOT NULL REFERENCES hosts(id),

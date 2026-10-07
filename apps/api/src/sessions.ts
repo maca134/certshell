@@ -9,20 +9,25 @@ export type User = {
     groups: string[];
 };
 
-const hash = (token: string) =>
+export type AppEnv = { Variables: { user: User } };
+
+export const randomToken = () =>
+    Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
+        "base64url",
+    );
+
+export const hashToken = (token: string) =>
     new Bun.CryptoHasher("sha256").update(token).digest("hex");
 
 const now = () => Math.floor(Date.now() / 1000);
 
 export function createSession(db: Database, user: User) {
     db.run("DELETE FROM sessions WHERE expires_at <= ?", [now()]);
-    const token = Buffer.from(
-        crypto.getRandomValues(new Uint8Array(32)),
-    ).toString("base64url");
+    const token = randomToken();
     db.run(
         "INSERT INTO sessions (id_hash, iss, sub, email, groups, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
         [
-            hash(token),
+            hashToken(token),
             user.iss,
             user.sub,
             user.email,
@@ -45,6 +50,6 @@ export function getSession(
         >(
             "SELECT iss, sub, email, groups FROM sessions WHERE id_hash = ? AND expires_at > ?",
         )
-        .get(hash(token), now());
+        .get(hashToken(token), now());
     return row ? { ...row, groups: JSON.parse(row.groups) } : undefined;
 }

@@ -149,17 +149,19 @@ curl -fsS -X POST "$APP_URL/api/enroll" \
   -H "Authorization: Bearer $TOKEN" \
   --data-binary @/etc/ssh/ssh_host_ed25519_key.pub
 
-if command -v systemctl >/dev/null 2>&1; then
+if [ -d /run/systemd/system ]; then
   systemctl reload ssh 2>/dev/null || systemctl reload sshd
-else
+elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
+else
+  kill -HUP "$(cat /run/sshd.pid)"
 fi
 echo "enrolled: $(hostname)"
 ```
 
 - Admin-only (`OIDC_ADMIN_GROUP`).
 - `/api/enroll` validates the token and records the host public key against `HOST_ID`.
-- Supports systemd and OpenRC (Alpine). Fails loudly if the drop-in isn't loaded, instead of reporting success.
+- Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it), OpenRC (Alpine), else `SIGHUP` to `/run/sshd.pid` (init-less containers/LXCs). Fails loudly if the drop-in isn't loaded, instead of reporting success.
 - Homelab: bake into the Proxmox LXC golden template for zero-touch enrollment on clone.
 
 ---
