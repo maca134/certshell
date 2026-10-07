@@ -1,0 +1,25 @@
+# Dev overlay: Vite with HMR + API with bun --watch, both on bind-mounted source.
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d
+# https://ssh.dev.example.com → Traefik → web-dev (Vite) → /api, /auth → web-ssh
+services:
+  web-ssh:
+    entrypoint: ["bun", "--watch", "apps/api/src/main.ts"]
+    volumes:
+      - ./apps/api/src:/app/apps/api/src:ro
+      - ./packages/shared/src:/app/packages/shared/src:ro
+    labels:
+      traefik.enable: "false"
+
+  web-dev:
+    image: oven/bun:1-debian
+    working_dir: /app/apps/web
+    command: ["bun", "run", "dev"]
+    environment:
+      API_URL: http://web-ssh:3000
+      DEV_PUBLIC_HOST: ssh.dev.example.com
+    volumes: [".:/app"]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.webdev.rule: Host(`ssh.dev.example.com`)
+      traefik.http.services.webdev.loadbalancer.server.port: "5173"
+    networks: [ingress]

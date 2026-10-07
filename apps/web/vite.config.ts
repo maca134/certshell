@@ -2,12 +2,21 @@ import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+const api = process.env.API_URL ?? "http://localhost:3000";
+// Set by compose.dev.yaml when the dev server sits behind TLS on a real hostname.
+const publicHost = process.env.DEV_PUBLIC_HOST;
+
 export default defineConfig({
     plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
     server: {
+        host: "0.0.0.0",
+        allowedHosts: publicHost ? [publicHost] : undefined,
+        hmr: publicHost
+            ? { host: publicHost, protocol: "wss", clientPort: 443 }
+            : undefined,
         proxy: {
-            "/api": { target: "http://localhost:3000", ws: true },
-            "/auth": "http://localhost:3000",
+            "/api": { target: api, ws: true },
+            "/auth": api,
         },
     },
 });
