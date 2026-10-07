@@ -1,6 +1,6 @@
 // Dev-only: registers the compose `ssh-target` and grants web-ssh-admins root + alice.
 // Replaced by the enrollment UI in step 5. Run:
-// docker compose run --rm --no-deps -T -v ./scripts:/app/scripts:ro --entrypoint bun web-ssh scripts/seed-dev.ts
+// docker compose run --rm --no-deps -T -v ./apps/api/scripts:/app/apps/api/scripts:ro --entrypoint bun web-ssh apps/api/scripts/seed-dev.ts
 import { openDb } from "../src/db";
 import { run } from "../src/exec";
 

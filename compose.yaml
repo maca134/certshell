@@ -41,7 +41,7 @@ services:
     networks: [ingress]
 
   ssh-target:
-    build: test/ssh-target
+    build: apps/api/test/ssh-target
     restart: unless-stopped
     volumes: ["./data/ca/user_ca.pub:/etc/ssh/web_ssh_user_ca.pub:ro"]
     networks: [ingress]

@@ -49,7 +49,7 @@ const sshCommand: NonNullable<TerminalDeps["command"]> = ({
     `${login}@${host.address}`,
 ];
 
-const log = (event: Record<string, unknown>) =>
+export const log = (event: Record<string, unknown>) =>
     console.log(JSON.stringify(event));
 
 export async function openTerminal(

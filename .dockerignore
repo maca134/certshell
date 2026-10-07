@@ -1,4 +1,10 @@
 *
 !package.json
 !bun.lock
-!src
+!apps/api/package.json
+!apps/api/src
+!apps/web
+apps/web/node_modules
+apps/web/dist
+!packages/shared
+packages/shared/node_modules

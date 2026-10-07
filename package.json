@@ -1,28 +1,19 @@
 {
     "name": "web-ssh",
-    "module": "src/main.ts",
-    "type": "module",
     "private": true,
+    "type": "module",
+    "workspaces": [
+        "packages/*",
+        "apps/*"
+    ],
     "scripts": {
         "lint": "biome check",
         "format": "biome check --write",
-        "build": "bun build src/web/main.tsx --outdir dist/assets --target browser --production"
-    },
-    "dependencies": {
-        "hono": "^4.13.13",
-        "openid-client": "^6.8.8"
+        "typecheck": "bun run --filter '*' typecheck",
+        "build": "bun run --filter web build",
+        "test": "bun run --filter api test"
     },
     "devDependencies": {
-        "@biomejs/biome": "2.5.15",
-        "@types/bun": "latest",
-        "@types/react": "^19.3.0",
-        "@types/react-dom": "^19.3.0",
-        "@xterm/addon-fit": "^0.11.0",
-        "@xterm/xterm": "^6.0.0",
-        "react": "^19.3.0",
-        "react-dom": "^19.3.0"
-    },
-    "peerDependencies": {
-        "typescript": "^5"
+        "@biomejs/biome": "2.5.15"
     }
 }

@@ -2,16 +2,15 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import "./style.css";
+import type { ClientMessage, HostSummary, Me } from "@repo/shared";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-type Host = { id: string; name: string; logins: string[] };
-type Me = { email: string | null; sub: string };
-type Target = { host: Host; login: string };
+type Target = { host: HostSummary; login: string };
 
 function App() {
     const [me, setMe] = useState<Me>();
-    const [hosts, setHosts] = useState<Host[]>();
+    const [hosts, setHosts] = useState<HostSummary[]>();
     const [target, setTarget] = useState<Target>();
 
     useEffect(() => {
@@ -86,7 +85,7 @@ function TerminalView({
         ws.onclose = (e) =>
             setStatus(`closed: ${e.reason || "connection lost"}`);
 
-        const send = (msg: object) => {
+        const send = (msg: ClientMessage) => {
             if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
         };
         term.onData((d) => send({ t: "in", d }));

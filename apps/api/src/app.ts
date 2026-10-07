@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import type { ClientMessage, Me } from "@repo/shared";
 import { Hono } from "hono";
 import { serveStatic, upgradeWebSocket } from "hono/bun";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -13,7 +14,9 @@ import {
     SESSION_TTL_SECONDS,
     type User,
 } from "./sessions";
-import { openTerminal, type TerminalDeps } from "./terminal";
+import { log, openTerminal, type TerminalDeps } from "./terminal";
+
+const WEB_DIST = `${import.meta.dir}/../../web/dist`;
 
 export const LOGIN_COOKIE = "__Host-wsh_login";
 export const SESSION_COOKIE = "__Host-wsh_session";
@@ -39,10 +42,6 @@ export type Deps = {
     getOidc: GetOidc;
     terminal: TerminalDeps;
 };
-
-type ClientMessage =
-    | { t: "in"; d: string }
-    | { t: "resize"; cols: number; rows: number };
 
 const termSize = (v: unknown, fallback: number) =>
     Math.min(Math.max(Math.trunc(Number(v)) || fallback, 1), 500);
@@ -156,21 +155,19 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
             ...cookieOpts,
             maxAge: SESSION_TTL_SECONDS,
         });
-        console.log(
-            JSON.stringify({
-                event: "login",
-                iss: claims.iss,
-                sub: claims.sub,
-                email,
-                groups,
-            }),
-        );
+        log({
+            event: "login",
+            iss: claims.iss,
+            sub: claims.sub,
+            email,
+            groups,
+        });
         return c.redirect("/");
     });
 
     app.get("/api/me", (c) => {
         const { iss, sub, email, groups } = c.var.user;
-        return c.json({
+        return c.json<Me>({
             iss,
             sub,
             email,
@@ -244,10 +241,23 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
         }),
     );
 
-    app.get("/assets/*", serveStatic({ root: "./dist" }));
-    app.get("/", async (c) =>
-        c.html(await Bun.file(`${import.meta.dir}/web/index.html`).text()),
+    app.get(
+        "/assets/*",
+        serveStatic({
+            root: WEB_DIST,
+            // Vite puts a content hash in every asset name.
+            onFound: (_path, c) => {
+                c.header(
+                    "Cache-Control",
+                    "public, max-age=31536000, immutable",
+                );
+            },
+        }),
     );
+    app.get("/", async (c) => {
+        c.header("Cache-Control", "no-cache");
+        return c.html(await Bun.file(`${WEB_DIST}/index.html`).text());
+    });
 
     return app;
 }
