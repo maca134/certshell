@@ -40,6 +40,12 @@ services:
       traefik.http.services.pocketid.loadbalancer.server.port: "1411"
     networks: [ingress]
 
+  ssh-target:
+    build: test/ssh-target
+    restart: unless-stopped
+    volumes: ["./data/ca/user_ca.pub:/etc/ssh/web_ssh_user_ca.pub:ro"]
+    networks: [ingress]
+
   ingress:
     image: traefik:v3.7
     restart: unless-stopped
