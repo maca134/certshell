@@ -5,15 +5,33 @@ import type {
     EnrollSnippet,
     SeenUser,
 } from "@repo/shared";
-import { Check, Copy, Plus, X } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { Check, ChevronRight, Copy, Plus, X } from "lucide-react";
+import {
+    type FormEvent,
+    Fragment,
+    type ReactNode,
+    useCallback,
+    useEffect,
+    useState,
+} from "react";
 import { Redirect, useLocation } from "wouter";
 import { api } from "./api";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Card } from "./components/ui/card";
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "./components/ui/dialog";
 import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
 import {
     Table,
     TableBody,
@@ -22,14 +40,21 @@ import {
     TableHeader,
     TableRow,
 } from "./components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 
 const VIEWS = ["hosts", "users", "audit"] as const;
 
 const noFill = { autoComplete: "off", "data-lpignore": "true" };
 
+const when = (t: string | number) =>
+    new Date(t).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+
 export function Admin() {
-    const [location, navigate] = useLocation();
+    const [location] = useLocation();
     const view = location.slice(1);
     const [users, setUsers] = useState<SeenUser[]>([]);
     useEffect(() => {
@@ -38,19 +63,35 @@ export function Admin() {
     if (!(VIEWS as readonly string[]).includes(view))
         return <Redirect to="/hosts" replace />;
     return (
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 sm:p-6">
-            <Tabs value={view} onValueChange={(v) => navigate(`/${v}`)}>
-                <TabsList>
-                    {VIEWS.map((v) => (
-                        <TabsTrigger key={v} value={v}>
-                            {v[0]?.toUpperCase() + v.slice(1)}
-                        </TabsTrigger>
-                    ))}
-                </TabsList>
-            </Tabs>
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 sm:p-6">
             {view === "hosts" && <Hosts users={users} />}
             {view === "users" && <Users users={users} />}
             {view === "audit" && <Audit />}
+        </div>
+    );
+}
+
+function Empty({ cols, children }: { cols: number; children: ReactNode }) {
+    return (
+        <TableRow className="hover:bg-transparent">
+            <TableCell
+                colSpan={cols}
+                className="py-10 text-center text-muted-foreground"
+            >
+                {children}
+            </TableCell>
+        </TableRow>
+    );
+}
+
+function Groups({ groups }: { groups: string[] }) {
+    return (
+        <div className="flex flex-wrap gap-1">
+            {groups.map((g) => (
+                <Badge key={g} variant="secondary">
+                    {g}
+                </Badge>
+            ))}
         </div>
     );
 }
@@ -60,35 +101,57 @@ function Users({ users }: { users: SeenUser[] }) {
         <Card className="py-0">
             <Table>
                 <TableHeader>
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent">
                         <TableHead>User</TableHead>
-                        <TableHead>Groups</TableHead>
-                        <TableHead>Last login</TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                            Groups
+                        </TableHead>
+                        <TableHead className="text-right">Last login</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
+                    {users.length === 0 && (
+                        <Empty cols={3}>No one has logged in yet.</Empty>
+                    )}
                     {users.map((u) => (
                         <TableRow key={`${u.iss} ${u.sub}`}>
-                            <TableCell title={u.sub}>
-                                {u.email ?? u.sub}
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                    {u.groups.map((g) => (
-                                        <Badge key={g} variant="secondary">
-                                            {g}
-                                        </Badge>
-                                    ))}
+                            <TableCell
+                                title={u.sub}
+                                className="whitespace-normal"
+                            >
+                                <div className="font-medium break-all">
+                                    {u.email ?? u.sub}
+                                </div>
+                                <div className="mt-1 sm:hidden">
+                                    <Groups groups={u.groups} />
                                 </div>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
-                                {new Date(u.lastLogin).toLocaleString()}
+                            <TableCell className="hidden whitespace-normal sm:table-cell">
+                                <Groups groups={u.groups} />
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">
+                                {when(u.lastLogin)}
                             </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
         </Card>
+    );
+}
+
+function Details({ data }: { data: Record<string, unknown> }) {
+    return (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-xs">
+            {Object.entries(data)
+                .filter(([, v]) => v != null)
+                .map(([k, v]) => (
+                    <span key={k} className="break-all">
+                        <span className="text-muted-foreground">{k}=</span>
+                        {typeof v === "string" ? v : JSON.stringify(v)}
+                    </span>
+                ))}
+        </div>
     );
 }
 
@@ -101,34 +164,54 @@ function Audit() {
         <Card className="py-0">
             <Table>
                 <TableHeader>
-                    <TableRow>
-                        <TableHead>Time</TableHead>
+                    <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-0">Time</TableHead>
                         <TableHead>Event</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Details</TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                            User
+                        </TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                            Details
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {entries.map(({ id, ts, event, sub, email, ...rest }) => (
-                        <TableRow key={id} className="align-top">
-                            <TableCell className="text-muted-foreground">
-                                {new Date(ts).toLocaleString()}
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant="outline" className="font-mono">
-                                    {event}
-                                </Badge>
-                            </TableCell>
-                            <TableCell title={sub ?? ""}>
-                                {String(email ?? sub ?? "")}
-                            </TableCell>
-                            <TableCell className="min-w-64 whitespace-normal">
-                                <code className="font-mono text-xs break-all text-muted-foreground">
-                                    {JSON.stringify(rest)}
-                                </code>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {entries.length === 0 && (
+                        <Empty cols={4}>No events yet.</Empty>
+                    )}
+                    {entries.map(({ id, ts, event, sub, email, ...rest }) => {
+                        const user = String(email ?? sub ?? "");
+                        return (
+                            <TableRow key={id} className="*:align-top">
+                                <TableCell className="text-muted-foreground tabular-nums">
+                                    {when(ts)}
+                                </TableCell>
+                                <TableCell className="whitespace-normal">
+                                    <Badge
+                                        variant="outline"
+                                        className="font-mono"
+                                    >
+                                        {event}
+                                    </Badge>
+                                    <div className="mt-1 flex flex-col gap-0.5 sm:hidden">
+                                        <span className="break-all">
+                                            {user}
+                                        </span>
+                                        <Details data={rest} />
+                                    </div>
+                                </TableCell>
+                                <TableCell
+                                    title={sub ?? ""}
+                                    className="hidden sm:table-cell"
+                                >
+                                    {user}
+                                </TableCell>
+                                <TableCell className="hidden min-w-64 whitespace-normal sm:table-cell">
+                                    <Details data={rest} />
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
                 </TableBody>
             </Table>
         </Card>
@@ -139,6 +222,7 @@ function Hosts({ users }: { users: SeenUser[] }) {
     const [hosts, setHosts] = useState<AdminHost[]>();
     const [error, setError] = useState("");
     const [snippets, setSnippets] = useState<Record<string, EnrollSnippet>>({});
+    const [open, setOpen] = useState<string>();
 
     const reload = useCallback(
         () =>
@@ -162,8 +246,10 @@ function Hosts({ users }: { users: SeenUser[] }) {
         }
     };
 
-    const showSnippet = (id: string, s: EnrollSnippet) =>
+    const showSnippet = (id: string, s: EnrollSnippet) => {
         setSnippets((all) => ({ ...all, [id]: s }));
+        setOpen(id);
+    };
 
     const groups = [
         ...new Set([
@@ -184,108 +270,278 @@ function Hosts({ users }: { users: SeenUser[] }) {
                     <option key={g} value={g} />
                 ))}
             </datalist>
-            <AddHost
-                onAdd={(name, address) =>
-                    act(async () => {
-                        const { id, ...s } = await api<
-                            EnrollSnippet & { id: string }
-                        >("/api/admin/hosts", "POST", {
-                            name,
-                            address,
-                        });
-                        showSnippet(id, s);
-                    })
-                }
-            />
-            <ul className="flex flex-col gap-3">
-                {hosts?.map((host) => (
-                    <HostCard
-                        key={host.id}
-                        host={host}
-                        snippet={snippets[host.id]}
-                        onSave={(name, address) =>
-                            act(() =>
-                                api(`/api/admin/hosts/${host.id}`, "PATCH", {
-                                    name,
-                                    address,
-                                }),
-                            )
-                        }
-                        onSnippet={() =>
-                            act(async () =>
-                                showSnippet(
-                                    host.id,
-                                    await api<EnrollSnippet>(
-                                        `/api/admin/hosts/${host.id}/snippet`,
-                                        "POST",
-                                    ),
-                                ),
-                            )
-                        }
-                        onAccess={(rules) =>
-                            act(() =>
-                                api(
-                                    `/api/admin/hosts/${host.id}/access`,
-                                    "PUT",
-                                    rules,
-                                ),
-                            )
-                        }
-                    />
-                ))}
-            </ul>
+            <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                    {hosts &&
+                        `${hosts.length} host${hosts.length === 1 ? "" : "s"}`}
+                </span>
+                <AddHost onAdded={reload} />
+            </div>
+            <Card className="py-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                            <TableHead>Host</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="hidden sm:table-cell">
+                                Access
+                            </TableHead>
+                            <TableHead className="w-0" />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {hosts?.length === 0 && (
+                            <Empty cols={4}>
+                                No hosts yet. Add one to get an enroll snippet.
+                            </Empty>
+                        )}
+                        {hosts?.map((host) => (
+                            <HostRow
+                                key={host.id}
+                                host={host}
+                                open={open === host.id}
+                                onToggle={() =>
+                                    setOpen(
+                                        open === host.id ? undefined : host.id,
+                                    )
+                                }
+                                snippet={snippets[host.id]}
+                                onSave={(name, address) =>
+                                    act(() =>
+                                        api(
+                                            `/api/admin/hosts/${host.id}`,
+                                            "PATCH",
+                                            { name, address },
+                                        ),
+                                    )
+                                }
+                                onSnippet={() =>
+                                    act(async () =>
+                                        showSnippet(
+                                            host.id,
+                                            await api<EnrollSnippet>(
+                                                `/api/admin/hosts/${host.id}/snippet`,
+                                                "POST",
+                                            ),
+                                        ),
+                                    )
+                                }
+                                onAccess={(rules) =>
+                                    act(() =>
+                                        api(
+                                            `/api/admin/hosts/${host.id}/access`,
+                                            "PUT",
+                                            rules,
+                                        ),
+                                    )
+                                }
+                            />
+                        ))}
+                    </TableBody>
+                </Table>
+            </Card>
         </>
     );
 }
 
-function AddHost({
-    onAdd,
-}: {
-    onAdd: (name: string, address: string) => Promise<void>;
-}) {
+function AddHost({ onAdded }: { onAdded: () => void }) {
+    const [open, setOpen] = useState(false);
     const [name, setName] = useState("");
     const [address, setAddress] = useState("");
-    const submit = async (e: FormEvent) => {
-        e.preventDefault();
-        await onAdd(name.trim(), address.trim());
+    const [error, setError] = useState("");
+    const [snippet, setSnippet] = useState<EnrollSnippet>();
+    const reset = (o: boolean) => {
+        setOpen(o);
+        if (o) return;
         setName("");
         setAddress("");
+        setError("");
+        setSnippet(undefined);
+    };
+    const submit = async (e: FormEvent) => {
+        e.preventDefault();
+        setError("");
+        try {
+            const { snippet, expiresAt } = await api<EnrollSnippet>(
+                "/api/admin/hosts",
+                "POST",
+                { name: name.trim(), address: address.trim() },
+            );
+            setSnippet({ snippet, expiresAt });
+            onAdded();
+        } catch (e) {
+            setError((e as Error).message);
+        }
     };
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Add host</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <form
-                    className="flex flex-col gap-2 sm:flex-row"
-                    onSubmit={submit}
-                >
-                    <Input
-                        {...noFill}
-                        placeholder="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                    />
-                    <Input
-                        {...noFill}
-                        placeholder="address (hostname or IP)"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        required
-                    />
-                    <Button type="submit">
-                        <Plus />
-                        Add host
-                    </Button>
-                </form>
-            </CardContent>
-        </Card>
+        <Dialog open={open} onOpenChange={reset}>
+            <DialogTrigger asChild>
+                <Button>
+                    <Plus />
+                    Add host
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="grid-cols-[minmax(0,1fr)] sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>
+                        {snippet ? `Enroll ${name.trim()}` : "Add host"}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {snippet
+                            ? "Step 2 of 2: run the snippet on the host."
+                            : "Step 1 of 2: name the host and where to reach it."}
+                    </DialogDescription>
+                </DialogHeader>
+                {snippet ? (
+                    <>
+                        <Snippet {...snippet} />
+                        <DialogFooter showCloseButton />
+                    </>
+                ) : (
+                    <form className="flex flex-col gap-4" onSubmit={submit}>
+                        {error && (
+                            <Alert variant="destructive">
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        )}
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="add-name">Name</Label>
+                            <Input
+                                {...noFill}
+                                id="add-name"
+                                placeholder="web1"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="add-address">Address</Label>
+                            <Input
+                                {...noFill}
+                                id="add-address"
+                                placeholder="hostname or IP"
+                                value={address}
+                                onChange={(e) => setAddress(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button type="submit">Next</Button>
+                        </DialogFooter>
+                    </form>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
 
-function HostCard({
+function Status({ enrolled }: { enrolled: boolean }) {
+    return (
+        <Badge
+            className={
+                enrolled
+                    ? "bg-emerald-500/15 text-emerald-400"
+                    : "bg-amber-500/15 text-amber-400"
+            }
+        >
+            <span className="size-1.5 rounded-full bg-current" />
+            {enrolled ? "enrolled" : "pending"}
+        </Badge>
+    );
+}
+
+function HostRow({
+    host,
+    open,
+    onToggle,
+    snippet,
+    onSave,
+    onSnippet,
+    onAccess,
+}: {
+    host: AdminHost;
+    open: boolean;
+    onToggle: () => void;
+    snippet?: EnrollSnippet;
+    onSave: (name: string, address: string) => void;
+    onSnippet: () => void;
+    onAccess: (rules: AccessRule[]) => void;
+}) {
+    return (
+        <Fragment>
+            <TableRow
+                className="cursor-pointer data-[open=true]:border-b-0 data-[open=true]:bg-muted/50"
+                data-open={open}
+                onClick={onToggle}
+            >
+                <TableCell className="whitespace-normal">
+                    <button
+                        type="button"
+                        aria-expanded={open}
+                        className="text-left outline-none focus-visible:underline"
+                    >
+                        <div className="font-medium">{host.name}</div>
+                        <div className="font-mono text-xs break-all text-muted-foreground">
+                            {host.address}
+                        </div>
+                    </button>
+                </TableCell>
+                <TableCell>
+                    <Status enrolled={host.enrolled} />
+                </TableCell>
+                <TableCell className="hidden whitespace-normal sm:table-cell">
+                    {host.access.length === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                    ) : (
+                        <Groups
+                            groups={host.access.map(
+                                (r) => `${r.group} → ${r.login}`,
+                            )}
+                        />
+                    )}
+                </TableCell>
+                <TableCell>
+                    <ChevronRight
+                        className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+                    />
+                </TableCell>
+            </TableRow>
+            {open && (
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableCell
+                        colSpan={4}
+                        className="px-4 pt-2 pb-5 whitespace-normal"
+                    >
+                        <HostPanel
+                            host={host}
+                            snippet={snippet}
+                            onSave={onSave}
+                            onSnippet={onSnippet}
+                            onAccess={onAccess}
+                        />
+                    </TableCell>
+                </TableRow>
+            )}
+        </Fragment>
+    );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-medium text-muted-foreground">
+                {title}
+            </h3>
+            {children}
+        </section>
+    );
+}
+
+function HostPanel({
     host,
     snippet,
     onSave,
@@ -303,66 +559,64 @@ function HostCard({
     const changed = name !== host.name || address !== host.address;
 
     return (
-        <li>
-            <Card>
-                <CardContent className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-5">
+            <div className="grid gap-5 md:grid-cols-2">
+                <Section title="Details">
+                    <form
+                        className="flex flex-col gap-2"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            onSave(name.trim(), address.trim());
+                        }}
+                    >
                         <Input
                             {...noFill}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             aria-label="name"
+                            required
                         />
                         <Input
                             {...noFill}
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
                             aria-label="address"
+                            required
                         />
-                        {changed && (
+                        <div className="flex items-center gap-2">
+                            <code className="font-mono text-xs text-muted-foreground">
+                                {host.id}
+                            </code>
                             <Button
-                                onClick={() =>
-                                    onSave(name.trim(), address.trim())
-                                }
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="ml-auto"
+                                onClick={onSnippet}
                             >
-                                Save
+                                {host.enrolled ? "Re-enroll" : "Enroll snippet"}
                             </Button>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                            className={
-                                host.enrolled
-                                    ? "bg-emerald-500/15 text-emerald-400"
-                                    : "bg-amber-500/15 text-amber-400"
-                            }
-                        >
-                            {host.enrolled ? "enrolled" : "pending"}
-                        </Badge>
-                        <code className="font-mono text-xs text-muted-foreground">
-                            {host.id}
-                        </code>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="ml-auto"
-                            onClick={onSnippet}
-                        >
-                            {host.enrolled ? "Re-enroll" : "Enroll snippet"}
-                        </Button>
-                    </div>
-                    {snippet && <Snippet {...snippet} />}
+                            {changed && (
+                                <Button type="submit" size="sm">
+                                    Save
+                                </Button>
+                            )}
+                        </div>
+                    </form>
+                </Section>
+                <Section title="Access">
                     <Access rules={host.access} onSave={onAccess} />
-                </CardContent>
-            </Card>
-        </li>
+                </Section>
+            </div>
+            {snippet && <Snippet {...snippet} />}
+        </div>
     );
 }
 
 function Snippet({ snippet, expiresAt }: EnrollSnippet) {
     const [copied, setCopied] = useState(false);
     return (
-        <div className="flex flex-col gap-2">
+        <Section title="Enroll">
             <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">
                     Run as root on the host. One-time, expires{" "}
@@ -385,7 +639,7 @@ function Snippet({ snippet, expiresAt }: EnrollSnippet) {
             <pre className="overflow-x-auto rounded-lg bg-black p-3 font-mono text-xs">
                 {snippet}
             </pre>
-        </div>
+        </Section>
     );
 }
 
@@ -404,34 +658,39 @@ function Access({
         setLogin("");
     };
     return (
-        <div className="flex flex-col gap-3 border-t pt-4">
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">Access</span>
-                {rules.length === 0 && (
-                    <span className="text-sm text-muted-foreground">
-                        No one can log in yet.
-                    </span>
-                )}
-                {rules.map((r) => (
-                    <Badge
-                        variant="secondary"
-                        className="h-6 pr-0.5"
-                        key={`${r.login}/${r.group}`}
-                    >
-                        {r.group} → {r.login}
-                        <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="size-5 rounded-full"
-                            aria-label={`remove ${r.group} → ${r.login}`}
-                            onClick={() => onSave(rules.filter((x) => x !== r))}
+        <div className="flex flex-col gap-2">
+            {rules.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No one can log in yet.
+                </p>
+            ) : (
+                <ul className="flex flex-col divide-y rounded-lg border bg-background">
+                    {rules.map((r) => (
+                        <li
+                            key={`${r.login}/${r.group}`}
+                            className="flex items-center gap-2 py-1 pr-1 pl-3 text-sm"
                         >
-                            <X />
-                        </Button>
-                    </Badge>
-                ))}
-            </div>
-            <form className="flex flex-col gap-2 sm:flex-row" onSubmit={add}>
+                            <span className="font-medium">{r.group}</span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="font-mono">{r.login}</span>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                className="ml-auto"
+                                aria-label={`remove ${r.group} → ${r.login}`}
+                                onClick={() =>
+                                    confirm(
+                                        `Remove ${r.group} → ${r.login}?`,
+                                    ) && onSave(rules.filter((x) => x !== r))
+                                }
+                            >
+                                <X />
+                            </Button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <form className="flex gap-2" onSubmit={add}>
                 <Input
                     {...noFill}
                     placeholder="IdP group"

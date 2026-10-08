@@ -57,17 +57,23 @@ async function openAdmin(page: Page) {
         return r.fulfill({ json: hosts });
     });
     await page.goto("/admin/hosts");
+    await page.getByRole("button", { name: /web1/ }).click();
     await expect(page.getByLabel("name")).toHaveValue("web1");
     return calls;
 }
 
 test("add host shows the enroll snippet", async ({ page }) => {
     const calls = await openAdmin(page);
-    await page.getByPlaceholder("name", { exact: true }).fill("db1");
-    await page.getByPlaceholder("address (hostname or IP)").fill("10.0.0.2");
     await page.getByRole("button", { name: "Add host" }).click();
-    await expect(page.getByText("curl enroll")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Copy" })).toBeVisible();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Name").fill("db1");
+    await dialog.getByLabel("Address").fill("10.0.0.2");
+    await dialog.getByRole("button", { name: "Next" }).click();
+    await expect(dialog.getByText("curl enroll")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Copy" })).toBeVisible();
+    await expect(page.getByText("2 hosts")).toBeVisible();
+    await dialog.getByRole("button", { name: "Close" }).first().click();
+    await expect(dialog).toBeHidden();
     expect(calls).toContainEqual({
         method: "POST",
         path: "/api/admin/hosts",
@@ -75,8 +81,14 @@ test("add host shows the enroll snippet", async ({ page }) => {
     });
 });
 
-test("removing an access rule PUTs the remaining rules", async ({ page }) => {
+test("removing an access rule asks first, then PUTs the remaining rules", async ({
+    page,
+}) => {
     const calls = await openAdmin(page);
+    page.once("dialog", (d) => d.dismiss());
+    await page.getByRole("button", { name: "remove ops → root" }).click();
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "remove ops → root" }).click();
     await expect
         .poll(() => calls.find((c) => c.method === "PUT"))
@@ -87,12 +99,35 @@ test("removing an access rule PUTs the remaining rules", async ({ page }) => {
         });
 });
 
-test("tabs switch to users and audit", async ({ page }) => {
+// On mobile the sidebar is a sheet behind the trigger.
+async function sidebar(page: Page, isMobile: boolean) {
+    if (isMobile)
+        await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+    return page.locator("[data-sidebar=sidebar]");
+}
+
+test("sidebar switches to users and audit", async ({ page, isMobile }) => {
     await openAdmin(page);
-    await page.getByRole("tab", { name: "Users" }).click();
+    await (await sidebar(page, isMobile))
+        .getByRole("link", { name: "Users" })
+        .click();
     await expect(page).toHaveURL("/admin/users");
     await expect(page.getByRole("cell", { name: "ops" })).toBeVisible();
-    await page.getByRole("tab", { name: "Audit" }).click();
+    await (await sidebar(page, isMobile))
+        .getByRole("link", { name: "Audit" })
+        .click();
     await expect(page).toHaveURL("/admin/audit");
     await expect(page.getByText("login", { exact: true })).toBeVisible();
+});
+
+test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {
+    await openAdmin(page);
+    const posted = page.waitForRequest(
+        (r) => r.method() === "POST" && r.url().endsWith("/auth/logout"),
+    );
+    await page.route("/auth/logout", (r) => r.fulfill({ body: "bye" }));
+    await (await sidebar(page, isMobile))
+        .getByRole("button", { name: "Sign out" })
+        .click();
+    await posted;
 });

@@ -26,7 +26,7 @@ async function openTerminal(page: Page) {
         });
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "root" }).click();
+    await page.getByRole("link", { name: "root" }).click();
     await expect(page.getByText("connected", { exact: true })).toBeVisible();
     return { typed, url: () => new URL(url) };
 }
