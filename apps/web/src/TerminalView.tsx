@@ -2,7 +2,10 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import type { ClientMessage, HostSummary } from "@repo/shared";
+import { cn } from "cn";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "./components/ui/button";
 import { KEYS, type Key, keyBytes, type Mods, withMods } from "./keys";
 
 const NO_MODS: Mods = { ctrl: false, alt: false };
@@ -89,28 +92,41 @@ export function TerminalView({
     }, [host.id, login]);
 
     return (
-        <div className="term-page">
-            <header>
-                <button type="button" onClick={onBack}>
-                    ← hosts
-                </button>
-                <span>
+        <div className="flex h-full flex-col bg-black">
+            <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-2">
+                <Button variant="ghost" size="sm" onClick={onBack}>
+                    <ArrowLeft />
+                    Hosts
+                </Button>
+                <span className="truncate font-mono text-sm">
                     {login}@{host.name}
                 </span>
-                <span className="muted">{status}</span>
+                <span className="ml-auto flex shrink-0 items-center gap-1.5 pr-2 text-xs text-muted-foreground">
+                    <span
+                        className={cn(
+                            "size-2 rounded-full",
+                            status === "connected"
+                                ? "bg-emerald-500"
+                                : status.startsWith("closed")
+                                  ? "bg-red-500"
+                                  : "bg-amber-500",
+                        )}
+                    />
+                    {status}
+                </span>
             </header>
-            <div ref={ref} className="term" />
-            <div className="keybar">
+            <div ref={ref} className="min-h-0 flex-1 p-1" />
+            <div className="hidden grid-cols-7 border-t bg-background pointer-coarse:grid">
                 {KEYS.map((key) => (
                     <button
                         type="button"
                         key={key}
-                        className={
-                            (key === "CTRL" && mods.ctrl) ||
-                            (key === "ALT" && mods.alt)
-                                ? "on"
-                                : ""
-                        }
+                        className={cn(
+                            "touch-manipulation py-2.5 text-sm text-muted-foreground select-none",
+                            ((key === "CTRL" && mods.ctrl) ||
+                                (key === "ALT" && mods.alt)) &&
+                                "bg-muted text-foreground",
+                        )}
                         // pointerdown + preventDefault keeps focus (and the soft keyboard) on the terminal.
                         onPointerDown={(e) => {
                             e.preventDefault();

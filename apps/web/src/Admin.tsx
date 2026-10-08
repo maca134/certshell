@@ -5,9 +5,24 @@ import type {
     EnrollSnippet,
     SeenUser,
 } from "@repo/shared";
+import { Check, Copy, Plus, X } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { api } from "./api";
+import { Alert, AlertDescription } from "./components/ui/alert";
+import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Input } from "./components/ui/input";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "./components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 
 const VIEWS = ["hosts", "users", "audit"] as const;
 
@@ -23,46 +38,57 @@ export function Admin() {
     if (!(VIEWS as readonly string[]).includes(view))
         return <Redirect to="/hosts" replace />;
     return (
-        <>
-            <nav className="sub">
-                {VIEWS.map((v) => (
-                    <button
-                        type="button"
-                        key={v}
-                        className={view === v ? "" : "link"}
-                        onClick={() => navigate(`/${v}`)}
-                    >
-                        {v[0]?.toUpperCase() + v.slice(1)}
-                    </button>
-                ))}
-            </nav>
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 sm:p-6">
+            <Tabs value={view} onValueChange={(v) => navigate(`/${v}`)}>
+                <TabsList>
+                    {VIEWS.map((v) => (
+                        <TabsTrigger key={v} value={v}>
+                            {v[0]?.toUpperCase() + v.slice(1)}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+            </Tabs>
             {view === "hosts" && <Hosts users={users} />}
             {view === "users" && <Users users={users} />}
             {view === "audit" && <Audit />}
-        </>
+        </div>
     );
 }
 
 function Users({ users }: { users: SeenUser[] }) {
     return (
-        <table>
-            <thead>
-                <tr>
-                    <th>User</th>
-                    <th>Groups</th>
-                    <th>Last login</th>
-                </tr>
-            </thead>
-            <tbody>
-                {users.map((u) => (
-                    <tr key={`${u.iss} ${u.sub}`}>
-                        <td title={u.sub}>{u.email ?? u.sub}</td>
-                        <td>{u.groups.join(", ")}</td>
-                        <td>{new Date(u.lastLogin).toLocaleString()}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+        <Card className="py-0">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Groups</TableHead>
+                        <TableHead>Last login</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {users.map((u) => (
+                        <TableRow key={`${u.iss} ${u.sub}`}>
+                            <TableCell title={u.sub}>
+                                {u.email ?? u.sub}
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                    {u.groups.map((g) => (
+                                        <Badge key={g} variant="secondary">
+                                            {g}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                                {new Date(u.lastLogin).toLocaleString()}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </Card>
     );
 }
 
@@ -72,28 +98,40 @@ function Audit() {
         api<AuditEntry[]>("/api/admin/audit?limit=200").then(setEntries);
     }, []);
     return (
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Event</th>
-                    <th>User</th>
-                    <th>Details</th>
-                </tr>
-            </thead>
-            <tbody>
-                {entries.map(({ id, ts, event, sub, email, ...rest }) => (
-                    <tr key={id}>
-                        <td>{new Date(ts).toLocaleString()}</td>
-                        <td>{event}</td>
-                        <td title={sub ?? ""}>{String(email ?? sub ?? "")}</td>
-                        <td>
-                            <code>{JSON.stringify(rest)}</code>
-                        </td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+        <Card className="py-0">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Event</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Details</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {entries.map(({ id, ts, event, sub, email, ...rest }) => (
+                        <TableRow key={id} className="align-top">
+                            <TableCell className="text-muted-foreground">
+                                {new Date(ts).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant="outline" className="font-mono">
+                                    {event}
+                                </Badge>
+                            </TableCell>
+                            <TableCell title={sub ?? ""}>
+                                {String(email ?? sub ?? "")}
+                            </TableCell>
+                            <TableCell className="min-w-64 whitespace-normal">
+                                <code className="font-mono text-xs break-all text-muted-foreground">
+                                    {JSON.stringify(rest)}
+                                </code>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </Card>
     );
 }
 
@@ -136,7 +174,11 @@ function Hosts({ users }: { users: SeenUser[] }) {
 
     return (
         <>
-            {error && <p className="error">{error}</p>}
+            {error && (
+                <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
             <datalist id="idp-groups">
                 {groups.map((g) => (
                     <option key={g} value={g} />
@@ -155,7 +197,7 @@ function Hosts({ users }: { users: SeenUser[] }) {
                     })
                 }
             />
-            <ul className="cards admin">
+            <ul className="flex flex-col gap-3">
                 {hosts?.map((host) => (
                     <HostCard
                         key={host.id}
@@ -210,23 +252,36 @@ function AddHost({
         setAddress("");
     };
     return (
-        <form className="row" onSubmit={submit}>
-            <input
-                {...noFill}
-                placeholder="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-            />
-            <input
-                {...noFill}
-                placeholder="address (hostname or IP)"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-            />
-            <button type="submit">Add host</button>
-        </form>
+        <Card>
+            <CardHeader>
+                <CardTitle>Add host</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <form
+                    className="flex flex-col gap-2 sm:flex-row"
+                    onSubmit={submit}
+                >
+                    <Input
+                        {...noFill}
+                        placeholder="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                    />
+                    <Input
+                        {...noFill}
+                        placeholder="address (hostname or IP)"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        required
+                    />
+                    <Button type="submit">
+                        <Plus />
+                        Add host
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -249,37 +304,57 @@ function HostCard({
 
     return (
         <li>
-            <div className="row">
-                <input
-                    {...noFill}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    aria-label="name"
-                />
-                <input
-                    {...noFill}
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    aria-label="address"
-                />
-                {changed && (
-                    <button
-                        type="button"
-                        onClick={() => onSave(name.trim(), address.trim())}
-                    >
-                        Save
-                    </button>
-                )}
-                <code className="muted">{host.id}</code>
-                <span className={host.enrolled ? "ok" : "warn"}>
-                    {host.enrolled ? "enrolled" : "pending"}
-                </span>
-                <button type="button" className="link" onClick={onSnippet}>
-                    {host.enrolled ? "Re-enroll" : "Enroll snippet"}
-                </button>
-            </div>
-            {snippet && <Snippet {...snippet} />}
-            <Access rules={host.access} onSave={onAccess} />
+            <Card>
+                <CardContent className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input
+                            {...noFill}
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            aria-label="name"
+                        />
+                        <Input
+                            {...noFill}
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            aria-label="address"
+                        />
+                        {changed && (
+                            <Button
+                                onClick={() =>
+                                    onSave(name.trim(), address.trim())
+                                }
+                            >
+                                Save
+                            </Button>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                            className={
+                                host.enrolled
+                                    ? "bg-emerald-500/15 text-emerald-400"
+                                    : "bg-amber-500/15 text-amber-400"
+                            }
+                        >
+                            {host.enrolled ? "enrolled" : "pending"}
+                        </Badge>
+                        <code className="font-mono text-xs text-muted-foreground">
+                            {host.id}
+                        </code>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={onSnippet}
+                        >
+                            {host.enrolled ? "Re-enroll" : "Enroll snippet"}
+                        </Button>
+                    </div>
+                    {snippet && <Snippet {...snippet} />}
+                    <Access rules={host.access} onSave={onAccess} />
+                </CardContent>
+            </Card>
         </li>
     );
 }
@@ -287,24 +362,29 @@ function HostCard({
 function Snippet({ snippet, expiresAt }: EnrollSnippet) {
     const [copied, setCopied] = useState(false);
     return (
-        <div className="snippet">
-            <div className="row">
-                <span className="muted">
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
                     Run as root on the host. One-time, expires{" "}
                     {new Date(expiresAt * 1000).toLocaleTimeString()}.
                 </span>
-                <button
-                    type="button"
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
                     onClick={() =>
                         navigator.clipboard
                             .writeText(snippet)
                             .then(() => setCopied(true))
                     }
                 >
+                    {copied ? <Check /> : <Copy />}
                     {copied ? "Copied" : "Copy"}
-                </button>
+                </Button>
             </div>
-            <pre>{snippet}</pre>
+            <pre className="overflow-x-auto rounded-lg bg-black p-3 font-mono text-xs">
+                {snippet}
+            </pre>
         </div>
     );
 }
@@ -324,25 +404,35 @@ function Access({
         setLogin("");
     };
     return (
-        <div className="access">
-            {rules.length === 0 && (
-                <span className="muted">No one can log in yet.</span>
-            )}
-            {rules.map((r) => (
-                <span className="chip" key={`${r.login}/${r.group}`}>
-                    {r.group} → {r.login}
-                    <button
-                        type="button"
-                        className="link"
-                        aria-label={`remove ${r.group} → ${r.login}`}
-                        onClick={() => onSave(rules.filter((x) => x !== r))}
+        <div className="flex flex-col gap-3 border-t pt-4">
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">Access</span>
+                {rules.length === 0 && (
+                    <span className="text-sm text-muted-foreground">
+                        No one can log in yet.
+                    </span>
+                )}
+                {rules.map((r) => (
+                    <Badge
+                        variant="secondary"
+                        className="h-6 pr-0.5"
+                        key={`${r.login}/${r.group}`}
                     >
-                        ×
-                    </button>
-                </span>
-            ))}
-            <form className="row" onSubmit={add}>
-                <input
+                        {r.group} → {r.login}
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="size-5 rounded-full"
+                            aria-label={`remove ${r.group} → ${r.login}`}
+                            onClick={() => onSave(rules.filter((x) => x !== r))}
+                        >
+                            <X />
+                        </Button>
+                    </Badge>
+                ))}
+            </div>
+            <form className="flex flex-col gap-2 sm:flex-row" onSubmit={add}>
+                <Input
                     {...noFill}
                     placeholder="IdP group"
                     list="idp-groups"
@@ -350,14 +440,16 @@ function Access({
                     onChange={(e) => setGroup(e.target.value)}
                     required
                 />
-                <input
+                <Input
                     {...noFill}
                     placeholder="login"
                     value={login}
                     onChange={(e) => setLogin(e.target.value)}
                     required
                 />
-                <button type="submit">Allow</button>
+                <Button type="submit" variant="secondary">
+                    Allow
+                </Button>
             </form>
         </div>
     );
