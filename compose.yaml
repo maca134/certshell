@@ -6,12 +6,13 @@ services:
     init: true
     restart: unless-stopped
     environment:
-      APP_URL: https://ssh.dev.example.com
-      CA_NAME: "Mac SSH CA"
-      OIDC_ISSUER: https://id.dev.example.com
+      APP_URL: https://${SSH_DOMAIN}
+      CA_NAME: ${CA_NAME}
+      OIDC_ISSUER: https://${ID_DOMAIN}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      TRUSTED_PROXIES: 172.30.0.2,100.64.0.2   # VPS ingress, edge Traefik (over VPN)
+      OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP}
+      TRUSTED_PROXIES: 172.30.0.2,${UPSTREAM_PROXY}
     secrets: [ca_password]
     volumes: ["./data:/data"]
     read_only: true
@@ -22,7 +23,7 @@ services:
     mem_limit: 512m
     labels:
       traefik.enable: "true"
-      traefik.http.routers.webssh.rule: Host(`ssh.dev.example.com`)
+      traefik.http.routers.webssh.rule: Host(`${SSH_DOMAIN}`)
       traefik.http.services.webssh.loadbalancer.server.port: "3000"
     networks: [ingress]
 
@@ -30,13 +31,13 @@ services:
     image: ghcr.io/pocket-id/pocket-id:v2@sha256:323e7ef5bfacf7cf32f22f3d10ccdf48e0c97c94d67e7e40b0b996830deb5165
     restart: unless-stopped
     environment:
-      APP_URL: https://id.dev.example.com
+      APP_URL: https://${ID_DOMAIN}
       TRUST_PROXY: "true"
       ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY}
     volumes: ["./pocket-id:/app/data"]
     labels:
       traefik.enable: "true"
-      traefik.http.routers.pocketid.rule: Host(`id.dev.example.com`)
+      traefik.http.routers.pocketid.rule: Host(`${ID_DOMAIN}`)
       traefik.http.services.pocketid.loadbalancer.server.port: "1411"
     networks: [ingress]
 
@@ -53,7 +54,7 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
-      - --entrypoints.web.forwardedHeaders.trustedIPs=100.64.0.2
+      - --entrypoints.web.forwardedHeaders.trustedIPs=${UPSTREAM_PROXY}
     ports: ["${MGMT_IP}:80:80"]
     volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"]
     networks:

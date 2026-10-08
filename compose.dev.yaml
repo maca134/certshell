@@ -1,11 +1,11 @@
 # Dev overlay: Vite with HMR + API with bun --watch, both on bind-mounted source.
 #   docker compose -f compose.yaml -f compose.dev.yaml up -d
-# https://ssh.dev.example.com → Traefik → web-dev (Vite) → /api, /auth → web-ssh
+# https://$SSH_DOMAIN → Traefik → web-dev (Vite) → /api, /auth → web-ssh
 services:
   web-ssh:
     entrypoint: ["bun", "--watch", "apps/api/src/main.ts"]
     environment:
-      TRUSTED_PROXIES: 172.30.0.2,100.64.0.2,172.30.0.3   # + web-dev
+      TRUSTED_PROXIES: 172.30.0.2,${UPSTREAM_PROXY},172.30.0.3   # + web-dev
     volumes:
       - ./apps/api/src:/app/apps/api/src:ro
       - ./packages/shared/src:/app/packages/shared/src:ro
@@ -18,7 +18,7 @@ services:
     command: ["bun", "run", "dev"]
     environment:
       API_URL: http://web-ssh:3000
-      DEV_PUBLIC_HOST: ssh.dev.example.com
+      DEV_PUBLIC_HOST: ${SSH_DOMAIN}
     volumes:
       - ./apps/web:/app/apps/web   # rw: Vite writes its cache to apps/web/node_modules/.vite
       - ./packages:/app/packages:ro
@@ -26,7 +26,7 @@ services:
       - ./bun.lock:/app/bun.lock:ro
     labels:
       traefik.enable: "true"
-      traefik.http.routers.webdev.rule: Host(`ssh.dev.example.com`)
+      traefik.http.routers.webdev.rule: Host(`${SSH_DOMAIN}`)
       traefik.http.services.webdev.loadbalancer.server.port: "5173"
     networks:
       ingress: { ipv4_address: 172.30.0.3 }
