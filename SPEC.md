@@ -126,10 +126,10 @@ AuthorizedPrincipalsCommandUser nobody
 The admin enters the host's name and address (editable later in the UI), then gets a one-liner to run as root on the host:
 
 ```sh
-curl -fsS -H 'Authorization: Bearer <token>' 'https://ssh.example.com/api/enroll' | sh
+echo 'Authorization: Bearer <token>' | curl -fsS -H @- 'https://ssh.example.com/api/enroll' | sh
 ```
 
-`GET /api/enroll` (same token, not consumed) returns the script below with the CA pubkey and token inlined; the script's `POST /api/enroll` consumes the token. The script is wrapped in `main() { … }; main` so a truncated download is a syntax error, not half a run.
+The token goes to curl on stdin (`-H @-`), never argv, so other local users can't read it from `ps`. `GET /api/enroll` (same token, not consumed) returns the script below with the CA pubkey and token inlined; the script's `POST /api/enroll` consumes the token. The script is wrapped in `main() { … }; main` so a truncated download is a syntax error, not half a run.
 
 ```sh
 #!/bin/sh
@@ -151,8 +151,8 @@ sshd -t
 sshd -T | grep -qx 'trustedusercakeys /etc/ssh/web_ssh_user_ca.pub' || {
   echo "sshd_config does not Include sshd_config.d/*.conf" >&2; rm "$CONF"; exit 1; }
 
-curl -fsS -X POST "$APP_URL/api/enroll" \
-  -H "Authorization: Bearer $TOKEN" \
+printf 'Authorization: Bearer %s\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \
+  -H @- \
   --data-binary @/etc/ssh/ssh_host_ed25519_key.pub
 
 if [ -d /run/systemd/system ]; then

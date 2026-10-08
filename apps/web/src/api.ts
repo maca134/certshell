@@ -1,5 +1,3 @@
-import type { ApiError } from "@repo/shared";
-
 export async function api<T = void>(
     path: string,
     method = "GET",
@@ -17,7 +15,7 @@ export async function api<T = void>(
     }
     if (!res.ok) {
         const err = (await res.json().catch(() => undefined)) as
-            | ApiError
+            | { error?: string }
             | undefined;
         throw new Error(err?.error ?? `${res.status} ${res.statusText}`);
     }

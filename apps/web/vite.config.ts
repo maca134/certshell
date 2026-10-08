@@ -10,7 +10,7 @@ export default defineConfig({
     plugins: [react()],
     server: {
         host: "0.0.0.0",
-        // The dev container mounts the whole repo, including data/ca and secrets/; Vite's default allows all of it via /@fs/.
+        // Vite's default /@fs/ root is the workspace root, which holds data/ca and secrets/.
         fs: {
             allow: ["./", "../../packages", "../../node_modules"].map((p) =>
                 fileURLToPath(new URL(p, import.meta.url)),

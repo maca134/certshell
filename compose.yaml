@@ -27,7 +27,7 @@ services:
     networks: [ingress]
 
   pocket-id:
-    image: ghcr.io/pocket-id/pocket-id:v2
+    image: ghcr.io/pocket-id/pocket-id:v2@sha256:323e7ef5bfacf7cf32f22f3d10ccdf48e0c97c94d67e7e40b0b996830deb5165
     restart: unless-stopped
     environment:
       APP_URL: https://id.dev.example.com
@@ -47,7 +47,7 @@ services:
     networks: [ingress]
 
   ingress:
-    image: traefik:v3.7
+    image: traefik:v3.7@sha256:b588cb566045e1ebb185948a8e2456f9705cb915b5f0fb5ee698184233997817
     restart: unless-stopped
     command:
       - --providers.docker=true

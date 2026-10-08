@@ -3,12 +3,12 @@ export type Mods = { ctrl: boolean; alt: boolean };
 const CURSOR = { "↑": "A", "↓": "B", "→": "C", "←": "D", HOME: "H", END: "F" };
 const TILDE = { PGUP: "5", PGDN: "6" };
 
-export const KEY_ROWS = [
-    ["ESC", "/", "-", "HOME", "↑", "END", "PGUP"],
-    ["TAB", "CTRL", "ALT", "←", "↓", "→", "PGDN"],
+export const KEYS = [
+    ...["ESC", "/", "-", "HOME", "↑", "END", "PGUP"],
+    ...["TAB", "CTRL", "ALT", "←", "↓", "→", "PGDN"],
 ] as const;
 
-export type Key = (typeof KEY_ROWS)[number][number];
+export type Key = (typeof KEYS)[number];
 
 /** Applies held modifiers to typed text: CTRL+c → \x03, ALT+x → ESC x. */
 export function withMods(data: string, { ctrl, alt }: Mods) {

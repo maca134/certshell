@@ -3,9 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import type { ClientMessage, HostSummary } from "@repo/shared";
 import { useEffect, useRef, useState } from "react";
-import { KEY_ROWS, type Key, keyBytes, type Mods, withMods } from "./keys";
-
-type Target = { host: HostSummary; login: string };
+import { KEYS, type Key, keyBytes, type Mods, withMods } from "./keys";
 
 const NO_MODS: Mods = { ctrl: false, alt: false };
 
@@ -13,7 +11,11 @@ export function TerminalView({
     host,
     login,
     onBack,
-}: Target & { onBack: () => void }) {
+}: {
+    host: HostSummary;
+    login: string;
+    onBack: () => void;
+}) {
     const ref = useRef<HTMLDivElement>(null);
     const [status, setStatus] = useState("connecting…");
     const [mods, setMods] = useState(NO_MODS);
@@ -99,7 +101,7 @@ export function TerminalView({
             </header>
             <div ref={ref} className="term" />
             <div className="keybar">
-                {KEY_ROWS.flat().map((key) => (
+                {KEYS.map((key) => (
                     <button
                         type="button"
                         key={key}

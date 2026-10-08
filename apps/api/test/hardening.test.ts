@@ -35,6 +35,12 @@ test("rateLimiter: limit per key per window", async () => {
     expect(allow("a")).toBeTrue();
 });
 
+test("rateLimiter: past maxKeys, the oldest key is evicted", () => {
+    const allow = rateLimiter(1, 60_000, 2);
+    expect([allow("a"), allow("b"), allow("c")]).toEqual([true, true, true]);
+    expect([allow("b"), allow("c"), allow("a")]).toEqual([false, false, true]);
+});
+
 test("security headers on every response", async () => {
     ctx = await startApp();
     for (const res of [

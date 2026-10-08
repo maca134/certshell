@@ -137,7 +137,7 @@ test("create host → pending host + curl | sh one-liner", async () => {
     const { id, snippet, token, expiresAt } = await createHost();
     expect(id).toMatch(/^h[a-z0-9]{7}$/);
     expect(snippet).toBe(
-        `curl -fsS -H 'Authorization: Bearer ${token}' '${APP_URL}/api/enroll' | sh`,
+        `echo 'Authorization: Bearer ${token}' | curl -fsS -H @- '${APP_URL}/api/enroll' | sh`,
     );
     expect(token.length).toBeGreaterThan(40);
     expect(expiresAt - Date.now() / 1000).toBeGreaterThan(590);
@@ -180,6 +180,19 @@ test("snippet reloads sshd via systemd only when systemd is running", () => {
     });
     expect(snippet).toContain("if [ -d /run/systemd/system ]; then");
     expect(snippet).toContain('kill -HUP "$(cat /run/sshd.pid)"');
+});
+
+test("snippet: token reaches curl on stdin, not argv", () => {
+    const snippet = renderSnippet({
+        appUrl: "https://x",
+        hostId: "h1",
+        caPub: "k",
+        token: "t",
+    });
+    expect(snippet).toContain(
+        `printf 'Authorization: Bearer %s\\n' "$TOKEN" | curl -fsS -X POST`,
+    );
+    expect(snippet.match(/curl .*/g)?.join()).not.toContain("TOKEN");
 });
 
 test("snippet: a truncated download runs nothing", async () => {

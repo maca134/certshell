@@ -1,12 +1,13 @@
 // Shapes exchanged between apps/api and apps/web.
 
-export type Me = {
+export type User = {
     iss: string;
     sub: string;
     email: string | null;
     groups: string[];
-    admin: boolean;
 };
+
+export type Me = User & { admin: boolean };
 
 export type HostSummary = {
     id: string;
@@ -31,16 +32,8 @@ export type AdminHost = {
 
 export type EnrollSnippet = { snippet: string; expiresAt: number };
 
-export type ApiError = { error: string };
-
 /** Someone who has logged in at least once; groups as of their last login. */
-export type SeenUser = {
-    iss: string;
-    sub: string;
-    email: string | null;
-    groups: string[];
-    lastLogin: number;
-};
+export type SeenUser = User & { lastLogin: number };
 
 export type AuditEntry = {
     id: number;

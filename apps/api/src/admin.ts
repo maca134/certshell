@@ -54,8 +54,8 @@ sshd -t
 sshd -T | grep -qx 'trustedusercakeys /etc/ssh/web_ssh_user_ca.pub' || {
   echo "sshd_config does not Include sshd_config.d/*.conf" >&2; rm "$CONF"; exit 1; }
 
-curl -fsS -X POST "$APP_URL/api/enroll" \\
-  -H "Authorization: Bearer $TOKEN" \\
+printf 'Authorization: Bearer %s\\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \\
+  -H @- \\
   --data-binary @/etc/ssh/ssh_host_ed25519_key.pub
 
 if [ -d /run/systemd/system ]; then
@@ -71,9 +71,7 @@ main "$@"
 `;
 }
 
-type Deps = { config: Config; db: Database; caPubPath: string };
-
-export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
+export function adminRoutes({ config, db }: { config: Config; db: Database }) {
     const app = new Hono<AppEnv>();
 
     // Session cookies are SameSite=Lax, which still allows same-site (sibling subdomain) requests.
@@ -101,7 +99,7 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
             [hashToken(token), hostId, expiresAt],
         );
         return {
-            snippet: `curl -fsS -H ${sq(`Authorization: Bearer ${token}`)} ${sq(`${config.appUrl.origin}/api/enroll`)} | sh`,
+            snippet: `echo ${sq(`Authorization: Bearer ${token}`)} | curl -fsS -H @- ${sq(`${config.appUrl.origin}/api/enroll`)} | sh`,
             expiresAt,
         };
     }
@@ -114,24 +112,26 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
     app.get("/hosts", (c) => {
         const hosts = db
             .query<
-                { id: string; name: string; address: string; enrolled: number },
+                {
+                    id: string;
+                    name: string;
+                    address: string;
+                    enrolled: number;
+                    access: string;
+                },
                 []
             >(
-                "SELECT id, name, address, host_key IS NOT NULL AS enrolled FROM hosts ORDER BY name",
-            )
-            .all();
-        const access = db
-            .query<{ host_id: string; login: string; grp: string }, []>(
-                "SELECT host_id, login, grp FROM access ORDER BY login, grp",
+                `SELECT id, name, address, host_key IS NOT NULL AS enrolled,
+                   (SELECT json_group_array(json_object('login', login, 'group', grp) ORDER BY login, grp)
+                    FROM access WHERE host_id = h.id) AS access
+                 FROM hosts h ORDER BY name`,
             )
             .all();
         return c.json<AdminHost[]>(
             hosts.map((h) => ({
                 ...h,
                 enrolled: !!h.enrolled,
-                access: access
-                    .filter((a) => a.host_id === h.id)
-                    .map((a) => ({ login: a.login, group: a.grp })),
+                access: JSON.parse(h.access),
             })),
         );
     });
@@ -272,7 +272,15 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
     return app;
 }
 
-export function enrollRoute({ config, db, caPubPath }: Deps) {
+export function enrollRoute({
+    config,
+    db,
+    caPubPath,
+}: {
+    config: Config;
+    db: Database;
+    caPubPath: string;
+}) {
     const app = new Hono<AppEnv>();
     const bearer = (c: {
         req: { header: (h: string) => string | undefined };

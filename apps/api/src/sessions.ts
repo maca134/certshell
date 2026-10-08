@@ -1,13 +1,7 @@
 import type { Database } from "bun:sqlite";
+import type { User } from "@repo/shared";
 
 export const SESSION_TTL_SECONDS = 3600;
-
-export type User = {
-    iss: string;
-    sub: string;
-    email: string | null;
-    groups: string[];
-};
 
 export type AppEnv = { Variables: { user: User; ip: string } };
 

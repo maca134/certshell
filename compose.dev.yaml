@@ -19,7 +19,11 @@ services:
     environment:
       API_URL: http://web-ssh:3000
       DEV_PUBLIC_HOST: ssh.dev.example.com
-    volumes: [".:/app"]
+    volumes:
+      - ./apps/web:/app/apps/web   # rw: Vite writes its cache to apps/web/node_modules/.vite
+      - ./packages:/app/packages:ro
+      - ./node_modules:/app/node_modules:ro
+      - ./bun.lock:/app/bun.lock:ro
     labels:
       traefik.enable: "true"
       traefik.http.routers.webdev.rule: Host(`ssh.dev.example.com`)

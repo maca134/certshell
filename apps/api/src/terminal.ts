@@ -1,10 +1,11 @@
 import type { Database } from "bun:sqlite";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import type { User } from "@repo/shared";
 import { audit } from "./audit";
 import { mintUserCert } from "./certs";
 import type { Host } from "./hosts";
-import { now, type User } from "./sessions";
+import { now } from "./sessions";
 
 export type TerminalDeps = {
     db: Database;

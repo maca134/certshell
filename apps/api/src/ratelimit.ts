@@ -1,12 +1,15 @@
 // Fixed-window counter per key, in memory (single process).
-export function rateLimiter(limit: number, windowMs: number) {
+// Map order = insertion order = reset order, so expired keys are always at the front; past maxKeys the oldest go first.
+export function rateLimiter(limit: number, windowMs: number, maxKeys = 10_000) {
     const hits = new Map<string, { count: number; reset: number }>();
     return (key: string) => {
         const now = Date.now();
-        if (hits.size > 10_000)
-            for (const [k, v] of hits) if (v.reset <= now) hits.delete(k);
+        for (const [k, v] of hits) {
+            if (v.reset > now && (hits.size < maxKeys || hits.has(key))) break;
+            hits.delete(k);
+        }
         let hit = hits.get(key);
-        if (!hit || hit.reset <= now) {
+        if (!hit) {
             hit = { count: 0, reset: now + windowMs };
             hits.set(key, hit);
         }
