@@ -197,7 +197,7 @@ echo "enrolled: $(hostname)"
 
 ### Exposure hardening
 
-- Unauthenticated routes: `/auth/login`, `/auth/callback`, `/healthz` (returns nothing but status), `GET /api/enroll` (bearer token, returns the enroll script), `POST /api/enroll` (bearer token, consumes it). Everything else needs a session; admin routes need `OIDC_ADMIN_GROUP`.
+- Unauthenticated routes: `/auth/login`, `/auth/callback`, `/auth/logout` (POST ends the session, GET shows "signed out"), `/healthz` (returns nothing but status), `GET /api/enroll` (bearer token, returns the enroll script), `POST /api/enroll` (bearer token, consumes it). Everything else needs a session; admin routes need `OIDC_ADMIN_GROUP`.
 - Cookies `Secure`/`HttpOnly`/`SameSite=Lax` (`Strict` drops the cookie on the IdP's redirect back). WS `Origin` check against `APP_URL`.
 - Headers: CSP `default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'` (no inline scripts; inline styles because xterm.js injects `<style>`), HSTS, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
 - Rate limits: per IP on every unauthenticated route, per user on sign.

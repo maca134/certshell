@@ -184,6 +184,39 @@ test("session token is stored hashed", async () => {
     expect(row?.id_hash).toHaveLength(64);
 });
 
+test("logout ends the session, audits, and shows the signed-out page", async () => {
+    const cookie = await loggedIn();
+    const res = await app.request("https://ssh.test/auth/logout", {
+        method: "POST",
+        headers: { cookie },
+    });
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/auth/logout");
+    expect(
+        res.headers
+            .getSetCookie()
+            .some((c) => c.startsWith(`${SESSION_COOKIE}=;`)),
+    ).toBeTrue();
+    expect((await get("/api/me", cookie)).status).toBe(401);
+    const last = db
+        .query<{ event: string }, []>(
+            "SELECT event FROM audit ORDER BY id DESC LIMIT 1",
+        )
+        .get();
+    expect(last?.event).toBe("logout");
+
+    const page = await get("/auth/logout");
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain('href="/auth/login"');
+});
+
+test("logout without a session still redirects", async () => {
+    const res = await app.request("https://ssh.test/auth/logout", {
+        method: "POST",
+    });
+    expect(res.status).toBe(303);
+});
+
 test("IdP down → 503, then retries discovery", async () => {
     let calls = 0;
     const real = lazyDiscovery(config, insecure);

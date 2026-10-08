@@ -47,3 +47,10 @@ export function getSession(
         .get(hashToken(token), now());
     return row ? { ...row, groups: JSON.parse(row.groups) } : undefined;
 }
+
+export function deleteSession(db: Database, token: string | undefined) {
+    const user = getSession(db, token);
+    if (token)
+        db.run("DELETE FROM sessions WHERE id_hash = ?", [hashToken(token)]);
+    return user;
+}

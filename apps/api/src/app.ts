@@ -17,6 +17,7 @@ import { clientIp, rateLimiter } from "./ratelimit";
 import {
     type AppEnv,
     createSession,
+    deleteSession,
     getSession,
     SESSION_TTL_SECONDS,
 } from "./sessions";
@@ -38,9 +39,15 @@ const PUBLIC_ROUTES = new Set([
     "GET /healthz",
     "GET /auth/login",
     "GET /auth/callback",
+    "GET /auth/logout",
+    "POST /auth/logout",
     "GET /api/enroll",
     "POST /api/enroll",
 ]);
+
+const SIGNED_OUT_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Signed out</title>
+<body style="margin:0;height:100vh;display:grid;place-items:center;background:#09090b;color:#fafafa;font:15px system-ui,sans-serif">
+<p>Signed out. <a href="/auth/login" style="color:inherit">Sign in again</a></p>`;
 
 type Env = AppEnv & { Variables: { host: Host; login: string } };
 
@@ -217,6 +224,23 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
         });
         return c.redirect("/");
     });
+
+    app.post("/auth/logout", (c) => {
+        const user = deleteSession(db, getCookie(c, SESSION_COOKIE));
+        deleteCookie(c, SESSION_COOKIE, cookieOpts);
+        if (user)
+            audit(db, {
+                event: "logout",
+                iss: user.iss,
+                sub: user.sub,
+                email: user.email,
+                ip: c.var.ip,
+            });
+        return c.redirect("/auth/logout", 303);
+    });
+
+    // Not a redirect to /: that would bounce through the IdP and sign straight back in.
+    app.get("/auth/logout", (c) => c.html(SIGNED_OUT_PAGE));
 
     app.get("/api/me", (c) => {
         const { iss, sub, email, groups } = c.var.user;
