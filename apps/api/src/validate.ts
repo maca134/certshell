@@ -1,5 +1,5 @@
 // Anything here ends up in ssh-keygen -n, known_hosts or the ssh argv.
-export const LOGIN = /^[a-z_][a-z0-9_-]{0,31}$/;
+const LOGIN = /^[a-z_][a-z0-9_-]{0,31}$/;
 const LABEL = "[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?";
 const HOSTNAME = new RegExp(`^(?=.{1,253}$)${LABEL}(?:\\.${LABEL})*$`);
 const IPV6 = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;

@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { audit } from "./audit";
 import type { Config } from "./config";
-import { type AppEnv, hashToken, randomToken } from "./sessions";
+import { type AppEnv, hashToken, now, randomToken } from "./sessions";
 import {
     parseHostKey,
     validAddress,
@@ -21,8 +21,6 @@ import {
 
 const ENROLL_TOKEN_TTL_SECONDS = 600;
 const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
-
-const now = () => Math.floor(Date.now() / 1000);
 
 const newHostId = () =>
     `h${[...crypto.getRandomValues(new Uint8Array(7))].map((b) => ID_ALPHABET[b % 36]).join("")}`;
@@ -203,7 +201,7 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
     app.put("/hosts/:id/access", async (c) => {
         const id = c.req.param("id");
         if (!hostExists(id)) return c.json({ error: "not found" }, 404);
-        const rules = await c.req.json().catch(() => undefined);
+        const rules = await body(c);
         if (!Array.isArray(rules) || rules.length > 500)
             return c.json({ error: "expected a list of rules" }, 400);
         for (const r of rules as Partial<AccessRule>[])

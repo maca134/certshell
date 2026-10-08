@@ -1,7 +1,11 @@
 import type { Database } from "bun:sqlite";
 import type { ClientMessage, Me } from "@repo/shared";
 import { Hono } from "hono";
-import { serveStatic, upgradeWebSocket } from "hono/bun";
+import {
+    websocket as honoWebsocket,
+    serveStatic,
+    upgradeWebSocket,
+} from "hono/bun";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import * as oidc from "openid-client";
@@ -12,10 +16,10 @@ import { accessibleHosts, allowedHost, type Host } from "./hosts";
 import type { GetOidc } from "./oidc";
 import { clientIp, rateLimiter } from "./ratelimit";
 import {
+    type AppEnv,
     createSession,
     getSession,
     SESSION_TTL_SECONDS,
-    type User,
 } from "./sessions";
 import { openTerminal, type TerminalDeps } from "./terminal";
 
@@ -39,9 +43,7 @@ const PUBLIC_ROUTES = new Set([
     "POST /api/enroll",
 ]);
 
-type Env = {
-    Variables: { user: User; ip: string; host: Host; login: string };
-};
+type Env = AppEnv & { Variables: { host: Host; login: string } };
 
 // xterm.js injects <style> elements, hence 'unsafe-inline' for styles only.
 const SECURITY_HEADERS = {
@@ -51,6 +53,9 @@ const SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
 };
+
+// Bun's 16MB default × the pre-sign queue could exceed the container's memory limit.
+export const websocket = { ...honoWebsocket, maxPayloadLength: 64 * 1024 };
 
 export type Deps = {
     config: Config;

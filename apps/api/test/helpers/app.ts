@@ -1,7 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { websocket } from "hono/bun";
-import { createApp, SESSION_COOKIE } from "../../src/app";
+import { createApp, SESSION_COOKIE, websocket } from "../../src/app";
 import { ensureCa } from "../../src/ca";
 import { loadConfig } from "../../src/config";
 import { openDb } from "../../src/db";

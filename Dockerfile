@@ -1,4 +1,4 @@
-FROM oven/bun:1-debian AS web
+FROM oven/bun:1-debian@sha256:4f6e31d1a54d6a3dd312daef655fc998101b5043d52e12592ac293ef04b9bc73 AS web
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
@@ -9,7 +9,7 @@ COPY packages/shared packages/shared
 COPY apps/web apps/web
 RUN bun run --filter web build
 
-FROM oven/bun:1-debian
+FROM oven/bun:1-debian@sha256:4f6e31d1a54d6a3dd312daef655fc998101b5043d52e12592ac293ef04b9bc73
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && \
     rm -rf /var/lib/apt/lists/* && install -d -o 1000 -g 1000 /data
 WORKDIR /app

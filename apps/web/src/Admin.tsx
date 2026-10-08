@@ -5,7 +5,7 @@ import type {
     EnrollSnippet,
     SeenUser,
 } from "@repo/shared";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 
 export function Admin() {
@@ -94,15 +94,16 @@ function Hosts({ users }: { users: SeenUser[] }) {
     const [error, setError] = useState("");
     const [snippets, setSnippets] = useState<Record<string, EnrollSnippet>>({});
 
-    const reload = () =>
-        api<AdminHost[]>("/api/admin/hosts").then(setHosts, (e) =>
-            setError(e.message),
-        );
+    const reload = useCallback(
+        () =>
+            api<AdminHost[]>("/api/admin/hosts").then(setHosts, (e) =>
+                setError(e.message),
+            ),
+        [],
+    );
     useEffect(() => {
-        api<AdminHost[]>("/api/admin/hosts").then(setHosts, (e) =>
-            setError(e.message),
-        );
-    }, []);
+        reload();
+    }, [reload]);
 
     // Every mutation: clear the error, run, reload; show failures at the top.
     const act = async (fn: () => Promise<unknown>) => {

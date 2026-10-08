@@ -29,8 +29,6 @@ export type AdminHost = {
     access: AccessRule[];
 };
 
-export type HostInput = { name: string; address: string };
-
 export type EnrollSnippet = { snippet: string; expiresAt: number };
 
 export type ApiError = { error: string };

@@ -21,7 +21,7 @@ Default: uncommitted changes plus commits not on `origin/main` (`git diff origin
 Check every item that the diff touches. Skip items for code that doesn't exist yet.
 
 **Auth / session (§3.1)**
-- Only `/auth/login`, `/auth/callback`, `/healthz`, `POST /api/enroll` are reachable without a session. Every other route requires one; admin routes require `OIDC_ADMIN_GROUP`. Check route registration order and middleware coverage, not just individual handlers.
+- Only `/auth/login`, `/auth/callback`, `/healthz`, `GET`/`POST /api/enroll` are reachable without a session. Every other route requires one; admin routes require `OIDC_ADMIN_GROUP`. Check route registration order and middleware coverage, not just individual handlers.
 - OIDC: auth code + PKCE (S256), `state` checked, ID token validated by the library (no hand-rolled JWT parsing). Nonce if used is checked.
 - Identity = `iss` + `sub`. Email is display/audit only — **any access decision using email is critical**.
 - Groups from the ID token `groups` claim, exact string compare. Re-read on each login; session absolute 1h.

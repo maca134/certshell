@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { audit } from "./audit";
 import { mintUserCert } from "./certs";
 import type { Host } from "./hosts";
-import type { User } from "./sessions";
+import { now, type User } from "./sessions";
 
 export type TerminalDeps = {
     db: Database;
@@ -61,23 +61,15 @@ export async function openTerminal(
     const sessionId = crypto.randomUUID();
     const principal = `ws:${host.id}:${login}`;
     const dir = await mkdtemp(`${tmpdir()}/s-`);
-    let key: string;
-    let serial: number;
+    let proc: Bun.Subprocess;
     try {
-        serial = Number(
+        const serial = Number(
             deps.db.run(
                 "INSERT INTO signs (created_at, sub, email, principal, host_id, session_id) VALUES (?, ?, ?, ?, ?, ?)",
-                [
-                    Math.floor(Date.now() / 1000),
-                    user.sub,
-                    user.email,
-                    principal,
-                    host.id,
-                    sessionId,
-                ],
+                [now(), user.sub, user.email, principal, host.id, sessionId],
             ).lastInsertRowid,
         );
-        key = await mintUserCert({
+        const key = await mintUserCert({
             caKey: deps.caKey,
             caPassword: deps.caPassword,
             dir,
@@ -89,37 +81,36 @@ export async function openTerminal(
             `${dir}/known_hosts`,
             `${host.address} ${host.host_key}\n`,
         );
+        audit(deps.db, {
+            event: "sign",
+            sub: user.sub,
+            email: user.email,
+            ip,
+            principal,
+            host: host.id,
+            ttl: "15m",
+            serial,
+            session: sessionId,
+        });
+        proc = Bun.spawn(
+            (deps.command ?? sshCommand)({
+                key,
+                knownHosts: `${dir}/known_hosts`,
+                login,
+                host,
+            }),
+            {
+                terminal: {
+                    cols: handlers.cols,
+                    rows: handlers.rows,
+                    data: (_t, data) => handlers.onData(data),
+                },
+            },
+        );
     } catch (err) {
         await rm(dir, { recursive: true, force: true });
         throw err;
     }
-    audit(deps.db, {
-        event: "sign",
-        sub: user.sub,
-        email: user.email,
-        ip,
-        principal,
-        host: host.id,
-        ttl: "15m",
-        serial,
-        session: sessionId,
-    });
-
-    const proc = Bun.spawn(
-        (deps.command ?? sshCommand)({
-            key,
-            knownHosts: `${dir}/known_hosts`,
-            login,
-            host,
-        }),
-        {
-            terminal: {
-                cols: handlers.cols,
-                rows: handlers.rows,
-                data: (_t, data) => handlers.onData(data),
-            },
-        },
-    );
     audit(deps.db, {
         event: "session_start",
         sub: user.sub,

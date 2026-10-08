@@ -164,3 +164,25 @@ test("terminal: junk messages during signing are ignored", async () => {
     await t.waitFor("still-alive");
     expect((await req("/healthz", {})).status).toBe(200);
 });
+
+test("terminal: spawn failure → 1011, temp dir removed", async () => {
+    await setup({
+        command: ({ key }) => {
+            sessionDir = dirname(key);
+            return ["/nonexistent/ssh"];
+        },
+    });
+    const t = ctx.connect("host=h1&login=root");
+    const { code } = await t.closed;
+    expect(code).toBe(1011);
+    expect(existsSync(sessionDir)).toBeFalse();
+});
+
+test("terminal: oversized frame closes the socket", async () => {
+    await setup();
+    const t = ctx.connect("host=h1&login=root");
+    await t.opened;
+    t.send({ t: "in", d: "x".repeat(65 * 1024) });
+    const { code } = await t.closed;
+    expect(code).toBe(1006);
+});

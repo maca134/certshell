@@ -1,5 +1,4 @@
-import { websocket } from "hono/bun";
-import { createApp } from "./app";
+import { createApp, websocket } from "./app";
 import { ensureCa, readCaPassword } from "./ca";
 import { loadConfig } from "./config";
 import { openDb } from "./db";

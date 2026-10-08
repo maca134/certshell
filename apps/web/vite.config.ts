@@ -1,5 +1,4 @@
-import babel from "@rolldown/plugin-babel";
-import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const api = process.env.API_URL ?? "http://localhost:3000";
@@ -7,7 +6,7 @@ const api = process.env.API_URL ?? "http://localhost:3000";
 const publicHost = process.env.DEV_PUBLIC_HOST;
 
 export default defineConfig({
-    plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+    plugins: [react()],
     server: {
         host: "0.0.0.0",
         allowedHosts: publicHost ? [publicHost] : undefined,
