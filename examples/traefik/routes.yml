@@ -1,0 +1,15 @@
+http:
+  routers:
+    web-ssh:
+      rule: Host(`{{ env "SSH_DOMAIN" }}`)
+      service: web-ssh
+    pocket-id:
+      rule: Host(`{{ env "ID_DOMAIN" }}`)
+      service: pocket-id
+  services:
+    web-ssh:
+      loadBalancer:
+        servers: [{ url: "http://web-ssh:3000" }]
+    pocket-id:
+      loadBalancer:
+        servers: [{ url: "http://pocket-id:1411" }]

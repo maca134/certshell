@@ -1,6 +1,6 @@
 # SPEC — Web SSH Client (short-lived certs)
 
-Status: build steps 1–6 (§9) implemented; step 7 (release) not started.
+Status: build steps 1–6 (§9) implemented; step 7 (release) in progress: workflow, examples, README, MIT license done, no release tag yet.
 Scope: **browser SSH terminal only**. No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
 
 ---
@@ -216,17 +216,21 @@ echo "enrolled: $(hostname)"
 
 ### 6.1 Image
 
-Published as `ghcr.io/<owner>/web-ssh` for `linux/amd64` and `linux/arm64`. Accepted risk in §3.3.
+Published as `ghcr.io/maca134/web-ssh` for `linux/amd64` and `linux/arm64` by `.github/workflows/release.yml` on a `vX.Y.Z` tag (tags `X.Y.Z`, `X.Y`, `X`, `latest`; a manual run builds without pushing). Accepted risk in §3.3.
 
 ```dockerfile
-FROM oven/bun:1-debian@sha256:… AS web
+# Bun stages run on the build host (output is arch-independent); arm64 only emulates apt-get.
+FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:… AS web
 # bun install --frozen-lockfile --filter web; vite build → apps/web/dist
+
+FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:… AS api
+# bun install --frozen-lockfile --production --filter api
 
 FROM oven/bun:1-debian@sha256:…
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && \
     rm -rf /var/lib/apt/lists/* && install -d -o 1000 -g 1000 /data
 WORKDIR /app
-# bun install --frozen-lockfile --production --filter api
+COPY --from=api /app ./
 COPY packages/shared packages/shared
 COPY apps/api/src apps/api/src
 COPY --from=web /app/apps/web/dist apps/web/dist
@@ -266,52 +270,15 @@ if (!exists("/data/ca/user_ca")) {
 
 ### 6.3 Compose
 
-Public example. Bring your own HTTPS reverse proxy; ports bind to localhost so plain HTTP is never exposed. `pocket-id` is the example IdP — drop it if you already run one with a `groups` claim.
+Public examples, each a full stack with Pocket ID as the IdP: `examples/caddy` (Caddy) and `examples/traefik` (Traefik file provider + Let's Encrypt). Drop `pocket-id` if you already run an IdP with a `groups` claim; drop the proxy if you already run one.
 
-```yaml
-name: web-ssh
-
-services:
-  web-ssh:
-    image: ghcr.io/<owner>/web-ssh:1
-    init: true
-    restart: unless-stopped
-    environment:
-      APP_URL: https://ssh.example.com
-      OIDC_ISSUER: https://id.example.com
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-    secrets: [ca_password]
-    volumes: ["web-ssh-data:/data"]
-    ports: ["127.0.0.1:3000:3000"]
-    read_only: true
-    tmpfs: ["/tmp:noexec,nosuid,size=16m"]
-    cap_drop: [ALL]
-    security_opt: ["no-new-privileges:true"]
-    pids_limit: 256
-    mem_limit: 512m
-
-  pocket-id:
-    image: ghcr.io/pocket-id/pocket-id
-    restart: unless-stopped
-    environment:
-      APP_URL: https://id.example.com
-      TRUST_PROXY: "true"
-      ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY}
-    volumes: ["pocket-id-data:/app/data"]
-    ports: ["127.0.0.1:1411:1411"]
-
-secrets:
-  ca_password: { file: ./secrets/ca_password }
-
-volumes:
-  web-ssh-data: {}
-  pocket-id-data: {}
-```
-
+- Only the proxy publishes ports (80/443). The app and IdP are reachable on the compose network only, so plain HTTP is never exposed.
+- The proxy has a pinned IP (`172.31.0.2`, outside the network's `ip_range`) = the app's `TRUSTED_PROXIES`.
+- The proxy carries a network alias for the IdP domain, so the app's IdP calls stay on the compose network (no hairpin NAT).
+- The app service has the full hardening set: `read_only`, `tmpfs /tmp` (`noexec,nosuid`), `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit`, `mem_limit`, `init: true`.
 - Hardening limits what an attacker can do to the box (no persistence outside `/data`, no privilege escalation). It does not stop cert minting while compromised — see §3.3.
-- Never mount `docker.sock` into `web-ssh`.
-- Without compose: `docker run -d -p 127.0.0.1:3000:3000 -v web-ssh-data:/data -e APP_URL=… -e OIDC_ISSUER=… -e OIDC_CLIENT_ID=… -e OIDC_CLIENT_SECRET=… ghcr.io/<owner>/web-ssh:1` (CA key unencrypted).
+- Never mount `docker.sock` into `web-ssh`, nor into the internet-facing proxy (hence Traefik's file provider, not Docker labels).
+- Without compose: `docker run -d -p 127.0.0.1:3000:3000 -v web-ssh-data:/data -e APP_URL=… -e OIDC_ISSUER=… -e OIDC_CLIENT_ID=… -e OIDC_CLIENT_SECRET=… ghcr.io/maca134/web-ssh:1` (CA key unencrypted).
 
 ### 6.4 Backup
 
@@ -333,15 +300,17 @@ volumes:
 
 ### 6.6 Bootstrap (operator steps)
 
+Full steps: README → Quick start. In short:
+
 ```sh
-mkdir -p secrets && openssl rand -base64 32 > secrets/ca_password   # optional, encrypts the CA key
-echo "POCKET_ID_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env
-docker compose up -d pocket-id
-# reverse proxy: https://ssh.example.com → 127.0.0.1:3000, https://id.example.com → 127.0.0.1:1411
+cp .env.example .env    # SSH_DOMAIN, ID_DOMAIN, POCKET_ID_ENCRYPTION_KEY
+mkdir secrets && openssl rand -base64 32 > secrets/ca_password   # optional, encrypts the CA key
+chown 1000:1000 secrets/ca_password && chmod 600 secrets/ca_password   # app runs as uid 1000; unreadable = crash at boot
+docker compose up -d caddy pocket-id   # or traefik
 # https://id.example.com/setup → admin account + passkeys
 # Pocket ID: create group web-ssh-admins, add yourself
 #   create OIDC client web-ssh: callback https://ssh.example.com/auth/callback
-#   → append OIDC_CLIENT_ID/OIDC_CLIENT_SECRET to .env
+#   → OIDC_CLIENT_ID/OIDC_CLIENT_SECRET into .env
 docker compose up -d
 ```
 
@@ -410,6 +379,4 @@ Don't re-propose these without new information.
 - Admin "kill sessions" for a user: IdP revocation blocks new connections within 1h, but open terminals live up to 8h.
 - Un-enrolling a host (UI + a removal snippet).
 - Audit log retention.
-- License choice.
-- Image owner (`ghcr.io/<owner>/web-ssh`).
 - CA rotation (§8).

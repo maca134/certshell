@@ -1,0 +1,58 @@
+# web-ssh + Pocket ID behind Caddy (automatic HTTPS). Setup steps: README.md → Quick start.
+name: web-ssh
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      SSH_DOMAIN: ${SSH_DOMAIN}
+      ID_DOMAIN: ${ID_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    ports: ["80:80", "443:443"]
+    networks:
+      default:
+        ipv4_address: 172.31.0.2   # = web-ssh TRUSTED_PROXIES
+        aliases: ["${ID_DOMAIN}"]   # web-ssh reaches Pocket ID without hairpin NAT
+
+  web-ssh:
+    image: ghcr.io/maca134/web-ssh:1
+    init: true
+    restart: unless-stopped
+    environment:
+      APP_URL: https://${SSH_DOMAIN}
+      OIDC_ISSUER: https://${ID_DOMAIN}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      TRUSTED_PROXIES: 172.31.0.2
+    secrets: [ca_password]
+    volumes: ["web-ssh-data:/data"]
+    read_only: true
+    tmpfs: ["/tmp:noexec,nosuid,size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    mem_limit: 512m
+
+  pocket-id:
+    image: ghcr.io/pocket-id/pocket-id:v2
+    restart: unless-stopped
+    environment:
+      APP_URL: https://${ID_DOMAIN}
+      TRUST_PROXY: "true"
+      ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY}
+    volumes: ["pocket-id-data:/app/data"]
+
+secrets:
+  ca_password: { file: ./secrets/ca_password }
+
+volumes:
+  caddy-data: {}
+  web-ssh-data: {}
+  pocket-id-data: {}
+
+networks:
+  default:
+    ipam: { config: [{ subnet: 172.31.0.0/24, ip_range: 172.31.0.128/25 }] }

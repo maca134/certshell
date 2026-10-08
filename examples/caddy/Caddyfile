@@ -1,0 +1,7 @@
+{$SSH_DOMAIN} {
+	reverse_proxy web-ssh:3000
+}
+
+{$ID_DOMAIN} {
+	reverse_proxy pocket-id:1411
+}
