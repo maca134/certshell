@@ -1,6 +1,6 @@
 # SPEC — Web SSH Client (short-lived certs)
 
-Status: design agreed, not yet implemented.
+Status: build steps 1–6 (§9) implemented; step 7 (release) not started.
 Scope: **browser SSH terminal only**. No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
 
 ---
@@ -219,16 +219,24 @@ echo "enrolled: $(hostname)"
 Published as `ghcr.io/<owner>/web-ssh` for `linux/amd64` and `linux/arm64`. Accepted risk in §3.3.
 
 ```dockerfile
-FROM oven/bun:1-debian
+FROM oven/bun:1-debian@sha256:… AS web
+# bun install --frozen-lockfile --filter web; vite build → apps/web/dist
+
+FROM oven/bun:1-debian@sha256:…
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && \
     rm -rf /var/lib/apt/lists/* && install -d -o 1000 -g 1000 /data
-COPY app/ /app
 WORKDIR /app
+# bun install --frozen-lockfile --production --filter api
+COPY packages/shared packages/shared
+COPY apps/api/src apps/api/src
+COPY --from=web /app/apps/web/dist apps/web/dist
 USER 1000:1000
 VOLUME /data
 EXPOSE 3000
-ENTRYPOINT ["bun","run","src/main.ts"]
+ENTRYPOINT ["bun", "run", "apps/api/src/main.ts"]
 ```
+
+Base image pinned by digest; see `Dockerfile` for the full file.
 
 `/data` layout:
 
