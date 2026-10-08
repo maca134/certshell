@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -9,6 +10,12 @@ export default defineConfig({
     plugins: [react()],
     server: {
         host: "0.0.0.0",
+        // The dev container mounts the whole repo, including data/ca and secrets/; Vite's default allows all of it via /@fs/.
+        fs: {
+            allow: ["./", "../../packages", "../../node_modules"].map((p) =>
+                fileURLToPath(new URL(p, import.meta.url)),
+            ),
+        },
         allowedHosts: publicHost ? [publicHost] : undefined,
         hmr: publicHost
             ? { host: publicHost, protocol: "wss", clientPort: 443 }
