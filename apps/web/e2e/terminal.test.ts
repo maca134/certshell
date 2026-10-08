@@ -27,7 +27,7 @@ async function openTerminal(page: Page) {
     });
     await page.goto("/");
     await page.getByRole("link", { name: "root" }).click();
-    await expect(page.getByText("connected", { exact: true })).toBeVisible();
+    await expect(page.getByText("Connected", { exact: true })).toBeVisible();
     return { typed, url: () => new URL(url) };
 }
 
@@ -62,4 +62,30 @@ test("key bar: CTRL applies to the next key only; ESC and arrows send escapes", 
     await key("ESC");
     await key("↑");
     await expect.poll(() => typed).toEqual(["\x03", "c", "\x1b", "\x1b[A"]);
+});
+
+test("closed session shows the reason and reconnects on demand", async ({
+    page,
+}) => {
+    await page.route("/api/me", (r) =>
+        r.fulfill({
+            json: { iss: "i", sub: "s", email: null, groups: [], admin: false },
+        }),
+    );
+    await page.route("/api/hosts", (r) =>
+        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+    );
+    let sockets = 0;
+    await page.routeWebSocket(/\/api\/terminal/, (ws) => {
+        if (++sockets === 1) ws.close({ code: 4000, reason: "host down" });
+    });
+    await page.goto("/ssh/h1/root");
+    await expect(page.getByText("Disconnected")).toBeVisible();
+    await expect(page.getByText("Disconnected")).toHaveAttribute(
+        "title",
+        "host down",
+    );
+    await page.getByRole("button", { name: "Reconnect" }).click();
+    await expect(page.getByText("Connected", { exact: true })).toBeVisible();
+    expect(sockets).toBe(2);
 });
