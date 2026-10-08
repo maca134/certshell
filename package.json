@@ -13,9 +13,11 @@
         "format": "biome check --write",
         "typecheck": "bun run --filter '*' typecheck",
         "build": "bun run --filter web build",
-        "test": "bun run --filter api --filter web test"
+        "test": "bun run --filter api --filter web test",
+        "e2e": "bun run --filter web e2e"
     },
     "devDependencies": {
-        "@biomejs/biome": "2.5.15"
+        "@biomejs/biome": "2.5.15",
+        "@playwright/mcp": "0.0.83"
     }
 }

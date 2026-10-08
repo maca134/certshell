@@ -6,7 +6,8 @@
         "dev": "vite",
         "build": "tsc -b && vite build",
         "typecheck": "tsc -b",
-        "test": "bun test",
+        "test": "bun test ./test",
+        "e2e": "playwright test",
         "preview": "vite preview"
     },
     "dependencies": {
@@ -18,6 +19,7 @@
         "wouter": "^3.13.0"
     },
     "devDependencies": {
+        "@playwright/test": "^1.64.0",
         "@types/node": "^24.13.3",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.7",
