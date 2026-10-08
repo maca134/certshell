@@ -93,6 +93,12 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
     const signLimit = rateLimiter(10, 60_000);
 
     app.use("*", async (c, next) => {
+        await next();
+        for (const [k, v] of Object.entries(SECURITY_HEADERS))
+            c.res.headers.set(k, v);
+    });
+
+    app.use("*", async (c, next) => {
         const peer = (c.env as Bun.Server<unknown> | undefined)?.requestIP?.(
             c.req.raw,
         )?.address;
@@ -108,9 +114,7 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
             (c.req.path === "/api/enroll" && !enrollLimit(ip))
         )
             return c.text("too many requests\n", 429);
-        await next();
-        for (const [k, v] of Object.entries(SECURITY_HEADERS))
-            c.res.headers.set(k, v);
+        return next();
     });
 
     app.use("*", async (c, next) => {

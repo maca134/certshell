@@ -69,7 +69,9 @@ test("per-IP limits on public routes, keyed by the real client IP", async () => 
 
     for (let i = 0; i < 60; i++)
         expect((await hit("/healthz", "198.51.100.1")).status).toBe(200);
-    expect((await hit("/healthz", "198.51.100.1")).status).toBe(429);
+    const limited = await hit("/healthz", "198.51.100.1");
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("x-content-type-options")).toBe("nosniff");
     expect((await hit("/healthz", "198.51.100.2")).status).toBe(200);
 
     for (let i = 0; i < 10; i++)
