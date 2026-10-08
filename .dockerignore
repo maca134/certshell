@@ -6,5 +6,8 @@
 !apps/web
 apps/web/node_modules
 apps/web/dist
+apps/web/.agents
+apps/web/.claude
+apps/web/skills-lock.json
 !packages/shared
 packages/shared/node_modules
