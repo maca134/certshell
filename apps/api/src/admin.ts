@@ -1,10 +1,16 @@
 import type { Database } from "bun:sqlite";
-import type { AccessRule, AdminHost, EnrollSnippet } from "@repo/shared";
+import type {
+    AccessRule,
+    AdminHost,
+    AuditEntry,
+    EnrollSnippet,
+    SeenUser,
+} from "@repo/shared";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { audit } from "./audit";
 import type { Config } from "./config";
 import { type AppEnv, hashToken, randomToken } from "./sessions";
-import { log } from "./terminal";
 import {
     parseHostKey,
     validAddress,
@@ -29,7 +35,9 @@ export function renderSnippet(opts: {
     caPub: string;
     token: string;
 }) {
+    // Wrapped in main() so a download cut short by `curl | sh` is a syntax error, not half a run.
     return `#!/bin/sh
+main() {
 set -eu
 APP_URL=${sq(opts.appUrl)}
 HOST_ID=${sq(opts.hostId)}
@@ -60,6 +68,8 @@ else
   kill -HUP "$(cat /run/sshd.pid)"
 fi
 echo "enrolled: $(hostname)"
+}
+main "$@"
 `;
 }
 
@@ -140,9 +150,10 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
             input.name,
             input.address,
         ]);
-        log({
+        audit(db, {
             event: "host_create",
-            by: c.var.user.sub,
+            sub: c.var.user.sub,
+            email: c.var.user.email,
             host: id,
             name: input.name,
             address: input.address,
@@ -166,9 +177,10 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
                 id,
             ],
         );
-        log({
+        audit(db, {
             event: "host_update",
-            by: c.var.user.sub,
+            sub: c.var.user.sub,
+            email: c.var.user.email,
             host: id,
             name: input?.name,
             address: input?.address,
@@ -179,7 +191,12 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
     app.post("/hosts/:id/snippet", async (c) => {
         const id = c.req.param("id");
         if (!hostExists(id)) return c.json({ error: "not found" }, 404);
-        log({ event: "enroll_snippet", by: c.var.user.sub, host: id });
+        audit(db, {
+            event: "enroll_snippet",
+            sub: c.var.user.sub,
+            email: c.var.user.email,
+            host: id,
+        });
         return c.json(issueSnippet(id));
     });
 
@@ -203,15 +220,62 @@ export function adminRoutes({ config, db }: Omit<Deps, "caPubPath">) {
                     [id, r.login, r.group],
                 );
         })();
-        log({ event: "access_update", by: c.var.user.sub, host: id, rules });
+        audit(db, {
+            event: "access_update",
+            sub: c.var.user.sub,
+            email: c.var.user.email,
+            host: id,
+            rules,
+        });
         return c.body(null, 204);
+    });
+
+    app.get("/users", (c) =>
+        c.json<SeenUser[]>(
+            db
+                .query<
+                    {
+                        iss: string;
+                        sub: string;
+                        email: string | null;
+                        groups: string;
+                        last_login: number;
+                    },
+                    []
+                >(
+                    "SELECT iss, sub, email, groups, last_login FROM users ORDER BY last_login DESC",
+                )
+                .all()
+                .map((u) => ({
+                    iss: u.iss,
+                    sub: u.sub,
+                    email: u.email,
+                    groups: JSON.parse(u.groups),
+                    lastLogin: u.last_login,
+                })),
+        ),
+    );
+
+    app.get("/audit", (c) => {
+        const limit = Math.min(
+            Math.max(Number(c.req.query("limit")) || 200, 1),
+            1000,
+        );
+        const rows = db
+            .query<{ id: number; data: string }, [number]>(
+                "SELECT id, data FROM audit ORDER BY id DESC LIMIT ?",
+            )
+            .all(limit);
+        return c.json<AuditEntry[]>(
+            rows.map((r) => ({ ...JSON.parse(r.data), id: r.id })),
+        );
     });
 
     return app;
 }
 
 export function enrollRoute({ config, db, caPubPath }: Deps) {
-    const app = new Hono();
+    const app = new Hono<AppEnv>();
     const bearer = (c: {
         req: { header: (h: string) => string | undefined };
     }) => c.req.header("authorization")?.match(/^Bearer (\S+)$/)?.[1];
@@ -259,7 +323,12 @@ export function enrollRoute({ config, db, caPubPath }: Deps) {
                 hostKey,
                 row.host_id,
             ]);
-            log({ event: "enroll", host: row.host_id, host_key: hostKey });
+            audit(db, {
+                event: "enroll",
+                host: row.host_id,
+                host_key: hostKey,
+                ip: c.var.ip,
+            });
             return c.body(null, 204);
         },
     );

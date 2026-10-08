@@ -9,7 +9,7 @@ export type User = {
     groups: string[];
 };
 
-export type AppEnv = { Variables: { user: User } };
+export type AppEnv = { Variables: { user: User; ip: string } };
 
 export const randomToken = () =>
     Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(

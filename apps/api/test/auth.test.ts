@@ -123,6 +123,29 @@ test("callback creates a 1h session from iss+sub+groups", async () => {
     });
 });
 
+test("login is audited and recorded as a seen user", async () => {
+    await loggedIn();
+    idp.nextClaims.groups = ["ops"];
+    await loggedIn();
+    const audit = db
+        .query<{ event: string; sub: string; data: string }, []>(
+            "SELECT event, sub, data FROM audit ORDER BY id",
+        )
+        .all();
+    expect(audit.map((a) => [a.event, a.sub])).toEqual([
+        ["login", "user-1"],
+        ["login", "user-1"],
+    ]);
+    expect(JSON.parse(audit[1]?.data ?? "{}")).toMatchObject({
+        event: "login",
+        email: "a@b.c",
+        groups: ["ops"],
+    });
+    expect(db.query("SELECT sub, email, groups FROM users").all()).toEqual([
+        { sub: "user-1", email: "a@b.c", groups: '["ops"]' },
+    ]);
+});
+
 test("callback rejects wrong state, missing login cookie, bad code", async () => {
     const flow = await login();
     expect(

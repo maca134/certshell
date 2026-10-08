@@ -14,6 +14,7 @@ export const APP_URL = "https://ssh.test";
 export async function startApp(
     terminal: Partial<Omit<TerminalDeps, "db">> = {},
     groups = ["admins"],
+    env: Record<string, string> = {},
 ) {
     const root = await mkdtemp(`${tmpdir()}/app-`);
     if (!terminal.caKey) await ensureCa(`${root}/ca`, "test-ca", "pw");
@@ -24,6 +25,7 @@ export async function startApp(
             OIDC_ISSUER: "https://id.test",
             OIDC_CLIENT_ID: "x",
             OIDC_CLIENT_SECRET: "y",
+            ...env,
         }),
         db,
         getOidc: () => Promise.reject(new Error("unused")),

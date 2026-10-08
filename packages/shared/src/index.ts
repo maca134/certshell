@@ -34,3 +34,20 @@ export type HostInput = { name: string; address: string };
 export type EnrollSnippet = { snippet: string; expiresAt: number };
 
 export type ApiError = { error: string };
+
+/** Someone who has logged in at least once; groups as of their last login. */
+export type SeenUser = {
+    iss: string;
+    sub: string;
+    email: string | null;
+    groups: string[];
+    lastLogin: number;
+};
+
+export type AuditEntry = {
+    id: number;
+    ts: string;
+    event: string;
+    sub?: string | null;
+    [key: string]: unknown;
+};

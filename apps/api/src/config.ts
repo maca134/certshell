@@ -4,6 +4,7 @@ export type Config = {
     oidcClientId: string;
     oidcClientSecret: string;
     adminGroup: string;
+    trustedProxies: Set<string>;
 };
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -18,5 +19,11 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
         oidcClientId: need("OIDC_CLIENT_ID"),
         oidcClientSecret: need("OIDC_CLIENT_SECRET"),
         adminGroup: env.OIDC_ADMIN_GROUP || "web-ssh-admins",
+        trustedProxies: new Set(
+            (env.TRUSTED_PROXIES ?? "")
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean),
+        ),
     };
 }

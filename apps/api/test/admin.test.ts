@@ -182,6 +182,24 @@ test("snippet reloads sshd via systemd only when systemd is running", () => {
     expect(snippet).toContain('kill -HUP "$(cat /run/sshd.pid)"');
 });
 
+test("snippet: a truncated download runs nothing", async () => {
+    const snippet = renderSnippet({
+        appUrl: "https://x",
+        hostId: "h1",
+        caPub: "k",
+        token: "t",
+    });
+    expect(snippet).toEndWith('}\nmain "$@"\n');
+    // Cut anywhere before the final call: sh must reject it before executing a single line.
+    for (const cut of [0.2, 0.5, 0.9]) {
+        const partial = snippet.slice(0, Math.floor(snippet.length * cut));
+        const proc = Bun.spawn(["sh", "-n", "-c", partial], { stderr: "pipe" });
+        expect(await proc.exited).not.toBe(0);
+    }
+    const whole = Bun.spawn(["sh", "-n", "-c", snippet]);
+    expect(await whole.exited).toBe(0);
+});
+
 test("snippet values are shell-quoted", async () => {
     const snippet = renderSnippet({
         appUrl: "https://x",
@@ -189,7 +207,7 @@ test("snippet values are shell-quoted", async () => {
         caPub: "it's $(id) `id`",
         token: "t",
     });
-    const vars = snippet.split("\nCONF=")[0] ?? "";
+    const vars = snippet.split("\nCONF=")[0]?.split("set -eu\n")[1] ?? "";
     expect(await run(["sh", "-c", `${vars}\nprintf %s "$CA_PUB"`])).toBe(
         "it's $(id) `id`",
     );

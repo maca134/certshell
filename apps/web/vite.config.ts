@@ -15,8 +15,8 @@ export default defineConfig({
             ? { host: publicHost, protocol: "wss", clientPort: 443 }
             : undefined,
         proxy: {
-            "/api": { target: api, ws: true },
-            "/auth": api,
+            "/api": { target: api, ws: true, xfwd: true },
+            "/auth": { target: api, xfwd: true },
         },
     },
 });

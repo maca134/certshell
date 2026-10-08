@@ -4,6 +4,8 @@
 services:
   web-ssh:
     entrypoint: ["bun", "--watch", "apps/api/src/main.ts"]
+    environment:
+      TRUSTED_PROXIES: 172.30.0.2,100.64.0.2,172.30.0.3   # + web-dev
     volumes:
       - ./apps/api/src:/app/apps/api/src:ro
       - ./packages/shared/src:/app/packages/shared/src:ro
@@ -22,4 +24,5 @@ services:
       traefik.enable: "true"
       traefik.http.routers.webdev.rule: Host(`ssh.dev.example.com`)
       traefik.http.services.webdev.loadbalancer.server.port: "5173"
-    networks: [ingress]
+    networks:
+      ingress: { ipv4_address: 172.30.0.3 }

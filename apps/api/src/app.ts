@@ -6,16 +6,18 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import * as oidc from "openid-client";
 import { adminRoutes, enrollRoute } from "./admin";
+import { audit } from "./audit";
 import type { Config } from "./config";
 import { accessibleHosts, allowedHost, type Host } from "./hosts";
 import type { GetOidc } from "./oidc";
+import { clientIp, rateLimiter } from "./ratelimit";
 import {
     createSession,
     getSession,
     SESSION_TTL_SECONDS,
     type User,
 } from "./sessions";
-import { log, openTerminal, type TerminalDeps } from "./terminal";
+import { openTerminal, type TerminalDeps } from "./terminal";
 
 const WEB_DIST = `${import.meta.dir}/../../web/dist`;
 
@@ -37,7 +39,18 @@ const PUBLIC_ROUTES = new Set([
     "POST /api/enroll",
 ]);
 
-type Env = { Variables: { user: User; host: Host; login: string } };
+type Env = {
+    Variables: { user: User; ip: string; host: Host; login: string };
+};
+
+// xterm.js injects <style> elements, hence 'unsafe-inline' for styles only.
+const SECURITY_HEADERS = {
+    "Content-Security-Policy":
+        "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "Strict-Transport-Security": "max-age=31536000",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+};
 
 export type Deps = {
     config: Config;
@@ -71,6 +84,30 @@ function parseMessage(raw: unknown): ClientMessage | undefined {
 
 export function createApp({ config, db, getOidc, terminal }: Deps) {
     const app = new Hono<Env>();
+    const publicLimit = rateLimiter(60, 60_000);
+    const enrollLimit = rateLimiter(10, 60_000);
+    const signLimit = rateLimiter(10, 60_000);
+
+    app.use("*", async (c, next) => {
+        const peer = (c.env as Bun.Server<unknown> | undefined)?.requestIP?.(
+            c.req.raw,
+        )?.address;
+        const ip = clientIp(
+            peer,
+            c.req.header("x-forwarded-for"),
+            config.trustedProxies,
+        );
+        c.set("ip", ip);
+        if (
+            (PUBLIC_ROUTES.has(`${c.req.method} ${c.req.path}`) &&
+                !publicLimit(ip)) ||
+            (c.req.path === "/api/enroll" && !enrollLimit(ip))
+        )
+            return c.text("too many requests\n", 429);
+        await next();
+        for (const [k, v] of Object.entries(SECURITY_HEADERS))
+            c.res.headers.set(k, v);
+    });
 
     app.use(
         "*",
@@ -161,12 +198,18 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
             ...cookieOpts,
             maxAge: SESSION_TTL_SECONDS,
         });
-        log({
+        db.run(
+            `INSERT INTO users (iss, sub, email, groups, last_login) VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT (iss, sub) DO UPDATE SET email = excluded.email, groups = excluded.groups, last_login = excluded.last_login`,
+            [claims.iss, claims.sub, email, JSON.stringify(groups), Date.now()],
+        );
+        audit(db, {
             event: "login",
             iss: claims.iss,
             sub: claims.sub,
             email,
             groups,
+            ip: c.var.ip,
         });
         return c.redirect("/");
     });
@@ -199,6 +242,8 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
                 c.var.user.groups,
             );
             if (!host) return c.json({ error: "forbidden" }, 403);
+            if (!signLimit(c.var.user.sub))
+                return c.json({ error: "too many sessions, slow down" }, 429);
             c.set("host", host);
             c.set("login", login);
             return next();
@@ -217,7 +262,7 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
             };
             return {
                 onOpen(_evt, ws) {
-                    openTerminal(terminal, user, host, login, {
+                    openTerminal(terminal, user, host, login, c.var.ip, {
                         cols: termSize(c.req.query("cols"), 80),
                         rows: termSize(c.req.query("rows"), 24),
                         onData: (data) =>

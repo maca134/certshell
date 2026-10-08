@@ -92,6 +92,15 @@ test("terminal: signs ws:<host>:<login>, relays I/O, cleans up on close", async 
     await t.closed;
     await Bun.sleep(200);
     expect(existsSync(sessionDir)).toBeFalse();
+    const events = ctx.db
+        .query<{ data: string }, []>("SELECT data FROM audit ORDER BY id")
+        .all()
+        .map((r) => JSON.parse(r.data));
+    expect(events.map((e) => [e.event, e.sub, e.email])).toEqual([
+        ["sign", "user-1", "a@b.c"],
+        ["session_start", "user-1", "a@b.c"],
+        ["session_end", "user-1", "a@b.c"],
+    ]);
 });
 
 test("terminal: resize reaches the PTY", async () => {

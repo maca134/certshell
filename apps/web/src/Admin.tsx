@@ -1,8 +1,95 @@
-import type { AccessRule, AdminHost, EnrollSnippet } from "@repo/shared";
+import type {
+    AccessRule,
+    AdminHost,
+    AuditEntry,
+    EnrollSnippet,
+    SeenUser,
+} from "@repo/shared";
 import { type FormEvent, useEffect, useState } from "react";
 import { api } from "./api";
 
 export function Admin() {
+    const [view, setView] = useState<"hosts" | "users" | "audit">("hosts");
+    const [users, setUsers] = useState<SeenUser[]>([]);
+    useEffect(() => {
+        api<SeenUser[]>("/api/admin/users").then(setUsers);
+    }, []);
+    return (
+        <>
+            <nav className="sub">
+                {(["hosts", "users", "audit"] as const).map((v) => (
+                    <button
+                        type="button"
+                        key={v}
+                        className={view === v ? "" : "link"}
+                        onClick={() => setView(v)}
+                    >
+                        {v[0]?.toUpperCase() + v.slice(1)}
+                    </button>
+                ))}
+            </nav>
+            {view === "hosts" && <Hosts users={users} />}
+            {view === "users" && <Users users={users} />}
+            {view === "audit" && <Audit />}
+        </>
+    );
+}
+
+function Users({ users }: { users: SeenUser[] }) {
+    return (
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Groups</th>
+                    <th>Last login</th>
+                </tr>
+            </thead>
+            <tbody>
+                {users.map((u) => (
+                    <tr key={`${u.iss} ${u.sub}`}>
+                        <td title={u.sub}>{u.email ?? u.sub}</td>
+                        <td>{u.groups.join(", ")}</td>
+                        <td>{new Date(u.lastLogin).toLocaleString()}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+}
+
+function Audit() {
+    const [entries, setEntries] = useState<AuditEntry[]>([]);
+    useEffect(() => {
+        api<AuditEntry[]>("/api/admin/audit?limit=200").then(setEntries);
+    }, []);
+    return (
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>User</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {entries.map(({ id, ts, event, sub, email, ...rest }) => (
+                    <tr key={id}>
+                        <td>{new Date(ts).toLocaleString()}</td>
+                        <td>{event}</td>
+                        <td title={sub ?? ""}>{String(email ?? sub ?? "")}</td>
+                        <td>
+                            <code>{JSON.stringify(rest)}</code>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+}
+
+function Hosts({ users }: { users: SeenUser[] }) {
     const [hosts, setHosts] = useState<AdminHost[]>();
     const [error, setError] = useState("");
     const [snippets, setSnippets] = useState<Record<string, EnrollSnippet>>({});
@@ -31,9 +118,21 @@ export function Admin() {
     const showSnippet = (id: string, s: EnrollSnippet) =>
         setSnippets((all) => ({ ...all, [id]: s }));
 
+    const groups = [
+        ...new Set([
+            ...users.flatMap((u) => u.groups),
+            ...(hosts ?? []).flatMap((h) => h.access.map((a) => a.group)),
+        ]),
+    ].sort();
+
     return (
         <>
             {error && <p className="error">{error}</p>}
+            <datalist id="idp-groups">
+                {groups.map((g) => (
+                    <option key={g} value={g} />
+                ))}
+            </datalist>
             <AddHost
                 onAdd={(name, address) =>
                     act(async () => {
@@ -242,6 +341,7 @@ function Access({
                     autoComplete="off"
                     data-lpignore="true"
                     placeholder="IdP group"
+                    list="idp-groups"
                     value={group}
                     onChange={(e) => setGroup(e.target.value)}
                     required

@@ -11,7 +11,7 @@ services:
       OIDC_ISSUER: https://id.dev.example.com
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      TRUSTED_PROXIES: 172.30.0.2
+      TRUSTED_PROXIES: 172.30.0.2,100.64.0.2   # VPS ingress, edge Traefik (over VPN)
     secrets: [ca_password]
     volumes: ["./data:/data"]
     read_only: true

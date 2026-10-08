@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { audit } from "./audit";
 import { mintUserCert } from "./certs";
 import type { Host } from "./hosts";
 import type { User } from "./sessions";
@@ -49,14 +50,12 @@ const sshCommand: NonNullable<TerminalDeps["command"]> = ({
     `${login}@${host.address}`,
 ];
 
-export const log = (event: Record<string, unknown>) =>
-    console.log(JSON.stringify(event));
-
 export async function openTerminal(
     deps: TerminalDeps,
     user: User,
     host: Host,
     login: string,
+    ip: string,
     handlers: TerminalHandlers,
 ) {
     const sessionId = crypto.randomUUID();
@@ -94,10 +93,11 @@ export async function openTerminal(
         await rm(dir, { recursive: true, force: true });
         throw err;
     }
-    log({
+    audit(deps.db, {
         event: "sign",
         sub: user.sub,
         email: user.email,
+        ip,
         principal,
         host: host.id,
         ttl: "15m",
@@ -120,9 +120,10 @@ export async function openTerminal(
             },
         },
     );
-    log({
+    audit(deps.db, {
         event: "session_start",
         sub: user.sub,
+        email: user.email,
         principal,
         session: sessionId,
     });
@@ -141,9 +142,10 @@ export async function openTerminal(
         proc.terminal?.close();
         await rm(dir, { recursive: true, force: true });
         reason ??= code === 0 ? "exited" : `ssh exited with code ${code}`;
-        log({
+        audit(deps.db, {
             event: "session_end",
             sub: user.sub,
+            email: user.email,
             principal,
             session: sessionId,
             reason,

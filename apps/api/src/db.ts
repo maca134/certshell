@@ -37,5 +37,20 @@ export function openDb(path: string) {
         host_id TEXT NOT NULL,
         session_id TEXT NOT NULL
     )`);
+    db.run(`CREATE TABLE IF NOT EXISTS audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts INTEGER NOT NULL,
+        event TEXT NOT NULL,
+        sub TEXT,
+        data TEXT NOT NULL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        iss TEXT NOT NULL,
+        sub TEXT NOT NULL,
+        email TEXT,
+        groups TEXT NOT NULL,
+        last_login INTEGER NOT NULL,
+        PRIMARY KEY (iss, sub)
+    )`);
     return db;
 }
