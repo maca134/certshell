@@ -1,6 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
+import { SESSION_COOKIE } from "../src/app";
+import { createSession } from "../src/sessions";
 import { APP_URL, startApp } from "./helpers/app";
 
 // Fake `ssh`: prints the login and cert principal, then echoes input via the PTY.
@@ -163,6 +165,28 @@ test("terminal: junk messages during signing are ignored", async () => {
     t.send({ t: "in", d: "still-alive\r" });
     await t.waitFor("still-alive");
     expect((await req("/healthz", {})).status).toBe(200);
+});
+
+test("terminal: '/' and control chars in email can't forge the cert key ID", async () => {
+    await setup({
+        command: ({ key }) => [
+            "sh",
+            "-c",
+            'ssh-keygen -L -f "$0-cert.pub" | grep "Key ID"; exec cat',
+            key,
+        ],
+    });
+    const token = createSession(ctx.db, {
+        iss: "https://id.test",
+        sub: "user-1",
+        email: "v@x/victim/s\nKey ID",
+        groups: ["admins"],
+    });
+    const t = ctx.connect("host=h1&login=root", {
+        cookie: `${SESSION_COOKIE}=${token}`,
+    });
+    await t.waitFor('Key ID: "v@x_victim_s_Key ID/user-1/');
+    t.ws.close();
 });
 
 test("terminal: spawn failure → 1011, temp dir removed", async () => {

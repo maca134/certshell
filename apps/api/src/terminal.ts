@@ -74,7 +74,8 @@ export async function openTerminal(
             caPassword: deps.caPassword,
             dir,
             principal,
-            keyId: `${user.email ?? ""}/${user.sub}/${sessionId}`,
+            // Some IdPs let users edit their email; a `/` or newline would forge the key ID in target sshd logs.
+            keyId: `${(user.email ?? "").replace(/[/\p{Cc}]/gu, "_")}/${user.sub}/${sessionId}`,
             serial,
         });
         await Bun.write(
