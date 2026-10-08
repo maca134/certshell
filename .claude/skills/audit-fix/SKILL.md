@@ -11,10 +11,16 @@ Two audits, one merged list, then fixes.
 
 ## 1. Audit
 
-1. Run the `security-audit` skill. Keep its numbered list.
-2. Run the `ponytail:ponytail-audit` skill. Keep its list.
-3. Merge into one list: security findings first (CRIT → LOW), then ponytail.
-   Drop duplicates.
+1. Start two `general-purpose` agents in one message so they run in parallel,
+   with `run_in_background: false`:
+   - one runs the `security-audit` skill and returns its numbered list
+     verbatim;
+   - one runs the `ponytail:ponytail-audit` skill and returns its list
+     verbatim.
+
+   Tell both: read-only, change no files, return only the list.
+2. Merge into one list: security findings first (CRIT → LOW), then ponytail.
+   Drop duplicates. Check each finding against the code before you fix it.
 
 ## 2. Resolve conflicts
 
