@@ -1,10 +1,10 @@
 import type { HostSummary, Me } from "@repo/shared";
 import {
+    ChevronRight,
     LogOut,
     type LucideIcon,
     ScrollText,
     Server,
-    SquareTerminal,
     Terminal,
     Users,
 } from "lucide-react";
@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { Admin } from "./Admin";
 import { api } from "./api";
+import { Avatar, EmptyState, HostIcon, Logo, Page } from "./components/layout";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import {
@@ -31,6 +32,7 @@ import {
     SidebarTrigger,
     useSidebar,
 } from "./components/ui/sidebar";
+import { Skeleton } from "./components/ui/skeleton";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { TerminalView } from "./TerminalView";
 
@@ -55,9 +57,15 @@ export function App() {
                     const host = hosts.find((h) => h.id === hostId);
                     if (!host)
                         return (
-                            <p className="p-4 text-muted-foreground">
-                                Unknown host.
-                            </p>
+                            <div className="grid h-full place-items-center">
+                                <EmptyState icon={Server} title="Unknown host">
+                                    It may have been removed, or you no longer
+                                    have access.{" "}
+                                    <Link href="/" className="text-primary">
+                                        Back to hosts
+                                    </Link>
+                                </EmptyState>
+                            </div>
                         );
                     return (
                         <TerminalView
@@ -73,73 +81,29 @@ export function App() {
                     <SidebarProvider>
                         <AppSidebar me={me} />
                         <SidebarInset>
-                            <header className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
-                                <SidebarTrigger className="-ml-1" />
-                                <h1 className="text-sm font-medium">
-                                    {title(location)}
-                                </h1>
+                            <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b bg-background/75 px-4 backdrop-blur-xl backdrop-saturate-150">
+                                <SidebarTrigger className="-ml-1 text-muted-foreground" />
+                                <div className="h-4 w-px bg-border" />
+                                <nav className="flex items-center gap-1.5 text-sm">
+                                    {onAdmin && (
+                                        <>
+                                            <span className="text-muted-foreground">
+                                                Admin
+                                            </span>
+                                            <ChevronRight className="size-3.5 text-muted-foreground/60" />
+                                        </>
+                                    )}
+                                    <span className="font-medium">
+                                        {title(location)}
+                                    </span>
+                                </nav>
                             </header>
                             <Switch>
                                 <Route path="/admin" nest>
                                     <Admin />
                                 </Route>
                                 <Route>
-                                    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 sm:p-6">
-                                        {hosts && (
-                                            <span className="text-sm text-muted-foreground">
-                                                {hosts.length} host
-                                                {hosts.length === 1 ? "" : "s"}
-                                            </span>
-                                        )}
-                                        <Card className="py-0">
-                                            {hosts?.length === 0 && (
-                                                <p className="py-10 text-center text-sm text-muted-foreground">
-                                                    No hosts available to you.
-                                                </p>
-                                            )}
-                                            <ul className="divide-y">
-                                                {hosts?.map((host) => (
-                                                    <li
-                                                        key={host.id}
-                                                        className="flex flex-wrap items-center gap-3 px-4 py-3"
-                                                    >
-                                                        <div className="flex size-8 items-center justify-center rounded-md bg-muted">
-                                                            <Server className="size-4 text-muted-foreground" />
-                                                        </div>
-                                                        <span
-                                                            className="min-w-0 flex-1 truncate font-medium"
-                                                            title={host.name}
-                                                        >
-                                                            {host.name}
-                                                        </span>
-                                                        <div className="flex flex-wrap justify-end gap-2">
-                                                            {host.logins.map(
-                                                                (login) => (
-                                                                    <Button
-                                                                        key={
-                                                                            login
-                                                                        }
-                                                                        asChild
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                    >
-                                                                        <Link
-                                                                            href={`/ssh/${host.id}/${login}`}
-                                                                        >
-                                                                            <Terminal />
-                                                                            {
-                                                                                login
-                                                                            }
-                                                                        </Link>
-                                                                    </Button>
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </Card>
-                                    </div>
+                                    <Hosts hosts={hosts} />
                                 </Route>
                             </Switch>
                         </SidebarInset>
@@ -159,7 +123,77 @@ const ADMIN_NAV = [
 const title = (location: string) =>
     location === "/"
         ? "Hosts"
-        : `Admin · ${ADMIN_NAV.find((n) => n.href === location)?.label ?? ""}`;
+        : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
+
+function Hosts({ hosts }: { hosts?: HostSummary[] }) {
+    return (
+        <Page
+            title="Hosts"
+            description="Choose a server and an account to open a secure shell."
+        >
+            <Card className="gap-0 py-0">
+                {!hosts &&
+                    [0, 1, 2].map((i) => (
+                        <div
+                            key={i}
+                            className="flex items-center gap-3 border-b px-4 py-3.5 last:border-b-0"
+                        >
+                            <Skeleton className="size-9 rounded-lg" />
+                            <div className="flex flex-1 flex-col gap-1.5">
+                                <Skeleton className="h-3.5 w-32" />
+                                <Skeleton className="h-3 w-20" />
+                            </div>
+                            <Skeleton className="h-7 w-20" />
+                        </div>
+                    ))}
+                {hosts?.length === 0 && (
+                    <EmptyState icon={Server} title="No hosts yet">
+                        Ask an administrator to give your group access to a
+                        server.
+                    </EmptyState>
+                )}
+                <ul className="divide-y">
+                    {hosts?.map((host) => (
+                        <li
+                            key={host.id}
+                            className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60"
+                        >
+                            <HostIcon icon={Server} />
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <span
+                                    className="truncate font-medium"
+                                    title={host.name}
+                                >
+                                    {host.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {host.logins.length} account
+                                    {host.logins.length === 1 ? "" : "s"}
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap justify-end gap-2">
+                                {host.logins.map((login) => (
+                                    <Button
+                                        key={login}
+                                        asChild
+                                        variant="secondary"
+                                        size="sm"
+                                        className="font-mono hover:bg-primary hover:text-primary-foreground"
+                                    >
+                                        <Link href={`/ssh/${host.id}/${login}`}>
+                                            <Terminal />
+                                            {login}
+                                        </Link>
+                                    </Button>
+                                ))}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </Card>
+        </Page>
+    );
+}
 
 function NavItem({
     href,
@@ -194,12 +228,21 @@ function AppSidebar({ me }: { me?: Me }) {
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton
+                            size="lg"
+                            asChild
+                            className="hover:bg-transparent active:bg-transparent"
+                        >
                             <Link href="/">
-                                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                    <SquareTerminal className="size-4" />
+                                <Logo />
+                                <div className="flex flex-col leading-tight">
+                                    <span className="font-semibold tracking-tight">
+                                        web-ssh
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        Secure shell
+                                    </span>
                                 </div>
-                                <span className="font-semibold">web-ssh</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -228,14 +271,29 @@ function AppSidebar({ me }: { me?: Me }) {
             </SidebarContent>
             <SidebarFooter>
                 <SidebarMenu>
-                    <SidebarMenuItem>
-                        <div className="truncate px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-                            {me?.email ?? me?.sub}
-                        </div>
-                    </SidebarMenuItem>
+                    {me && (
+                        <SidebarMenuItem className="flex items-center gap-2.5 px-1 py-1.5 group-data-[collapsible=icon]:hidden">
+                            <Avatar name={me.email ?? me.sub} />
+                            <div className="flex min-w-0 flex-col leading-tight">
+                                <span
+                                    className="truncate text-sm font-medium"
+                                    title={me.email ?? me.sub}
+                                >
+                                    {me.email ?? me.sub}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {me.admin ? "Administrator" : "Member"}
+                                </span>
+                            </div>
+                        </SidebarMenuItem>
+                    )}
                     <SidebarMenuItem>
                         <form method="post" action="/auth/logout">
-                            <SidebarMenuButton type="submit" tooltip="Sign out">
+                            <SidebarMenuButton
+                                type="submit"
+                                tooltip="Sign out"
+                                className="text-muted-foreground"
+                            >
                                 <LogOut />
                                 <span>Sign out</span>
                             </SidebarMenuButton>
