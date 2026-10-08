@@ -220,3 +220,14 @@ test("loadConfig requires the OIDC vars", () => {
         "OIDC_ISSUER is required",
     );
 });
+
+test("client-side routes serve the SPA shell", async () => {
+    const cookie = await loggedIn();
+    for (const path of ["/", "/admin", "/admin/users", "/ssh/habc/root"]) {
+        const res = await get(path, cookie);
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toStartWith("text/html");
+    }
+    expect((await get("/nope", cookie)).status).toBe(404);
+    expect((await get("/administrator", cookie)).status).toBe(404);
+});

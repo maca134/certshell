@@ -310,10 +310,12 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
             },
         }),
     );
-    app.get("/", async (c) => {
-        c.header("Cache-Control", "no-cache");
-        return c.html(await Bun.file(`${WEB_DIST}/index.html`).text());
-    });
+    // Client-side routes (apps/web/src/App.tsx) all get the SPA shell.
+    for (const path of ["/", "/admin/*", "/ssh/*"])
+        app.get(path, async (c) => {
+            c.header("Cache-Control", "no-cache");
+            return c.html(await Bun.file(`${WEB_DIST}/index.html`).text());
+        });
 
     return app;
 }

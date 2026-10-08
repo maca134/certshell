@@ -6,23 +6,29 @@ import type {
     SeenUser,
 } from "@repo/shared";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { Redirect, useLocation } from "wouter";
 import { api } from "./api";
 
+const VIEWS = ["hosts", "users", "audit"] as const;
+
 export function Admin() {
-    const [view, setView] = useState<"hosts" | "users" | "audit">("hosts");
+    const [location, navigate] = useLocation();
+    const view = location.slice(1);
     const [users, setUsers] = useState<SeenUser[]>([]);
     useEffect(() => {
         api<SeenUser[]>("/api/admin/users").then(setUsers);
     }, []);
+    if (!(VIEWS as readonly string[]).includes(view))
+        return <Redirect to="/hosts" replace />;
     return (
         <>
             <nav className="sub">
-                {(["hosts", "users", "audit"] as const).map((v) => (
+                {VIEWS.map((v) => (
                     <button
                         type="button"
                         key={v}
                         className={view === v ? "" : "link"}
-                        onClick={() => setView(v)}
+                        onClick={() => navigate(`/${v}`)}
                     >
                         {v[0]?.toUpperCase() + v.slice(1)}
                     </button>
