@@ -75,6 +75,26 @@ button {
     padding: 4px;
     background: #000;
 }
+.keybar {
+    display: none;
+    grid-template-columns: repeat(7, 1fr);
+    background: #000;
+}
+.keybar button {
+    background: none;
+    padding: 10px 0;
+    font-size: 14px;
+    touch-action: manipulation;
+    user-select: none;
+}
+.keybar button.on {
+    color: var(--accent);
+}
+@media (pointer: coarse) {
+    .keybar {
+        display: grid;
+    }
+}
 nav {
     display: flex;
     gap: 4px;

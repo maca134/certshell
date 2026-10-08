@@ -13,7 +13,7 @@
         "format": "biome check --write",
         "typecheck": "bun run --filter '*' typecheck",
         "build": "bun run --filter web build",
-        "test": "bun run --filter api test"
+        "test": "bun run --filter api --filter web test"
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.15"
