@@ -36,6 +36,7 @@ test("host list → terminal: socket for that host/login carries keystrokes", as
 }) => {
     const { typed, url } = await openTerminal(page);
     await expect(page).toHaveURL("/ssh/h1/root");
+    await expect(page).toHaveTitle("root@web1");
     expect(url().searchParams.get("host")).toBe("h1");
     expect(url().searchParams.get("login")).toBe("root");
     await page.keyboard.type("ls");

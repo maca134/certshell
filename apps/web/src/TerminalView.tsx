@@ -26,6 +26,14 @@ export function TerminalView({
     const pressRef = useRef<(key: Key) => void>(() => {});
 
     useEffect(() => {
+        const prev = document.title;
+        document.title = `${login}@${host.name}`;
+        return () => {
+            document.title = prev;
+        };
+    }, [host.name, login]);
+
+    useEffect(() => {
         if (!ref.current) return;
         const term = new Terminal({ cursorBlink: true });
         const fit = new FitAddon();
