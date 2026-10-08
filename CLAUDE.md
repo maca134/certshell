@@ -13,3 +13,4 @@
 - Preplan your tool calls, and group in batches where it makes sense.
 - When reporting information to me, be extremely concise and sacrifice grammar for sake of concision.
 - Don't change anything I didn't ask you to change.
+- **Commit per feature/fix/edit** - split work into separate logical commits; never one big commit with everything.
