@@ -5,7 +5,17 @@ import type {
     EnrollSnippet,
     SeenUser,
 } from "@repo/shared";
-import { Check, ChevronRight, Copy, Plus, X } from "lucide-react";
+import { cn } from "cn";
+import {
+    Check,
+    ChevronRight,
+    Copy,
+    Plus,
+    ScrollText,
+    Server,
+    Users as UsersIcon,
+    X,
+} from "lucide-react";
 import {
     type FormEvent,
     Fragment,
@@ -16,6 +26,7 @@ import {
 } from "react";
 import { Redirect, useLocation } from "wouter";
 import { api } from "./api";
+import { Avatar, EmptyState, HostIcon, Page } from "./components/layout";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
@@ -45,13 +56,35 @@ const VIEWS = ["hosts", "users", "audit"] as const;
 
 const noFill = { autoComplete: "off", "data-lpignore": "true" };
 
-const when = (t: string | number) =>
-    new Date(t).toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+const RTF = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+const UNITS = [
+    ["year", 31536e6],
+    ["month", 2592e6],
+    ["week", 6048e5],
+    ["day", 864e5],
+    ["hour", 36e5],
+    ["minute", 6e4],
+] as const;
+
+function When({ t }: { t: string | number }) {
+    const d = new Date(t);
+    const ago = d.getTime() - Date.now();
+    const [unit, ms] = UNITS.find(([, ms]) => Math.abs(ago) >= ms) ?? [
+        "second",
+        1000,
+    ];
+    return (
+        <time
+            dateTime={d.toISOString()}
+            title={d.toLocaleString()}
+            className="whitespace-nowrap text-muted-foreground tabular-nums"
+        >
+            {unit === "second"
+                ? "just now"
+                : RTF.format(Math.round(ago / ms), unit)}
+        </time>
+    );
+}
 
 export function Admin() {
     const [location] = useLocation();
@@ -62,33 +95,36 @@ export function Admin() {
     }, []);
     if (!(VIEWS as readonly string[]).includes(view))
         return <Redirect to="/hosts" replace />;
-    return (
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 sm:p-6">
-            {view === "hosts" && <Hosts users={users} />}
-            {view === "users" && <Users users={users} />}
-            {view === "audit" && <Audit />}
-        </div>
-    );
+    if (view === "hosts") return <Hosts users={users} />;
+    if (view === "users") return <Users users={users} />;
+    return <Audit />;
 }
 
 function Empty({ cols, children }: { cols: number; children: ReactNode }) {
     return (
         <TableRow className="hover:bg-transparent">
-            <TableCell
-                colSpan={cols}
-                className="py-10 text-center text-muted-foreground"
-            >
+            <TableCell colSpan={cols} className="whitespace-normal">
                 {children}
             </TableCell>
         </TableRow>
     );
 }
 
+function Head({ children }: { children: ReactNode }) {
+    return (
+        <TableHeader className="bg-muted/50 [&_th]:h-9 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground [&_th:first-child]:pl-4 [&_th:last-child]:pr-4">
+            <TableRow className="hover:bg-transparent">{children}</TableRow>
+        </TableHeader>
+    );
+}
+
+const tableBody = "[&_td]:py-3 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4";
+
 function Groups({ groups }: { groups: string[] }) {
     return (
         <div className="flex flex-wrap gap-1">
             {groups.map((g) => (
-                <Badge key={g} variant="secondary">
+                <Badge key={g} variant="secondary" className="font-normal">
                     {g}
                 </Badge>
             ))}
@@ -98,51 +134,69 @@ function Groups({ groups }: { groups: string[] }) {
 
 function Users({ users }: { users: SeenUser[] }) {
     return (
-        <Card className="py-0">
-            <Table>
-                <TableHeader>
-                    <TableRow className="hover:bg-transparent">
+        <Page
+            title="Users"
+            description="Everyone who has signed in, with their groups as of their last sign-in."
+        >
+            <Card className="py-0">
+                <Table>
+                    <Head>
                         <TableHead>User</TableHead>
                         <TableHead className="hidden sm:table-cell">
                             Groups
                         </TableHead>
-                        <TableHead className="text-right">Last login</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {users.length === 0 && (
-                        <Empty cols={3}>No one has logged in yet.</Empty>
-                    )}
-                    {users.map((u) => (
-                        <TableRow key={`${u.iss} ${u.sub}`}>
-                            <TableCell
-                                title={u.sub}
-                                className="whitespace-normal"
-                            >
-                                <div className="font-medium break-all">
-                                    {u.email ?? u.sub}
-                                </div>
-                                <div className="mt-1 sm:hidden">
+                        <TableHead className="text-right">
+                            Last sign-in
+                        </TableHead>
+                    </Head>
+                    <TableBody className={tableBody}>
+                        {users.length === 0 && (
+                            <Empty cols={3}>
+                                <EmptyState
+                                    icon={UsersIcon}
+                                    title="No users yet"
+                                >
+                                    People appear here after their first
+                                    sign-in.
+                                </EmptyState>
+                            </Empty>
+                        )}
+                        {users.map((u) => (
+                            <TableRow key={`${u.iss} ${u.sub}`}>
+                                <TableCell
+                                    title={u.sub}
+                                    className="whitespace-normal"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Avatar name={u.email ?? u.sub} />
+                                        <div className="flex min-w-0 flex-col gap-1">
+                                            <div className="font-medium break-all">
+                                                {u.email ?? u.sub}
+                                            </div>
+                                            <div className="sm:hidden">
+                                                <Groups groups={u.groups} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="hidden whitespace-normal sm:table-cell">
                                     <Groups groups={u.groups} />
-                                </div>
-                            </TableCell>
-                            <TableCell className="hidden whitespace-normal sm:table-cell">
-                                <Groups groups={u.groups} />
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground tabular-nums">
-                                {when(u.lastLogin)}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </Card>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <When t={u.lastLogin} />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Card>
+        </Page>
     );
 }
 
 function Details({ data }: { data: Record<string, unknown> }) {
     return (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-xs">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-xs text-foreground/80">
             {Object.entries(data)
                 .filter(([, v]) => v != null)
                 .map(([k, v]) => (
@@ -161,10 +215,13 @@ function Audit() {
         api<AuditEntry[]>("/api/admin/audit?limit=200").then(setEntries);
     }, []);
     return (
-        <Card className="py-0">
-            <Table>
-                <TableHeader>
-                    <TableRow className="hover:bg-transparent">
+        <Page
+            title="Audit log"
+            description="Sign-ins, terminal sessions and admin changes, newest first."
+        >
+            <Card className="py-0">
+                <Table>
+                    <Head>
                         <TableHead className="w-0">Time</TableHead>
                         <TableHead>Event</TableHead>
                         <TableHead className="hidden sm:table-cell">
@@ -173,50 +230,67 @@ function Audit() {
                         <TableHead className="hidden sm:table-cell">
                             Details
                         </TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {entries.length === 0 && (
-                        <Empty cols={4}>No events yet.</Empty>
-                    )}
-                    {entries.map(({ id, ts, event, sub, email, ...rest }) => {
-                        const user = String(email ?? sub ?? "");
-                        return (
-                            <TableRow key={id} className="*:align-top">
-                                <TableCell className="text-muted-foreground tabular-nums">
-                                    {when(ts)}
-                                </TableCell>
-                                <TableCell className="whitespace-normal">
-                                    <Badge
-                                        variant="outline"
-                                        className="font-mono"
-                                    >
-                                        {event}
-                                    </Badge>
-                                    <div className="mt-1 flex flex-col gap-0.5 sm:hidden">
-                                        <span className="break-all">
+                    </Head>
+                    <TableBody className={tableBody}>
+                        {entries.length === 0 && (
+                            <Empty cols={4}>
+                                <EmptyState
+                                    icon={ScrollText}
+                                    title="No events yet"
+                                />
+                            </Empty>
+                        )}
+                        {entries.map(
+                            ({ id, ts, event, sub, email, ...rest }) => {
+                                const user = String(email ?? sub ?? "");
+                                return (
+                                    <TableRow key={id} className="*:align-top">
+                                        <TableCell>
+                                            <When t={ts} />
+                                        </TableCell>
+                                        <TableCell className="whitespace-normal">
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "font-mono font-normal",
+                                                    eventTone(event),
+                                                )}
+                                            >
+                                                {event}
+                                            </Badge>
+                                            <div className="mt-1 flex flex-col gap-0.5 sm:hidden">
+                                                <span className="break-all">
+                                                    {user}
+                                                </span>
+                                                <Details data={rest} />
+                                            </div>
+                                        </TableCell>
+                                        <TableCell
+                                            title={sub ?? ""}
+                                            className="hidden sm:table-cell"
+                                        >
                                             {user}
-                                        </span>
-                                        <Details data={rest} />
-                                    </div>
-                                </TableCell>
-                                <TableCell
-                                    title={sub ?? ""}
-                                    className="hidden sm:table-cell"
-                                >
-                                    {user}
-                                </TableCell>
-                                <TableCell className="hidden min-w-64 whitespace-normal sm:table-cell">
-                                    <Details data={rest} />
-                                </TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-            </Table>
-        </Card>
+                                        </TableCell>
+                                        <TableCell className="hidden min-w-64 whitespace-normal sm:table-cell">
+                                            <Details data={rest} />
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            },
+                        )}
+                    </TableBody>
+                </Table>
+            </Card>
+        </Page>
     );
 }
+
+const eventTone = (event: string) =>
+    event.startsWith("log")
+        ? "border-sky-400/20 bg-sky-400/10 text-sky-300"
+        : event.startsWith("session") || event === "sign"
+          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+          : "border-amber-400/20 bg-amber-400/10 text-amber-300";
 
 function Hosts({ users }: { users: SeenUser[] }) {
     const [hosts, setHosts] = useState<AdminHost[]>();
@@ -259,7 +333,21 @@ function Hosts({ users }: { users: SeenUser[] }) {
     ].sort();
 
     return (
-        <>
+        <Page
+            title="Manage hosts"
+            description={
+                <>
+                    {hosts && (
+                        <span>
+                            {hosts.length} host{hosts.length === 1 ? "" : "s"}
+                        </span>
+                    )}
+                    {hosts && " · "}
+                    Enroll servers and choose which groups can log in.
+                </>
+            }
+            actions={<AddHost onAdded={reload} />}
+        >
             {error && (
                 <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
@@ -270,29 +358,22 @@ function Hosts({ users }: { users: SeenUser[] }) {
                     <option key={g} value={g} />
                 ))}
             </datalist>
-            <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                    {hosts &&
-                        `${hosts.length} host${hosts.length === 1 ? "" : "s"}`}
-                </span>
-                <AddHost onAdded={reload} />
-            </div>
             <Card className="py-0">
                 <Table>
-                    <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                            <TableHead>Host</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="hidden sm:table-cell">
-                                Access
-                            </TableHead>
-                            <TableHead className="w-0" />
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                    <Head>
+                        <TableHead>Host</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                            Access
+                        </TableHead>
+                        <TableHead className="w-0" />
+                    </Head>
+                    <TableBody className={tableBody}>
                         {hosts?.length === 0 && (
                             <Empty cols={4}>
-                                No hosts yet. Add one to get an enroll snippet.
+                                <EmptyState icon={Server} title="No hosts yet">
+                                    Add a host to get a one-time enroll snippet.
+                                </EmptyState>
                             </Empty>
                         )}
                         {hosts?.map((host) => (
@@ -340,7 +421,7 @@ function Hosts({ users }: { users: SeenUser[] }) {
                     </TableBody>
                 </Table>
             </Card>
-        </>
+        </Page>
     );
 }
 
@@ -388,9 +469,10 @@ function AddHost({ onAdded }: { onAdded: () => void }) {
                     </DialogTitle>
                     <DialogDescription>
                         {snippet
-                            ? "Step 2 of 2: run the snippet on the host."
-                            : "Step 1 of 2: name the host and where to reach it."}
+                            ? "Run this on the host to trust the web-ssh CA."
+                            : "Name the host and tell web-ssh where to reach it."}
                     </DialogDescription>
+                    <Steps current={snippet ? 2 : 1} />
                 </DialogHeader>
                 {snippet ? (
                     <>
@@ -420,7 +502,8 @@ function AddHost({ onAdded }: { onAdded: () => void }) {
                             <Input
                                 {...noFill}
                                 id="add-address"
-                                placeholder="hostname or IP"
+                                placeholder="host.example.com or 10.0.0.5"
+                                className="font-mono"
                                 value={address}
                                 onChange={(e) => setAddress(e.target.value)}
                                 required
@@ -430,7 +513,10 @@ function AddHost({ onAdded }: { onAdded: () => void }) {
                             <DialogClose asChild>
                                 <Button variant="outline">Cancel</Button>
                             </DialogClose>
-                            <Button type="submit">Next</Button>
+                            <Button type="submit">
+                                Next
+                                <ChevronRight data-icon="inline-end" />
+                            </Button>
                         </DialogFooter>
                     </form>
                 )}
@@ -439,17 +525,47 @@ function AddHost({ onAdded }: { onAdded: () => void }) {
     );
 }
 
+function Steps({ current }: { current: 1 | 2 }) {
+    return (
+        <ol className="mt-2 flex items-center gap-2 text-xs">
+            {["Details", "Enroll"].map((label, i) => (
+                <li
+                    key={label}
+                    className={cn(
+                        "flex items-center gap-2",
+                        i + 1 > current && "text-muted-foreground",
+                    )}
+                >
+                    {i > 0 && <span className="h-px w-6 bg-border" />}
+                    <span
+                        className={cn(
+                            "flex size-5 items-center justify-center rounded-full border text-[11px] font-medium",
+                            i + 1 === current &&
+                                "border-transparent bg-primary text-primary-foreground",
+                            i + 1 < current &&
+                                "border-transparent bg-primary/20 text-primary",
+                        )}
+                    >
+                        {i + 1 < current ? <Check className="size-3" /> : i + 1}
+                    </span>
+                    {label}
+                </li>
+            ))}
+        </ol>
+    );
+}
+
 function Status({ enrolled }: { enrolled: boolean }) {
     return (
         <Badge
             className={
                 enrolled
-                    ? "bg-emerald-500/15 text-emerald-400"
-                    : "bg-amber-500/15 text-amber-400"
+                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                    : "border-amber-400/20 bg-amber-400/10 text-amber-300"
             }
         >
             <span className="size-1.5 rounded-full bg-current" />
-            {enrolled ? "enrolled" : "pending"}
+            {enrolled ? "Enrolled" : "Pending"}
         </Badge>
     );
 }
@@ -474,7 +590,7 @@ function HostRow({
     return (
         <Fragment>
             <TableRow
-                className="cursor-pointer data-[open=true]:border-b-0 data-[open=true]:bg-muted/50"
+                className="cursor-pointer data-[open=true]:border-b-0 data-[open=true]:bg-muted/40"
                 data-open={open}
                 onClick={onToggle}
             >
@@ -482,11 +598,14 @@ function HostRow({
                     <button
                         type="button"
                         aria-expanded={open}
-                        className="text-left outline-none focus-visible:underline"
+                        className="flex items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                        <div className="font-medium">{host.name}</div>
-                        <div className="font-mono text-xs break-all text-muted-foreground">
-                            {host.address}
+                        <HostIcon icon={Server} />
+                        <div>
+                            <div className="font-medium">{host.name}</div>
+                            <div className="font-mono text-xs break-all text-muted-foreground">
+                                {host.address}
+                            </div>
                         </div>
                     </button>
                 </TableCell>
@@ -495,13 +614,23 @@ function HostRow({
                 </TableCell>
                 <TableCell className="hidden whitespace-normal sm:table-cell">
                     {host.access.length === 0 ? (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">No access</span>
                     ) : (
-                        <Groups
-                            groups={host.access.map(
-                                (r) => `${r.group} → ${r.login}`,
-                            )}
-                        />
+                        <div className="flex flex-wrap gap-1">
+                            {host.access.map((r) => (
+                                <Badge
+                                    key={`${r.login}/${r.group}`}
+                                    variant="secondary"
+                                    className="font-normal"
+                                >
+                                    {r.group}
+                                    <span className="text-muted-foreground">
+                                        →
+                                    </span>
+                                    <span className="font-mono">{r.login}</span>
+                                </Badge>
+                            ))}
+                        </div>
                     )}
                 </TableCell>
                 <TableCell>
@@ -511,10 +640,10 @@ function HostRow({
                 </TableCell>
             </TableRow>
             {open && (
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableCell
                         colSpan={4}
-                        className="px-4 pt-2 pb-5 whitespace-normal"
+                        className="px-4 pt-1 pb-5 whitespace-normal"
                     >
                         <HostPanel
                             host={host}
@@ -532,8 +661,8 @@ function HostRow({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-medium text-muted-foreground">
+        <section className="flex flex-col gap-2.5 rounded-xl border bg-card p-4">
+            <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                 {title}
             </h3>
             {children}
@@ -563,28 +692,40 @@ function HostPanel({
             <div className="grid gap-5 md:grid-cols-2">
                 <Section title="Details">
                     <form
-                        className="flex flex-col gap-2"
+                        className="flex flex-col gap-3"
                         onSubmit={(e) => {
                             e.preventDefault();
                             onSave(name.trim(), address.trim());
                         }}
                     >
-                        <Input
-                            {...noFill}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            aria-label="name"
-                            required
-                        />
-                        <Input
-                            {...noFill}
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            aria-label="address"
-                            required
-                        />
-                        <div className="flex items-center gap-2">
-                            <code className="font-mono text-xs text-muted-foreground">
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor={`name-${host.id}`}>Name</Label>
+                            <Input
+                                {...noFill}
+                                id={`name-${host.id}`}
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor={`address-${host.id}`}>
+                                Address
+                            </Label>
+                            <Input
+                                {...noFill}
+                                id={`address-${host.id}`}
+                                className="font-mono"
+                                value={address}
+                                onChange={(e) => setAddress(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                            <code
+                                className="truncate font-mono text-xs text-muted-foreground"
+                                title="Host ID"
+                            >
                                 {host.id}
                             </code>
                             <Button
@@ -617,28 +758,42 @@ function Snippet({ snippet, expiresAt }: EnrollSnippet) {
     const [copied, setCopied] = useState(false);
     return (
         <Section title="Enroll">
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                    Run as root on the host. One-time, expires{" "}
-                    {new Date(expiresAt * 1000).toLocaleTimeString()}.
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto"
-                    onClick={() =>
-                        navigator.clipboard
-                            .writeText(snippet)
-                            .then(() => setCopied(true))
-                    }
-                >
-                    {copied ? <Check /> : <Copy />}
-                    {copied ? "Copied" : "Copy"}
-                </Button>
+            <p className="text-sm text-muted-foreground">
+                Run as root on the host. One-time use, expires at{" "}
+                {new Date(expiresAt * 1000).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                })}
+                .
+            </p>
+            <div className="overflow-hidden rounded-lg border bg-[#0e0e11]">
+                <div className="flex items-center gap-2 border-b px-3 py-1.5">
+                    <span className="font-mono text-xs text-muted-foreground">
+                        shell
+                    </span>
+                    <Button
+                        variant="ghost"
+                        size="xs"
+                        className="ml-auto text-muted-foreground"
+                        onClick={() =>
+                            navigator.clipboard.writeText(snippet).then(() => {
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                            })
+                        }
+                    >
+                        {copied ? (
+                            <Check className="text-emerald-400" />
+                        ) : (
+                            <Copy />
+                        )}
+                        {copied ? "Copied" : "Copy"}
+                    </Button>
+                </div>
+                <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
+                    {snippet}
+                </pre>
             </div>
-            <pre className="overflow-x-auto rounded-lg bg-black p-3 font-mono text-xs">
-                {snippet}
-            </pre>
         </Section>
     );
 }
@@ -660,23 +815,24 @@ function Access({
     return (
         <div className="flex flex-col gap-2">
             {rules.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="rounded-lg border border-dashed px-3 py-3 text-center text-sm text-muted-foreground">
                     No one can log in yet.
                 </p>
             ) : (
-                <ul className="flex flex-col divide-y rounded-lg border bg-background">
+                <ul className="flex flex-col divide-y rounded-lg border">
                     {rules.map((r) => (
                         <li
                             key={`${r.login}/${r.group}`}
-                            className="flex items-center gap-2 py-1 pr-1 pl-3 text-sm"
+                            className="flex items-center gap-2 py-1.5 pr-1.5 pl-3 text-sm"
                         >
+                            <UsersIcon className="size-3.5 text-muted-foreground" />
                             <span className="font-medium">{r.group}</span>
                             <span className="text-muted-foreground">→</span>
                             <span className="font-mono">{r.login}</span>
                             <Button
                                 variant="ghost"
                                 size="icon-xs"
-                                className="ml-auto"
+                                className="ml-auto text-muted-foreground hover:text-destructive"
                                 aria-label={`remove ${r.group} → ${r.login}`}
                                 onClick={() =>
                                     confirm(
@@ -702,11 +858,13 @@ function Access({
                 <Input
                     {...noFill}
                     placeholder="login"
+                    className="font-mono"
                     value={login}
                     onChange={(e) => setLogin(e.target.value)}
                     required
                 />
                 <Button type="submit" variant="secondary">
+                    <Plus />
                     Allow
                 </Button>
             </form>
