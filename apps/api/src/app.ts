@@ -7,7 +7,6 @@ import {
     upgradeWebSocket,
 } from "hono/bun";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { createMiddleware } from "hono/factory";
 import * as oidc from "openid-client";
 import { adminRoutes, enrollRoute } from "./admin";
 import { audit } from "./audit";
@@ -114,20 +113,16 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
             c.res.headers.set(k, v);
     });
 
-    app.use(
-        "*",
-        createMiddleware<Env>(async (c, next) => {
-            if (PUBLIC_ROUTES.has(`${c.req.method} ${c.req.path}`))
-                return next();
-            const user = getSession(db, getCookie(c, SESSION_COOKIE));
-            if (!user)
-                return c.req.path.startsWith("/api/")
-                    ? c.json({ error: "unauthenticated" }, 401)
-                    : c.redirect("/auth/login");
-            c.set("user", user);
-            return next();
-        }),
-    );
+    app.use("*", async (c, next) => {
+        if (PUBLIC_ROUTES.has(`${c.req.method} ${c.req.path}`)) return next();
+        const user = getSession(db, getCookie(c, SESSION_COOKIE));
+        if (!user)
+            return c.req.path.startsWith("/api/")
+                ? c.json({ error: "unauthenticated" }, 401)
+                : c.redirect("/auth/login");
+        c.set("user", user);
+        return next();
+    });
 
     app.use("/api/admin/*", async (c, next) => {
         if (!c.var.user.groups.includes(config.adminGroup))

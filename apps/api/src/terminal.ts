@@ -20,7 +20,7 @@ export type TerminalDeps = {
     }) => string[];
 };
 
-export type TerminalHandlers = {
+type TerminalHandlers = {
     cols: number;
     rows: number;
     onData: (data: Uint8Array) => void;

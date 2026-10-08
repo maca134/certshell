@@ -3,7 +3,7 @@ import { run } from "./exec";
 
 const PRINCIPAL = /^ws:[a-z0-9]+:[a-z_][a-z0-9_-]*$/;
 
-export type MintOptions = {
+type MintOptions = {
     caKey: string;
     caPassword: string | undefined;
     dir: string;

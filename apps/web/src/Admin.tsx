@@ -11,6 +11,8 @@ import { api } from "./api";
 
 const VIEWS = ["hosts", "users", "audit"] as const;
 
+const noFill = { autoComplete: "off", "data-lpignore": "true" };
+
 export function Admin() {
     const [location, navigate] = useLocation();
     const view = location.slice(1);
@@ -210,16 +212,14 @@ function AddHost({
     return (
         <form className="row" onSubmit={submit}>
             <input
-                autoComplete="off"
-                data-lpignore="true"
+                {...noFill}
                 placeholder="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
             />
             <input
-                autoComplete="off"
-                data-lpignore="true"
+                {...noFill}
                 placeholder="address (hostname or IP)"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -251,15 +251,13 @@ function HostCard({
         <li>
             <div className="row">
                 <input
-                    autoComplete="off"
-                    data-lpignore="true"
+                    {...noFill}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     aria-label="name"
                 />
                 <input
-                    autoComplete="off"
-                    data-lpignore="true"
+                    {...noFill}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     aria-label="address"
@@ -345,8 +343,7 @@ function Access({
             ))}
             <form className="row" onSubmit={add}>
                 <input
-                    autoComplete="off"
-                    data-lpignore="true"
+                    {...noFill}
                     placeholder="IdP group"
                     list="idp-groups"
                     value={group}
@@ -354,8 +351,7 @@ function Access({
                     required
                 />
                 <input
-                    autoComplete="off"
-                    data-lpignore="true"
+                    {...noFill}
                     placeholder="login"
                     value={login}
                     onChange={(e) => setLogin(e.target.value)}

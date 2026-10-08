@@ -4,7 +4,7 @@ import "@xterm/xterm/css/xterm.css";
 import type { ClientMessage, HostSummary } from "@repo/shared";
 import { useEffect, useRef, useState } from "react";
 
-export type Target = { host: HostSummary; login: string };
+type Target = { host: HostSummary; login: string };
 
 export function TerminalView({
     host,
