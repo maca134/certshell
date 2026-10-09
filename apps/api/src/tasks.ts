@@ -10,7 +10,7 @@ import type {
     User,
 } from "@repo/shared";
 import { type Context, Hono } from "hono";
-import { jsonBody, writeGuards } from "./admin";
+import { jsonBody, sq, writeGuards } from "./admin";
 import { audit } from "./audit";
 import type { Config } from "./config";
 import { allowedHost, type Host } from "./hosts";
@@ -22,6 +22,24 @@ const MAX_TARGETS = 50;
 const MAX_OUTPUT = 256 * 1024;
 const MAX_TASKS = 100;
 const TRUNCATED = "[earlier output dropped]\n";
+
+/**
+ * Runs `script` under nohup with its output in a host temp file, streamed back by tail.
+ * When the connection drops, sshd closes the session's pipes: tail dies, the script doesn't.
+ */
+export const detached = (
+    script: string,
+) => `log=$(mktemp /tmp/certshell.XXXXXX) || exit 1
+echo "[log: $log]"
+nohup "\${SHELL:-/bin/sh}" -c ${sq(script)} >"$log" 2>&1 </dev/null &
+pid=$!
+tail -n +1 -f "$log" &
+tail_pid=$!
+wait $pid
+rc=$?
+sleep 1 # ponytail: tail -f polls about once a second; this lets it print the last lines
+kill $tail_pid 2>/dev/null
+exit $rc`;
 
 type Deps = {
     config: Config;
@@ -149,9 +167,12 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
         if (!validScript(input?.script)) return "invalid script";
         const targets = resolveTargets(input?.targets, c.var.user.groups);
         if (typeof targets === "string") return targets;
+        if (input.detach !== undefined && typeof input.detach !== "boolean")
+            return "invalid detach";
         return {
             name: input.name,
             script: input.script,
+            detach: input.detach ? 1 : 0,
             targets: JSON.stringify(
                 targets.map(({ host, login }) => ({ host: host.id, login })),
             ),
@@ -161,10 +182,16 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
     const getTask = (id: string, sub: string) =>
         db
             .query<
-                { id: number; name: string; script: string; targets: string },
+                {
+                    id: number;
+                    name: string;
+                    script: string;
+                    targets: string;
+                    detach: number;
+                },
                 [number, string]
             >(
-                "SELECT id, name, script, targets FROM tasks WHERE id = ? AND sub = ?",
+                "SELECT id, name, script, targets, detach FROM tasks WHERE id = ? AND sub = ?",
             )
             .get(Number(id), sub);
 
@@ -212,15 +239,17 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
                         name: string;
                         script: string;
                         targets: string;
+                        detach: number;
                     },
                     [string]
                 >(
-                    "SELECT id, name, script, targets FROM tasks WHERE sub = ? ORDER BY name, id",
+                    "SELECT id, name, script, targets, detach FROM tasks WHERE sub = ? ORDER BY name, id",
                 )
                 .all(sub)
                 .map((t) => ({
                     ...t,
                     targets: JSON.parse(t.targets),
+                    detach: !!t.detach,
                     lastRun: last.get(t.id),
                 })),
         );
@@ -238,8 +267,14 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
             return c.json({ error: `at most ${MAX_TASKS} tasks` }, 400);
         const id = Number(
             db.run(
-                "INSERT INTO tasks (sub, name, script, targets) VALUES (?, ?, ?, ?)",
-                [c.var.user.sub, task.name, task.script, task.targets],
+                "INSERT INTO tasks (sub, name, script, targets, detach) VALUES (?, ?, ?, ?, ?)",
+                [
+                    c.var.user.sub,
+                    task.name,
+                    task.script,
+                    task.targets,
+                    task.detach,
+                ],
             ).lastInsertRowid,
         );
         return c.json({ id }, 201);
@@ -251,8 +286,14 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
         const task = await parseTask(c);
         if (typeof task === "string") return c.json({ error: task }, 400);
         db.run(
-            "UPDATE tasks SET name = ?, script = ?, targets = ? WHERE id = ?",
-            [task.name, task.script, task.targets, Number(c.req.param("id"))],
+            "UPDATE tasks SET name = ?, script = ?, targets = ?, detach = ? WHERE id = ?",
+            [
+                task.name,
+                task.script,
+                task.targets,
+                task.detach,
+                Number(c.req.param("id")),
+            ],
         );
         return c.body(null, 204);
     });
@@ -280,7 +321,7 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
         const runId = crypto.randomUUID();
         db.transaction(() => {
             db.run(
-                "INSERT INTO runs (id, task_id, sub, email, name, script, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO runs (id, task_id, sub, email, name, script, detach, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     runId,
                     task.id,
@@ -288,6 +329,7 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
                     user.email,
                     task.name,
                     task.script,
+                    task.detach,
                     Date.now(),
                 ],
             );
@@ -305,10 +347,12 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
             run: runId,
             task: task.id,
             script: task.script,
+            detach: !!task.detach,
             targets: targets.map(({ host, login }) => `${host.id}:${login}`),
         });
+        const remote = task.detach ? detached(task.script) : task.script;
         for (const { host, login } of targets)
-            void runTarget(user, ip, runId, host, login, task.script);
+            void runTarget(user, ip, runId, host, login, remote);
         return c.json({ id: runId }, 201);
     });
 
@@ -322,11 +366,12 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
                     task_id: number;
                     name: string;
                     script: string;
+                    detach: number;
                     created_at: number;
                 },
                 [string, string]
             >(
-                "SELECT task_id, name, script, created_at FROM runs WHERE id = ? AND sub = ?",
+                "SELECT task_id, name, script, detach, created_at FROM runs WHERE id = ? AND sub = ?",
             )
             .get(id, c.var.user.sub);
         if (!run) return c.json({ error: "not found" }, 404);
@@ -361,6 +406,7 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
             taskId: run.task_id,
             name: run.name,
             script: run.script,
+            detach: !!run.detach,
             createdAt: run.created_at,
             hosts,
         });

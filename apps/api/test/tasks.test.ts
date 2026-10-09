@@ -1,11 +1,12 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname } from "node:path";
 import type { RunDetail, RunSummary, Task } from "@repo/shared";
 import { SESSION_COOKIE } from "../src/app";
 import { loadConfig } from "../src/config";
 import { createSession } from "../src/sessions";
-import { taskRoutes } from "../src/tasks";
+import { detached, taskRoutes } from "../src/tasks";
 import type { TerminalDeps } from "../src/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 
@@ -140,6 +141,7 @@ test("tasks: invalid input and targets the user can't reach are refused", async 
     await bad({ ...ok, targets: [{ host: "h1", login: 1 }] });
     await bad({ ...ok, targets: [{ host: "h1", login: "alice" }] });
     await bad({ ...ok, targets: [{ host: "h9", login: "root" }] });
+    await bad({ ...ok, detach: "yes" });
     expect(
         (await call("POST", "", ok, { origin: "https://evil.test" })).status,
     ).toBe(403);
@@ -321,3 +323,42 @@ test("targets still running at startup are marked failed", async () => {
         output: "partial\n[interrupted: app restarted]",
     });
 });
+
+test("detach: saved per task; a run wraps the script, keeps output and exit code", async () => {
+    await setup();
+    const res = await call("POST", "", {
+        name: "net",
+        script: 'echo "it\'s on $(hostname)"; echo oops >&2; exit 4',
+        targets: h1root,
+        detach: true,
+    });
+    const { id: taskId } = (await res.json()) as { id: number };
+    const [task] = (await (await call("GET", "")).json()) as Task[];
+    expect(task?.detach).toBeTrue();
+
+    const run = await finished(await runTask(taskId));
+    expect(run.detach).toBeTrue();
+    expect(run.hosts[0]).toMatchObject({ status: "failed", exitCode: 4 });
+    expect(run.hosts[0]?.output).toMatch(
+        /^\[log: \/tmp\/certshell\.\w+\]\nit's on .+\noops\n$/,
+    );
+    expect(events()[0]).toMatchObject({ event: "task_run", detach: true });
+});
+
+test("detached: the script finishes after the connection's pipe closes; plain doesn't", async () => {
+    for (const wrap of [true, false]) {
+        const marker = `${tmpdir()}/certshell-test-${crypto.randomUUID()}`;
+        const work = `for i in 1 2 3 4 5; do echo $i; sleep 0.2; done; touch ${marker}`;
+        const proc = Bun.spawn(["sh", "-c", wrap ? detached(work) : work], {
+            stdout: "pipe",
+            stderr: "ignore",
+        });
+        const reader = proc.stdout.getReader();
+        await reader.read();
+        await reader.cancel();
+        await proc.exited;
+        await Bun.sleep(1500);
+        expect([wrap, await Bun.file(marker).exists()]).toEqual([wrap, wrap]);
+        if (wrap) await Bun.file(marker).delete();
+    }
+}, 15_000);

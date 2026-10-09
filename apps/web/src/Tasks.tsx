@@ -196,6 +196,7 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
     const [, navigate] = useLocation();
     const [name, setName] = useState("");
     const [script, setScript] = useState("");
+    const [detach, setDetach] = useState(false);
     const [checked, setChecked] = useState<string[]>([]);
     // hostId → login picked in that host's dropdown; unset means its first login.
     const [picked, setPicked] = useState<Record<string, string>>({});
@@ -209,6 +210,7 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
             if (!task) return setError("Task not found");
             setName(task.name);
             setScript(task.script);
+            setDetach(task.detach);
             setChecked(task.targets.map((t) => t.host));
             setPicked(
                 Object.fromEntries(task.targets.map((t) => [t.host, t.login])),
@@ -240,6 +242,7 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
             name: name.trim(),
             script,
             targets: reachable,
+            detach,
         };
         try {
             if (id === undefined) await api("/api/tasks", "POST", body);
@@ -291,6 +294,25 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
                         <p className="text-xs text-muted-foreground">
                             Runs in each login's shell, without a terminal:
                             prompts get no input. Killed after 30 minutes.
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="flex cursor-pointer items-center gap-2.5 text-sm font-medium">
+                            <input
+                                type="checkbox"
+                                className="size-4 shrink-0 accent-primary"
+                                checked={detach}
+                                onChange={(e) => setDetach(e.target.checked)}
+                            />
+                            Keep running if the connection drops
+                        </label>
+                        <p className="pl-6.5 text-xs text-muted-foreground">
+                            Without this, a dropped connection (app restart, VPN
+                            or network blip) can kill the script halfway. Turn
+                            it on for anything that can cut the connection
+                            itself: NetBird or VPN upgrades, sshd, firewall,
+                            network config. Output also goes to a log file on
+                            the host, in case the app loses track of the run.
                         </p>
                     </div>
                     <fieldset className="flex flex-col gap-2">
@@ -440,6 +462,12 @@ function RunView({ id }: { id: string }) {
             )}
             {run && (
                 <>
+                    {run.detach && (
+                        <p className="text-xs text-muted-foreground">
+                            Kept running if the connection dropped. The log file
+                            on each host is named in its output.
+                        </p>
+                    )}
                     <pre className="overflow-x-auto rounded-lg border bg-[#0e0e11] p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
                         {run.script}
                     </pre>

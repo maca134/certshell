@@ -26,7 +26,7 @@ const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 const newHostId = () =>
     `h${[...crypto.getRandomValues(new Uint8Array(7))].map((b) => ID_ALPHABET[b % 36]).join("")}`;
 
-const sq = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
+export const sq = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 
 export function renderSnippet(opts: {
     appUrl: string;

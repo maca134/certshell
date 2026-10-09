@@ -13,6 +13,7 @@ const task = {
         { host: "h1", login: "root" },
         { host: "h2", login: "root" },
     ],
+    detach: false,
 };
 
 async function fakeApi(page: Page, tasks: object[] = [task]) {
@@ -100,6 +101,7 @@ test("new task: name, script and hosts picked on the tasks page", async ({
     await page.getByLabel("Login on web2").selectOption("deploy");
     await expect(page.getByRole("checkbox", { name: "web2" })).toBeChecked();
     await expect(page.getByText("1 selected")).toBeVisible();
+    await page.getByLabel("Keep running if the connection drops").check();
     await save.click();
 
     await expect(page).toHaveURL("/tasks");
@@ -111,6 +113,7 @@ test("new task: name, script and hosts picked on the tasks page", async ({
                 name: "Disk",
                 script: "df -h",
                 targets: [{ host: "h2", login: "deploy" }],
+                detach: true,
             },
         },
     ]);
@@ -164,6 +167,7 @@ test("edit a task: prefilled, change hosts, save; delete", async ({ page }) => {
                 name: "Upgrade",
                 script: "apt-get upgrade -y",
                 targets: [{ host: "h2", login: "root" }],
+                detach: false,
             },
         },
         { method: "DELETE", path: "/api/tasks/5", body: undefined },

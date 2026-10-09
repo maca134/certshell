@@ -21,16 +21,17 @@ export type ClientMessage =
 
 export type RunTarget = { host: string; login: string };
 
-/** A saved script and the host logins it runs on. */
+/** A saved script and the host logins it runs on. `detach`: keeps running on the host if the connection drops. */
 export type Task = {
     id: number;
     name: string;
     script: string;
     targets: RunTarget[];
+    detach: boolean;
     lastRun?: RunSummary;
 };
 
-export type TaskInput = Pick<Task, "name" | "script" | "targets">;
+export type TaskInput = Pick<Task, "name" | "script" | "targets" | "detach">;
 
 export type RunStatus = "running" | "ok" | "failed";
 
@@ -57,6 +58,7 @@ export type RunDetail = {
     taskId: number;
     name: string;
     script: string;
+    detach: boolean;
     createdAt: number;
     hosts: RunHost[];
 };
