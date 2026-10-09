@@ -4,6 +4,8 @@
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
+**Website & setup generator: [certshell.dev](https://certshell.dev)**
+
 > **Pre-release.** No image published yet. Build your own with `docker build -t ghcr.io/maca134/certshell:1 .`
 
 ## How it works
