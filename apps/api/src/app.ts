@@ -255,6 +255,7 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
             email,
             groups,
             admin: groups.includes(config.adminGroup),
+            version: config.version,
         });
     });
 

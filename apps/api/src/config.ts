@@ -5,6 +5,7 @@ export type Config = {
     oidcClientSecret: string;
     adminGroup: string;
     trustedProxies: Set<string>;
+    version: string;
 };
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -25,5 +26,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
                 .map((s) => s.trim())
                 .filter(Boolean),
         ),
+        version: env.CERTSHELL_VERSION || "dev",
     };
 }

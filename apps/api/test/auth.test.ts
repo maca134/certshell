@@ -120,6 +120,7 @@ test("callback creates a 1h session from iss+sub+groups", async () => {
         email: "a@b.c",
         groups: ["certshell-admins"],
         admin: true,
+        version: "dev",
     });
 });
 

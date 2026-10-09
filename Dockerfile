@@ -26,6 +26,8 @@ COPY --from=api /app ./
 COPY packages/shared packages/shared
 COPY apps/api/src apps/api/src
 COPY --from=web /app/apps/web/dist apps/web/dist
+ARG VERSION=dev
+ENV CERTSHELL_VERSION=$VERSION
 USER 1000:1000
 VOLUME /data
 EXPOSE 3000

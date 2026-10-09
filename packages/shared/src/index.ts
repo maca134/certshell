@@ -5,7 +5,7 @@ export type User = {
     groups: string[];
 };
 
-export type Me = User & { admin: boolean };
+export type Me = User & { admin: boolean; version: string };
 
 export type HostSummary = {
     id: string;
