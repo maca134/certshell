@@ -93,7 +93,7 @@ export function taskRoutes({
             )
             .get(Number(id), sub);
 
-    const summaries = (where: string, ...params: (string | number)[]) =>
+    const summaries = (sub: string) =>
         db
             .query<
                 {
@@ -105,15 +105,15 @@ export function taskRoutes({
                     ok: number;
                     failed: number;
                 },
-                (string | number)[]
+                [string]
             >(
                 `SELECT r.id, r.task_id, r.name, r.created_at,
                    sum(h.status = 'running') AS running, sum(h.status = 'ok') AS ok, sum(h.status = 'failed') AS failed
                  FROM runs r JOIN run_hosts h ON h.run_id = r.id
-                 WHERE ${where}
+                 WHERE r.sub = ?
                  GROUP BY r.id ORDER BY r.created_at DESC LIMIT 50`,
             )
-            .all(...params)
+            .all(sub)
             .map(
                 (r): RunSummary => ({
                     id: r.id,
@@ -127,7 +127,7 @@ export function taskRoutes({
     app.get("/", (c) => {
         const sub = c.var.user.sub;
         const last = new Map<number, RunSummary>();
-        for (const r of summaries("r.sub = ?", sub))
+        for (const r of summaries(sub))
             if (!last.has(r.taskId)) last.set(r.taskId, r);
         return c.json<Task[]>(
             db
@@ -258,7 +258,7 @@ export function taskRoutes({
         return c.json({ id: runId }, 201);
     });
 
-    app.get("/runs", (c) => c.json(summaries("r.sub = ?", c.var.user.sub)));
+    app.get("/runs", (c) => c.json(summaries(c.var.user.sub)));
 
     app.get("/runs/:id", (c) => {
         const id = c.req.param("id");
