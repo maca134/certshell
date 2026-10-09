@@ -106,3 +106,31 @@ test("host list preloads the terminal chunk before a host is picked", async ({
     await expect(page.getByRole("link", { name: "root" })).toBeVisible();
     await terminalChunk;
 });
+
+test("host list: dot shows whether port 22 answers", async ({ page }) => {
+    await page.route("/api/me", (r) =>
+        r.fulfill({ json: { sub: "s", groups: [], admin: false } }),
+    );
+    await page.route("/api/hosts", (r) =>
+        r.fulfill({
+            json: [
+                { id: "h1", name: "web1", logins: ["root"] },
+                { id: "h2", name: "web2", logins: ["root"] },
+                { id: "h3", name: "web3", logins: ["root"] },
+            ],
+        }),
+    );
+    await page.route("/api/hosts/status", (r) =>
+        r.fulfill({ json: { h1: true, h2: false } }),
+    );
+    await page.goto("/");
+    const row = (name: string) =>
+        page.getByRole("listitem").filter({ hasText: name });
+    await expect(
+        row("web1").getByRole("img", { name: "online" }),
+    ).toBeVisible();
+    await expect(
+        row("web2").getByRole("img", { name: "offline" }),
+    ).toBeVisible();
+    await expect(row("web3").getByRole("img")).toHaveCount(0);
+});

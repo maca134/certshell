@@ -49,6 +49,7 @@ const TerminalView = lazy(() =>
 export function App() {
     const [me, setMe] = useState<Me>();
     const [hosts, setHosts] = useState<HostSummary[]>();
+    const [up, setUp] = useState<Record<string, boolean>>({});
     const [location, navigate] = useLocation();
     const onAdmin = location.startsWith("/admin");
 
@@ -58,6 +59,7 @@ export function App() {
     useEffect(() => {
         if (onAdmin) return;
         api<HostSummary[]>("/api/hosts").then(setHosts);
+        api<Record<string, boolean>>("/api/hosts/status").then(setUp);
         loadTerminal();
     }, [onAdmin]);
 
@@ -152,7 +154,7 @@ export function App() {
                                     <Tasks hosts={hosts} />
                                 </Route>
                                 <Route>
-                                    <Hosts hosts={hosts} />
+                                    <Hosts hosts={hosts} up={up} />
                                 </Route>
                             </Switch>
                         </SidebarInset>
@@ -185,7 +187,13 @@ const title = (location: string) =>
           ? "Tasks"
           : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
 
-function Hosts({ hosts }: { hosts?: HostSummary[] }) {
+function Hosts({
+    hosts,
+    up,
+}: {
+    hosts?: HostSummary[];
+    up: Record<string, boolean>;
+}) {
     return (
         <Page
             title="Hosts"
@@ -220,11 +228,29 @@ function Hosts({ hosts }: { hosts?: HostSummary[] }) {
                         >
                             <HostIcon />
                             <div className="flex min-w-0 flex-1 flex-col">
-                                <span
-                                    className="truncate font-medium"
-                                    title={host.name}
-                                >
-                                    {host.name}
+                                <span className="flex items-center gap-2">
+                                    <span
+                                        className="truncate font-medium"
+                                        title={host.name}
+                                    >
+                                        {host.name}
+                                    </span>
+                                    {host.id in up && (
+                                        <span
+                                            role="img"
+                                            aria-label={
+                                                up[host.id]
+                                                    ? "online"
+                                                    : "offline"
+                                            }
+                                            title={
+                                                up[host.id]
+                                                    ? "Online"
+                                                    : "Offline: port 22 unreachable"
+                                            }
+                                            className={`size-2 shrink-0 rounded-full ${up[host.id] ? "bg-emerald-400" : "bg-muted-foreground/40"}`}
+                                        />
+                                    )}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
                                     {host.logins.length} account
