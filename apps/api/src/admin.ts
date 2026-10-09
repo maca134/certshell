@@ -6,6 +6,7 @@ import {
     type EnrollSnippet,
     RELOAD_SSHD,
     type SeenUser,
+    sq,
 } from "@repo/shared";
 import { Hono, type MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -25,8 +26,6 @@ const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 const newHostId = () =>
     `h${[...crypto.getRandomValues(new Uint8Array(7))].map((b) => ID_ALPHABET[b % 36]).join("")}`;
-
-export const sq = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 
 export function renderSnippet(opts: {
     appUrl: string;

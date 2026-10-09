@@ -101,7 +101,11 @@ test("new task: name, script and hosts picked on the tasks page", async ({
     await page.getByLabel("Login on web2").selectOption("deploy");
     await expect(page.getByRole("checkbox", { name: "web2" })).toBeChecked();
     await expect(page.getByText("1 selected")).toBeVisible();
+    const preview = page.getByText("Show what runs on each host");
+    await expect(preview).toHaveCount(0);
     await page.getByLabel("Keep running if the connection drops").check();
+    await preview.click();
+    await expect(page.getByText(/nohup .* -c 'df -h'/)).toBeVisible();
     await save.click();
 
     await expect(page).toHaveURL("/tasks");

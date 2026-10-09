@@ -2,11 +2,16 @@ import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname } from "node:path";
-import type { RunDetail, RunSummary, Task } from "@repo/shared";
+import {
+    detached,
+    type RunDetail,
+    type RunSummary,
+    type Task,
+} from "@repo/shared";
 import { SESSION_COOKIE } from "../src/app";
 import { loadConfig } from "../src/config";
 import { createSession } from "../src/sessions";
-import { detached, taskRoutes } from "../src/tasks";
+import { taskRoutes } from "../src/tasks";
 import type { TerminalDeps } from "../src/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 

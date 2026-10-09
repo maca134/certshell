@@ -1,11 +1,12 @@
-import type {
-    HostSummary,
-    RunDetail,
-    RunHost,
-    RunStatus,
-    RunSummary,
-    Task,
-    TaskInput,
+import {
+    detached,
+    type HostSummary,
+    type RunDetail,
+    type RunHost,
+    type RunStatus,
+    type RunSummary,
+    type Task,
+    type TaskInput,
 } from "@repo/shared";
 import { cn } from "cn";
 import {
@@ -314,6 +315,16 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
                             network config. Output also goes to a log file on
                             the host, in case the app loses track of the run.
                         </p>
+                        {detach && (
+                            <details className="pl-6.5">
+                                <summary className="cursor-pointer text-xs text-primary select-none">
+                                    Show what runs on each host
+                                </summary>
+                                <pre className="mt-2 max-h-72 overflow-auto rounded-lg border bg-[#0e0e11] p-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
+                                    {detached(script || "your script")}
+                                </pre>
+                            </details>
+                        )}
                     </div>
                     <fieldset className="flex flex-col gap-2">
                         <legend className="mb-2 text-sm font-medium">

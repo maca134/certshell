@@ -86,6 +86,27 @@ export type AuditEntry = {
     [key: string]: unknown;
 };
 
+/** Single-quotes `s` for sh. */
+export const sq = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
+
+/**
+ * Runs `script` under nohup with its output in a host temp file, streamed back by tail.
+ * When the connection drops, sshd closes the session's pipes: tail dies, the script doesn't.
+ */
+export const detached = (
+    script: string,
+) => `log=$(mktemp /tmp/certshell.XXXXXX) || exit 1
+echo "[log: $log]"
+nohup "\${SHELL:-/bin/sh}" -c ${sq(script)} >"$log" 2>&1 </dev/null &
+pid=$!
+tail -n +1 -f "$log" &
+tail_pid=$!
+wait $pid
+rc=$?
+sleep 1 # tail -f polls about once a second: let it print the last lines
+kill $tail_pid 2>/dev/null
+exit $rc`;
+
 /** systemd only if actually running (containers often ship systemctl without it), else OpenRC, else SIGHUP. */
 export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
   systemctl reload ssh 2>/dev/null || systemctl reload sshd

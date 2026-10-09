@@ -1,16 +1,17 @@
 import type { Database } from "bun:sqlite";
 import { rm } from "node:fs/promises";
-import type {
-    RunDetail,
-    RunHost,
-    RunStatus,
-    RunSummary,
-    RunTarget,
-    Task,
-    User,
+import {
+    detached,
+    type RunDetail,
+    type RunHost,
+    type RunStatus,
+    type RunSummary,
+    type RunTarget,
+    type Task,
+    type User,
 } from "@repo/shared";
 import { type Context, Hono } from "hono";
-import { jsonBody, sq, writeGuards } from "./admin";
+import { jsonBody, writeGuards } from "./admin";
 import { audit } from "./audit";
 import type { Config } from "./config";
 import { allowedHost, type Host } from "./hosts";
@@ -22,24 +23,6 @@ const MAX_TARGETS = 50;
 const MAX_OUTPUT = 256 * 1024;
 const MAX_TASKS = 100;
 const TRUNCATED = "[earlier output dropped]\n";
-
-/**
- * Runs `script` under nohup with its output in a host temp file, streamed back by tail.
- * When the connection drops, sshd closes the session's pipes: tail dies, the script doesn't.
- */
-export const detached = (
-    script: string,
-) => `log=$(mktemp /tmp/certshell.XXXXXX) || exit 1
-echo "[log: $log]"
-nohup "\${SHELL:-/bin/sh}" -c ${sq(script)} >"$log" 2>&1 </dev/null &
-pid=$!
-tail -n +1 -f "$log" &
-tail_pid=$!
-wait $pid
-rc=$?
-sleep 1 # ponytail: tail -f polls about once a second; this lets it print the last lines
-kill $tail_pid 2>/dev/null
-exit $rc`;
 
 type Deps = {
     config: Config;
