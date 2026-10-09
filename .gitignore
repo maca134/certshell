@@ -11,3 +11,4 @@ docs/dev-env.md
 .claude/skills/find-skills/
 apps/web/.claude/skills/
 apps/web/skills-lock.json
+.wrangler/
