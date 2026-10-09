@@ -1,7 +1,7 @@
 # SPEC — CertShell (short-lived certs)
 
 Status: build steps 1–6 (§9) implemented; step 7 (release) in progress: workflow, examples, README, MIT license done, no release tag yet.
-Scope: **browser SSH terminal and tasks** (one command on many hosts, §3.4). No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
+Scope: **browser SSH terminal and tasks** (a saved script run on many hosts, §3.4). No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
 
 ---
 
@@ -90,18 +90,6 @@ ssh.exited.finally(() => rm(dir, { recursive: true }));
 - `-O clear -O permit-pty`: no port/agent/X11 forwarding, no `~/.ssh/rc`. A cert can open a terminal and nothing else, so a minted cert can't pivot through a target.
 - Logins are validated (`^[a-z_][a-z0-9_-]*$`) when added to the access map; a comma would inject extra principals into `ssh-keygen -n`.
 - Terminals: killed after 30 min without input, and always after 8h. Cert TTL only gates connection setup.
-- Broadcast (UI only): up to 8 terminals in one window, typing goes to all of them or the focused one. Each pane is an ordinary terminal session with its own cert.
-
-### 3.4 Tasks
-
-Run one command on many hosts at once, e.g. `apt-get upgrade -y`, without a terminal.
-
-- Any user, on hosts + logins the access map already gives them (same check as a terminal, §3.2). One run: up to 50 targets, a command up to 4 KB.
-- Per target: the §3.2 flow, but the cert is `-O clear` only (**no `permit-pty`**): it runs the one command, no shell, no forwarding. `ssh` gets the command as its last argv element, stdin `/dev/null`, so prompts read EOF instead of hanging.
-- Targets run in parallel. Killed after 30 min. Status per target: running → ok (exit 0) / failed (non-zero, ssh error, timeout). stdout + stderr merged; the last 256 KB is kept.
-- A run counts once against the per-user sign rate limit.
-- Runs and output stored in SQLite; users see their own runs only. On restart, still-running targets are marked failed.
-- Saved commands: name + command, per user. Picked when starting a run; targets are always chosen per run.
 
 ### 3.3 Accepted risk
 
@@ -116,6 +104,17 @@ Run one command on many hosts at once, e.g. `apt-get upgrade -y`, without a term
   - Audit trail outside the app's reach: stdout + target sshd logs (§5).
   - Break-glass keys stay offline, unsigned by this CA, with no dependency on this app.
   - Optional: hardware-backed CA key (YubiKey PIV / TPM via PKCS#11, `ssh-keygen -D`) — usable in place, not exfiltratable. Documented, not default.
+
+### 3.4 Tasks
+
+A task = a saved script + the host logins it runs on, e.g. `apt-get upgrade -y` on every web server. Created, edited and run from the Tasks page.
+
+- Per user: users see and run only their own tasks and runs. Up to 100 tasks, 50 targets each, a script up to 16 KB.
+- Targets must be host + logins the access map gives the user (same check as a terminal, §3.2), on save and **again on every run**, since groups and the access map change.
+- Per target: the §3.2 flow, but the cert is `-O clear` only (**no `permit-pty`**): it runs the script, no terminal, no forwarding. `ssh` gets the script as its last argv element (the login's shell runs it), stdin `/dev/null`, so prompts read EOF instead of hanging.
+- Targets run in parallel. Killed after 30 min. Status per target: running → ok (exit 0) / failed (non-zero, ssh error, timeout). stdout + stderr merged; the last 256 KB is kept. The UI polls while a run is going.
+- A run counts once against the per-user sign rate limit.
+- A run keeps a copy of the task's name and script: editing or deleting the task doesn't change past runs. On restart, still-running targets are marked failed.
 
 ---
 
@@ -219,7 +218,7 @@ echo "enrolled: $(hostname)"
 
 ### Audit
 
-- The app is the CA, so **the audit log is the only record of issuance**. Log logins, every sign (`sub`, email, principal, host, TTL, serial, session) and session start/end, task runs (command + targets) and each target's result.
+- The app is the CA, so **the audit log is the only record of issuance**. Log logins, every sign (`sub`, email, principal, host, TTL, serial, session) and session start/end, task runs (task, script, targets) and each target's result.
 - Write audit events to stdout as well as SQLite. An attacker in the container can rewrite the DB, not log lines already shipped.
 - Targets' sshd logs the cert key ID (`email/sub/sessionId`) and serial on every login — an independent record the app can't touch.
 
