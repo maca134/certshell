@@ -3,6 +3,7 @@ import {
     ChevronRight,
     CircleArrowUp,
     Globe,
+    ListTodo,
     LogOut,
     type LucideIcon,
     ScrollText,
@@ -36,6 +37,7 @@ import {
 } from "./components/ui/sidebar";
 import { Skeleton } from "./components/ui/skeleton";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { Tasks } from "./Tasks";
 
 // xterm is half the bundle: load it after the host list renders, before the user picks a host.
 const loadTerminal = () => import("./TerminalView");
@@ -145,6 +147,9 @@ export function App() {
                                 <Route path="/admin" nest>
                                     <Admin />
                                 </Route>
+                                <Route path="/tasks" nest>
+                                    <Tasks hosts={hosts} />
+                                </Route>
                                 <Route>
                                     <Hosts hosts={hosts} />
                                 </Route>
@@ -174,7 +179,9 @@ const ADMIN_NAV = [
 const title = (location: string) =>
     location === "/"
         ? "Hosts"
-        : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
+        : location.startsWith("/tasks")
+          ? "Tasks"
+          : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
 
 function Hosts({ hosts }: { hosts?: HostSummary[] }) {
     return (
@@ -261,7 +268,10 @@ function NavItem({
         <SidebarMenuItem>
             <SidebarMenuButton
                 asChild
-                isActive={location === href}
+                isActive={
+                    location === href ||
+                    (href !== "/" && location.startsWith(`${href}/`))
+                }
                 tooltip={label}
             >
                 <Link href={href} onClick={() => setOpenMobile(false)}>
@@ -304,6 +314,11 @@ function AppSidebar({ me }: { me?: Me }) {
                     <SidebarGroupContent>
                         <SidebarMenu className="gap-1">
                             <NavItem href="/" label="Hosts" icon={Terminal} />
+                            <NavItem
+                                href="/tasks"
+                                label="Tasks"
+                                icon={ListTodo}
+                            />
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>

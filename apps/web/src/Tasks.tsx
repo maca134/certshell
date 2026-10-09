@@ -4,12 +4,21 @@ import type {
     RunHost,
     RunStatus,
     RunSummary,
-    SavedCommand,
+    Task,
+    TaskInput,
 } from "@repo/shared";
 import { cn } from "cn";
-import { ChevronRight, ListTodo, Play, Save, Trash2 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
-import { Link, Route, Switch, useLocation, useSearch } from "wouter";
+import {
+    ChevronRight,
+    ListTodo,
+    Pencil,
+    Play,
+    Plus,
+    Terminal,
+    Trash2,
+} from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { Link, Route, Switch, useLocation } from "wouter";
 import { AMBER, GREEN, When } from "./Admin";
 import { api } from "./api";
 import { EmptyState, Page } from "./components/layout";
@@ -20,7 +29,7 @@ import { Card } from "./components/ui/card";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 
-export const MAX_TARGETS = 50;
+const MAX_TARGETS = 50;
 
 const RED = "border-red-400/20 bg-red-400/10 text-red-300";
 const STATUS: Record<RunStatus, { label: string; className: string }> = {
@@ -29,282 +38,351 @@ const STATUS: Record<RunStatus, { label: string; className: string }> = {
     failed: { label: "failed", className: RED },
 };
 
-type Target = { host: HostSummary; login: string };
-
-/** `t=h1:root,h2:alice` → the targets the user still has access to. */
-export function parseTargets(search: string, hosts: HostSummary[]): Target[] {
-    const keys = new URLSearchParams(search).get("t")?.split(",") ?? [];
-    return [...new Set(keys)].flatMap((key) => {
-        const [hostId, login = ""] = key.split(":");
-        const host = hosts.find((h) => h.id === hostId);
-        return host?.logins.includes(login) ? [{ host, login }] : [];
-    });
-}
-
 export function Tasks({ hosts }: { hosts?: HostSummary[] }) {
     return (
         <Switch>
-            <Route path="/:id">{({ id }) => <RunView id={id} />}</Route>
+            <Route path="/new">
+                <TaskForm hosts={hosts} />
+            </Route>
+            <Route path="/:id/edit">
+                {({ id }) => <TaskForm id={Number(id)} hosts={hosts} />}
+            </Route>
+            <Route path="/runs/:id">{({ id }) => <RunView id={id} />}</Route>
             <Route>
-                <TaskHome hosts={hosts} />
+                <TaskList />
             </Route>
         </Switch>
     );
 }
 
-function TaskHome({ hosts }: { hosts?: HostSummary[] }) {
-    const targets = parseTargets(useSearch(), hosts ?? []).slice(
-        0,
-        MAX_TARGETS,
-    );
-    const [command, setCommand] = useState("");
-    const [saved, setSaved] = useState<SavedCommand[]>();
+/** POSTs a run and opens it. */
+function useRun() {
+    const [, navigate] = useLocation();
+    const [error, setError] = useState<string>();
+    const run = (taskId: number) =>
+        api<{ id: string }>(`/api/tasks/${taskId}/run`, "POST").then(
+            ({ id }) => navigate(`~/tasks/runs/${id}`),
+            (err: Error) => setError(err.message),
+        );
+    return { run, error };
+}
+
+function TaskList() {
+    const [tasks, setTasks] = useState<Task[]>();
     const [runs, setRuns] = useState<RunSummary[]>();
-    const loadSaved = () =>
-        api<SavedCommand[]>("/api/tasks/commands").then(setSaved);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: load once
+    const { run, error } = useRun();
     useEffect(() => {
-        loadSaved();
+        api<Task[]>("/api/tasks").then(setTasks);
         api<RunSummary[]>("/api/tasks/runs").then(setRuns);
     }, []);
 
     return (
         <Page
             title="Tasks"
-            description="Run one command on many hosts at once."
+            description="Saved scripts and the hosts they run on."
+            actions={
+                <Button size="sm" asChild>
+                    <Link href="/new">
+                        <Plus />
+                        New task
+                    </Link>
+                </Button>
+            }
         >
-            {targets.length ? (
-                <NewRun
-                    targets={targets}
-                    command={command}
-                    setCommand={setCommand}
-                    onSaved={loadSaved}
-                />
-            ) : (
-                <Card className="py-0">
-                    <EmptyState icon={ListTodo} title="Pick hosts first">
-                        On{" "}
-                        <Link href="~/" className="text-primary">
-                            Hosts
-                        </Link>
-                        , choose Select, pick accounts, then Run command.
-                    </EmptyState>
-                </Card>
+            {error && (
+                <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
             )}
-            <Section title="Saved commands">
-                {saved?.length === 0 && (
-                    <p className="px-4 py-3.5 text-sm text-muted-foreground">
-                        None yet. Save one from the form above.
-                    </p>
+            <Card className="gap-0 py-0">
+                {tasks?.length === 0 && (
+                    <EmptyState icon={ListTodo} title="No tasks yet">
+                        A task is a script and the hosts it runs on, e.g.{" "}
+                        <code>apt-get upgrade -y</code> on every web server.
+                    </EmptyState>
                 )}
-                {saved?.map((c) => (
-                    <li
-                        key={c.id}
-                        className="flex items-center gap-3 px-4 py-2.5"
-                    >
-                        <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate text-sm font-medium">
-                                {c.name}
-                            </span>
-                            <code className="truncate text-xs text-muted-foreground">
-                                {c.command}
-                            </code>
-                        </div>
-                        {!!targets.length && (
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => setCommand(c.command)}
-                            >
-                                Use
-                            </Button>
-                        )}
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="text-muted-foreground"
-                            aria-label={`Delete ${c.name}`}
-                            title="Delete"
-                            onClick={() =>
-                                api(
-                                    `/api/tasks/commands/${c.id}`,
-                                    "DELETE",
-                                ).then(loadSaved)
-                            }
+                <ul className="divide-y">
+                    {tasks?.map((t) => (
+                        <li
+                            key={t.id}
+                            className="flex flex-wrap items-center gap-3 px-4 py-3"
                         >
-                            <Trash2 />
-                        </Button>
-                    </li>
-                ))}
-            </Section>
-            <Section title="Recent runs">
-                {runs?.length === 0 && (
-                    <p className="px-4 py-3.5 text-sm text-muted-foreground">
-                        No runs yet.
-                    </p>
-                )}
-                {runs?.map((r) => (
-                    <li key={r.id}>
-                        <Link
-                            href={`/${r.id}`}
-                            className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
-                        >
-                            <code className="min-w-0 flex-1 truncate text-sm">
-                                {r.command}
-                            </code>
-                            <span className="flex items-center gap-1.5">
-                                {(Object.keys(STATUS) as RunStatus[]).map(
-                                    (s) =>
-                                        r.counts[s] > 0 && (
-                                            <Badge
-                                                key={s}
-                                                className={STATUS[s].className}
+                            <div className="flex min-w-48 flex-1 flex-col">
+                                <span className="truncate font-medium">
+                                    {t.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {t.targets.length} host
+                                    {t.targets.length === 1 ? "" : "s"}
+                                    {t.lastRun && (
+                                        <>
+                                            {" · last run "}
+                                            <Link
+                                                href={`/runs/${t.lastRun.id}`}
+                                                className="hover:underline"
                                             >
-                                                {r.counts[s]} {STATUS[s].label}
-                                            </Badge>
-                                        ),
-                                )}
-                            </span>
-                            <span className="text-xs">
-                                <When t={r.createdAt} />
-                            </span>
-                        </Link>
-                    </li>
-                ))}
-            </Section>
+                                                <When t={t.lastRun.createdAt} />
+                                            </Link>
+                                        </>
+                                    )}
+                                </span>
+                            </div>
+                            {t.lastRun && <Counts counts={t.lastRun.counts} />}
+                            <div className="flex gap-2">
+                                <Button variant="secondary" size="sm" asChild>
+                                    <Link href={`/${t.id}/edit`}>
+                                        <Pencil />
+                                        Edit
+                                    </Link>
+                                </Button>
+                                <Button size="sm" onClick={() => run(t.id)}>
+                                    <Play />
+                                    Run
+                                </Button>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </Card>
+            {!!runs?.length && (
+                <section className="flex flex-col gap-2">
+                    <h2 className="text-sm font-medium text-muted-foreground">
+                        Recent runs
+                    </h2>
+                    <Card className="gap-0 py-0">
+                        <ul className="divide-y">
+                            {runs.map((r) => (
+                                <li key={r.id}>
+                                    <Link
+                                        href={`/runs/${r.id}`}
+                                        className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
+                                    >
+                                        <span className="min-w-0 flex-1 truncate text-sm">
+                                            {r.name}
+                                        </span>
+                                        <Counts counts={r.counts} />
+                                        <span className="text-xs">
+                                            <When t={r.createdAt} />
+                                        </span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </Card>
+                </section>
+            )}
         </Page>
     );
 }
 
-function NewRun({
-    targets,
-    command,
-    setCommand,
-    onSaved,
-}: {
-    targets: Target[];
-    command: string;
-    setCommand: (c: string) => void;
-    onSaved: () => void;
-}) {
+function Counts({ counts }: { counts: Record<RunStatus, number> }) {
+    return (
+        <span className="flex items-center gap-1.5">
+            {(Object.keys(STATUS) as RunStatus[]).map(
+                (s) =>
+                    counts[s] > 0 && (
+                        <Badge key={s} className={STATUS[s].className}>
+                            {counts[s]} {STATUS[s].label}
+                        </Badge>
+                    ),
+            )}
+        </span>
+    );
+}
+
+function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
     const [, navigate] = useLocation();
     const [name, setName] = useState("");
+    const [script, setScript] = useState("");
+    // Entries are `hostId:login`.
+    const [selected, setSelected] = useState<string[]>([]);
     const [error, setError] = useState<string>();
     const [busy, setBusy] = useState(false);
 
-    const run = async (e: FormEvent) => {
+    useEffect(() => {
+        if (id === undefined) return;
+        api<Task[]>("/api/tasks").then((tasks) => {
+            const task = tasks.find((t) => t.id === id);
+            if (!task) return setError("Task not found");
+            setName(task.name);
+            setScript(task.script);
+            setSelected(task.targets.map((t) => `${t.host}:${t.login}`));
+        });
+    }, [id]);
+
+    // Saved targets the user can no longer reach drop out on save.
+    const reachable = selected.filter((key) => {
+        const [hostId, login = ""] = key.split(":");
+        return hosts?.some((h) => h.id === hostId && h.logins.includes(login));
+    });
+    const toggle = (key: string) =>
+        setSelected((s) =>
+            s.includes(key) ? s.filter((k) => k !== key) : [...s, key],
+        );
+
+    const save = async (e: FormEvent) => {
         e.preventDefault();
         setBusy(true);
         setError(undefined);
+        const body: TaskInput = {
+            name: name.trim(),
+            script,
+            targets: reachable.map((key) => {
+                const [host = "", login = ""] = key.split(":");
+                return { host, login };
+            }),
+        };
         try {
-            const { id } = await api<{ id: string }>(
-                "/api/tasks/runs",
-                "POST",
-                {
-                    command,
-                    targets: targets.map((t) => ({
-                        host: t.host.id,
-                        login: t.login,
-                    })),
-                },
-            );
-            navigate(`/${id}`);
+            if (id === undefined) await api("/api/tasks", "POST", body);
+            else await api(`/api/tasks/${id}`, "PUT", body);
+            navigate("~/tasks");
         } catch (err) {
             setError((err as Error).message);
             setBusy(false);
         }
     };
-    const save = () =>
-        api("/api/tasks/commands", "POST", { name: name.trim(), command }).then(
-            () => {
-                setName("");
-                onSaved();
-            },
+    const remove = () => {
+        if (!confirm(`Delete task "${name}"? Its past runs are kept.`)) return;
+        api(`/api/tasks/${id}`, "DELETE").then(
+            () => navigate("~/tasks"),
             (err: Error) => setError(err.message),
         );
+    };
 
     return (
-        <Card className="gap-4 p-4">
-            <form onSubmit={run} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                    <Label>Targets</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                        {targets.map(({ host, login }) => (
-                            <Badge
-                                key={`${host.id}:${login}`}
-                                variant="outline"
-                                className="font-mono font-normal"
-                            >
-                                <span>
-                                    <span className="text-muted-foreground">
-                                        {login}@
-                                    </span>
-                                    {host.name}
-                                </span>
-                            </Badge>
-                        ))}
+        <Page title={id === undefined ? "New task" : "Edit task"}>
+            <Card className="p-4">
+                <form onSubmit={save} className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="task-name">Name</Label>
+                        <Input
+                            id="task-name"
+                            required
+                            maxLength={64}
+                            autoComplete="off"
+                            placeholder="Upgrade packages"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                        />
                     </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="task-command">Command</Label>
-                    <textarea
-                        id="task-command"
-                        rows={3}
-                        required
-                        maxLength={4096}
-                        spellCheck={false}
-                        autoComplete="off"
-                        value={command}
-                        onChange={(e) => setCommand(e.target.value)}
-                        placeholder="apt-get update && apt-get upgrade -y"
-                        className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                        Runs without a terminal, so prompts get no input. Killed
-                        after 30 minutes.
-                    </p>
-                </div>
-                {error && (
-                    <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                )}
-                <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                        aria-label="Name"
-                        placeholder="Name"
-                        maxLength={64}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-40"
-                    />
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        disabled={!name.trim() || !command.trim()}
-                        onClick={save}
-                    >
-                        <Save />
-                        Save
-                    </Button>
-                    <Button
-                        type="submit"
-                        className="ml-auto"
-                        disabled={busy || !command.trim()}
-                    >
-                        <Play />
-                        Run on {targets.length} host
-                        {targets.length === 1 ? "" : "s"}
-                    </Button>
-                </div>
-            </form>
-        </Card>
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="task-script">Script</Label>
+                        <textarea
+                            id="task-script"
+                            rows={8}
+                            required
+                            maxLength={16 * 1024}
+                            spellCheck={false}
+                            autoComplete="off"
+                            value={script}
+                            onChange={(e) => setScript(e.target.value)}
+                            placeholder={"apt-get update\napt-get upgrade -y"}
+                            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Runs in each login's shell, without a terminal:
+                            prompts get no input. Killed after 30 minutes.
+                        </p>
+                    </div>
+                    <fieldset className="flex flex-col gap-2">
+                        <legend className="mb-2 text-sm font-medium">
+                            Hosts{" "}
+                            <span className="font-normal text-muted-foreground">
+                                · {reachable.length} selected
+                            </span>
+                        </legend>
+                        {hosts?.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                You don't have access to any hosts yet.
+                            </p>
+                        )}
+                        <ul className="divide-y rounded-lg border">
+                            {hosts?.map((host) => (
+                                <li
+                                    key={host.id}
+                                    className="flex flex-wrap items-center gap-3 px-3 py-2"
+                                >
+                                    <span
+                                        className="min-w-0 flex-1 truncate text-sm"
+                                        title={host.name}
+                                    >
+                                        {host.name}
+                                    </span>
+                                    <div className="flex flex-wrap justify-end gap-2">
+                                        {host.logins.map((login) => {
+                                            const key = `${host.id}:${login}`;
+                                            const on = selected.includes(key);
+                                            return (
+                                                <Button
+                                                    key={login}
+                                                    type="button"
+                                                    variant={
+                                                        on
+                                                            ? "default"
+                                                            : "outline"
+                                                    }
+                                                    size="sm"
+                                                    className="font-mono"
+                                                    aria-pressed={on}
+                                                    onClick={() => toggle(key)}
+                                                >
+                                                    <Terminal />
+                                                    {login}
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </fieldset>
+                    {error && (
+                        <Alert variant="destructive">
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                        {id !== undefined && (
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={remove}
+                            >
+                                <Trash2 />
+                                Delete
+                            </Button>
+                        )}
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className="ml-auto"
+                            onClick={() => navigate("~/tasks")}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={
+                                busy ||
+                                !name.trim() ||
+                                !script.trim() ||
+                                !reachable.length ||
+                                reachable.length > MAX_TARGETS
+                            }
+                        >
+                            Save
+                        </Button>
+                    </div>
+                </form>
+            </Card>
+        </Page>
     );
 }
 
 function RunView({ id }: { id: string }) {
     const [run, setRun] = useState<RunDetail>();
     const [error, setError] = useState<string>();
+    const again = useRun();
 
     useEffect(() => {
         let live = true;
@@ -328,25 +406,31 @@ function RunView({ id }: { id: string }) {
 
     return (
         <Page
-            title="Run"
+            title={run?.name ?? "Run"}
             description={run && <When t={run.createdAt} />}
             actions={
-                <Button variant="secondary" size="sm" asChild>
-                    <Link href="/">All tasks</Link>
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" asChild>
+                        <Link href="~/tasks">All tasks</Link>
+                    </Button>
+                    {run && (
+                        <Button size="sm" onClick={() => again.run(run.taskId)}>
+                            <Play />
+                            Run again
+                        </Button>
+                    )}
+                </div>
             }
         >
-            {error && (
-                <Card className="py-0">
-                    <EmptyState icon={ListTodo} title="Run not found">
-                        {error}
-                    </EmptyState>
-                </Card>
+            {(error || again.error) && (
+                <Alert variant="destructive">
+                    <AlertDescription>{error || again.error}</AlertDescription>
+                </Alert>
             )}
             {run && (
                 <>
                     <pre className="overflow-x-auto rounded-lg border bg-[#0e0e11] p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                        {run.command}
+                        {run.script}
                     </pre>
                     <Card className="gap-0 py-0">
                         <ul className="divide-y">
@@ -396,18 +480,5 @@ function HostResult({ hostName, login, status, exitCode, output }: RunHost) {
                 </pre>
             </details>
         </li>
-    );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-    return (
-        <section className="flex flex-col gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground">
-                {title}
-            </h2>
-            <Card className="gap-0 py-0">
-                <ul className="divide-y">{children}</ul>
-            </Card>
-        </section>
     );
 }
