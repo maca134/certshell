@@ -102,6 +102,8 @@ export async function openTerminal(
                 host,
             }),
             {
+                // ssh forwards TERM to the remote pty; the container has none, so curses apps like top exit.
+                env: { ...process.env, TERM: "xterm-256color" },
                 terminal: {
                     cols: handlers.cols,
                     rows: handlers.rows,

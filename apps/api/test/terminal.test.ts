@@ -117,6 +117,13 @@ test("terminal: resize reaches the PTY", async () => {
     await t.waitFor("40 132");
 });
 
+test("terminal: spawns with TERM=xterm-256color", async () => {
+    await setup({ command: () => ["sh", "-c", 'echo "term=$TERM"'] });
+    const t = ctx.connect("host=h1&login=root");
+    await t.opened;
+    await t.waitFor("term=xterm-256color");
+});
+
 test("terminal: process exit closes the socket", async () => {
     await setup({ command: () => ["sh", "-c", "echo bye"] });
     const t = ctx.connect("host=h1&login=root");
