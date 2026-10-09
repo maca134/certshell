@@ -204,6 +204,8 @@ echo "enrolled: $(hostname)"
 | `OIDC_ADMIN_GROUP` | no | `certshell-admins` |
 | `CA_NAME` | no | `certshell` |
 | `TRUSTED_PROXIES` | no | none → `X-Forwarded-For` ignored |
+| `AUDIT_DAYS` | no | none → audit log kept forever |
+| `RUN_DAYS` | no | none → task runs + output kept forever |
 | `/run/secrets/ca_password` | no | none → CA key stored unencrypted, warning logged |
 
 - Scheme and origin come from `APP_URL` only, never from `X-Forwarded-Proto`. Cookies are always `Secure`.
@@ -222,6 +224,7 @@ echo "enrolled: $(hostname)"
 ### Audit
 
 - The app is the CA, so **the audit log is the only record of issuance**. Log logins, every sign (`sub`, email, principal, host, TTL, serial, session) and session start/end, task runs (task, script, targets) and each target's result.
+- `AUDIT_DAYS` / `RUN_DAYS` (opt-in) prune the DB at startup and daily, logging `audit_prune` / `run_prune`. The stdout copy is untouched.
 - Write audit events to stdout as well as SQLite. An attacker in the container can rewrite the DB, not log lines already shipped.
 - Targets' sshd logs the cert key ID (`email/sub/sessionId`) and serial on every login — an independent record the app can't touch.
 
@@ -391,6 +394,4 @@ Don't re-propose these without new information.
 
 ## 12. Parked (later, not v1 blockers)
 
-- Audit log retention.
-- Task run retention (runs + output are kept forever).
 - CA rotation (§8).

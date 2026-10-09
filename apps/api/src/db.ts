@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { audit } from "./lib/audit";
 
 // Append only: never edit a released step. PRAGMA user_version = how many steps a DB has applied.
 export const MIGRATIONS: string[][] = [
@@ -110,4 +111,36 @@ export function openDb(path: string) {
     db.run("PRAGMA journal_mode = WAL");
     migrate(db);
     return db;
+}
+
+const DAY_MS = 24 * 60 * 60_000;
+
+/** Deletes audit entries and task runs older than the given days. */
+export function prune(
+    db: Database,
+    { auditDays, runDays }: { auditDays?: number; runDays?: number },
+) {
+    if (auditDays) {
+        const { changes } = db.run("DELETE FROM audit WHERE ts < ?", [
+            Date.now() - auditDays * DAY_MS,
+        ]);
+        if (changes)
+            audit(db, {
+                event: "audit_prune",
+                days: auditDays,
+                deleted: changes,
+            });
+    }
+    if (runDays) {
+        const before = Date.now() - runDays * DAY_MS;
+        const { changes } = db.transaction(() => {
+            db.run(
+                "DELETE FROM run_hosts WHERE run_id IN (SELECT id FROM runs WHERE created_at < ?)",
+                [before],
+            );
+            return db.run("DELETE FROM runs WHERE created_at < ?", [before]);
+        })();
+        if (changes)
+            audit(db, { event: "run_prune", days: runDays, deleted: changes });
+    }
 }

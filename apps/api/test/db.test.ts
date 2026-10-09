@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
-import { MIGRATIONS, migrate, openDb } from "../src/db";
+import { loadConfig } from "../src/config";
+import { MIGRATIONS, migrate, openDb, prune } from "../src/db";
 
 const version = (db: Database) =>
     db.query<{ user_version: number }, []>("PRAGMA user_version").get()
@@ -93,4 +94,67 @@ test("a failing step rolls back and stops at the last good version", () => {
     expect(() => migrate(db, steps)).toThrow();
     expect(version(db)).toBe(1);
     expect(tables(db)).toEqual(["a"]);
+});
+
+test("prune: drops audit entries and runs past their days; unset keeps all", () => {
+    const db = openDb(":memory:");
+    const day = 24 * 60 * 60_000;
+    const old = Date.now() - 10 * day;
+    for (const [ts, event] of [
+        [old, "old"],
+        [Date.now(), "new"],
+    ] as const)
+        db.run("INSERT INTO audit (ts, event, data) VALUES (?, ?, '{}')", [
+            ts,
+            event,
+        ]);
+    for (const [id, at] of [
+        ["r-old", old],
+        ["r-new", Date.now()],
+    ] as const) {
+        db.run(
+            "INSERT INTO runs (id, task_id, sub, name, script, created_at) VALUES (?, 1, 's', 't', 'x', ?)",
+            [id, at],
+        );
+        db.run(
+            "INSERT INTO run_hosts (run_id, host_id, host_name, login, status) VALUES (?, 'h1', 'web1', 'root', 'ok')",
+            [id],
+        );
+    }
+    const events = () =>
+        db
+            .query<{ event: string }, []>("SELECT event FROM audit ORDER BY id")
+            .all()
+            .map((r) => r.event);
+    const runs = (table: string, col: string) =>
+        db.query(`SELECT ${col} AS id FROM ${table}`).all();
+
+    prune(db, {});
+    expect(events()).toEqual(["old", "new"]);
+    expect(runs("runs", "id")).toHaveLength(2);
+
+    prune(db, { auditDays: 7, runDays: 7 });
+    expect(events()).toEqual(["new", "audit_prune", "run_prune"]);
+    expect(runs("runs", "id")).toEqual([{ id: "r-new" }]);
+    expect(runs("run_hosts", "run_id")).toEqual([{ id: "r-new" }]);
+});
+
+test("AUDIT_DAYS / RUN_DAYS: optional whole days", () => {
+    const base = {
+        APP_URL: "https://x",
+        OIDC_ISSUER: "https://id",
+        OIDC_CLIENT_ID: "a",
+        OIDC_CLIENT_SECRET: "b",
+    };
+    expect(loadConfig(base)).toMatchObject({
+        auditDays: undefined,
+        runDays: undefined,
+    });
+    expect(
+        loadConfig({ ...base, AUDIT_DAYS: "90", RUN_DAYS: "30" }),
+    ).toMatchObject({ auditDays: 90, runDays: 30 });
+    for (const bad of ["0", "-1", "1.5", "abc"])
+        expect(() => loadConfig({ ...base, AUDIT_DAYS: bad })).toThrow(
+            "AUDIT_DAYS must be a whole number of days",
+        );
 });

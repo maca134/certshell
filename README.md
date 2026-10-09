@@ -78,6 +78,8 @@ The script writes the CA public key, adds `/etc/ssh/sshd_config.d/50-certshell.c
 | `CA_NAME` | no | `certshell` (comment on the CA key) |
 | `TRUSTED_PROXIES` | no | none: `X-Forwarded-For` ignored. Comma-separated IPs. |
 | `UPDATE_CHECK` | no | on: checks GitHub tags every 12h and shows admins a newer version. `false` turns it off. |
+| `AUDIT_DAYS` | no | none: audit log kept forever. Whole days; older entries deleted at startup and daily. |
+| `RUN_DAYS` | no | none: task runs and their output kept forever. Whole days, as `AUDIT_DAYS`. |
 | `/run/secrets/ca_password` | no | none: CA key stored unencrypted, warning logged |
 
 - HTTPS is required (secure cookies; passkeys at the IdP).

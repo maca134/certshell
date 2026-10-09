@@ -1,6 +1,6 @@
 import { createApp } from "./app";
 import { loadConfig } from "./config";
-import { openDb } from "./db";
+import { openDb, prune } from "./db";
 import { lazyDiscovery } from "./lib/oidc";
 import { updateChecker } from "./lib/version";
 import { websocket } from "./routes/terminal";
@@ -12,6 +12,8 @@ const caPassword = await readCaPassword();
 await ensureCa("/data/ca", process.env.CA_NAME || "certshell", caPassword);
 
 const db = openDb("/data/app.sqlite");
+prune(db, config);
+setInterval(() => prune(db, config), 24 * 60 * 60_000);
 
 let latestVersion: (() => string | undefined) | undefined;
 if (config.updateCheck && config.version !== "dev") {

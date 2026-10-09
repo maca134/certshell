@@ -7,6 +7,9 @@ export type Config = {
     trustedProxies: Set<string>;
     version: string;
     updateCheck: boolean;
+    /** Unset: kept forever. */
+    auditDays?: number;
+    runDays?: number;
 };
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -14,6 +17,13 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
         const value = env[key];
         if (!value) throw new Error(`${key} is required`);
         return value;
+    };
+    const days = (key: string) => {
+        if (!env[key]) return undefined;
+        const n = Number(env[key]);
+        if (!Number.isInteger(n) || n < 1)
+            throw new Error(`${key} must be a whole number of days`);
+        return n;
     };
     return {
         appUrl: new URL(need("APP_URL")),
@@ -29,5 +39,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
         ),
         version: env.CERTSHELL_VERSION || "dev",
         updateCheck: env.UPDATE_CHECK !== "false",
+        auditDays: days("AUDIT_DAYS"),
+        runDays: days("RUN_DAYS"),
     };
 }
