@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { type LucideIcon, SquareTerminal } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function Page({
@@ -57,17 +57,8 @@ export function EmptyState({
     );
 }
 
-export function Logo({ className }: { className?: string }) {
-    return (
-        <div
-            className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-b from-[oklch(0.68_0.17_256)] to-[oklch(0.52_0.21_262)] text-white shadow-[inset_0_1px_0_oklch(1_0_0/25%),0_1px_2px_oklch(0_0_0/40%)]",
-                className,
-            )}
-        >
-            <SquareTerminal className="size-[55%]" strokeWidth={2.25} />
-        </div>
-    );
+export function Logo() {
+    return <img src="/favicon.svg" alt="" className="size-8 shrink-0" />;
 }
 
 export function Avatar({

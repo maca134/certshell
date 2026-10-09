@@ -1,3 +1,5 @@
+<img src="apps/web/public/favicon.svg" alt="" width="96">
+
 # CertShell
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
