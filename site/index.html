@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>CertShell</title>
+        <meta name="description" content="Browser SSH terminal with OIDC login and short-lived SSH certificates. No SSH keys to hand out, rotate or revoke." />
+        <link rel="icon" href="favicon.svg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <header>
+            <div class="wrap">
+                <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28" />CertShell</a>
+                <nav>
+                    <a href="docs.html">Docs</a>
+                    <a href="https://github.com/maca134/certshell">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="wrap">
+            <div class="hero">
+                <img src="favicon.svg" alt="" width="88" height="88" />
+                <h1>SSH from your browser.<br />No keys to manage.</h1>
+                <p>Log in with your identity provider. CertShell signs a 15-minute SSH certificate for each session, valid for one host and one login.</p>
+                <a class="btn primary" href="docs.html#quick-start-pocket-id">Get started</a>
+                <a class="btn" href="https://github.com/maca134/certshell">View on GitHub</a>
+            </div>
+
+            <div class="term">
+<pre><span class="c"># enroll a host (one-time snippet from the admin UI)</span>
+root@web1:~# curl -fsS https://ssh.example.com/enroll/… | sh
+<span class="g">✓</span> CA trusted, sshd reloaded, host key pinned
+
+<span class="c"># later, from the browser, as alice (group: ops)</span>
+<span class="g">✓</span> cert serial 4182 · principal web1:root · valid 15m · no forwarding
+root@web1:~#</pre>
+            </div>
+
+            <section>
+                <h2>How it works</h2>
+                <div class="grid">
+                    <div class="card">
+                        <h3>OIDC login</h3>
+                        <p>Sign in through Pocket ID or any OIDC provider. Your IdP groups decide what you can reach.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Per-session certificates</h3>
+                        <p>A fresh key and a 15-minute cert for every terminal. One host, one login, no forwarding.</p>
+                    </div>
+                    <div class="card">
+                        <h3>One-line enrollment</h3>
+                        <p>Hosts trust the CA through a script. Existing <code>authorized_keys</code> keep working, so you can't lock yourself out.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Access map in the UI</h3>
+                        <p>Admins map IdP group → host → login. No edits on the host after enrollment.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Audit log</h3>
+                        <p>Every login, cert and session is logged in the app and on stdout. sshd logs each cert's ID and serial too.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Hardened container</h3>
+                        <p>Non-root, read-only root filesystem, all capabilities dropped, strict headers and rate limits.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Quick start</h2>
+<pre>cp -r examples/caddy certshell && cd certshell
+cp .env.example .env     # set SSH_DOMAIN, ID_DOMAIN, OIDC_* ...
+docker compose up -d</pre>
+                <p>Full walkthrough, configuration and security notes in the <a href="docs.html">docs</a>.</p>
+            </section>
+        </main>
+
+        <footer>
+            <div class="wrap">CertShell · MIT License · <a href="https://github.com/maca134/certshell">GitHub</a></div>
+        </footer>
+    </body>
+</html>
