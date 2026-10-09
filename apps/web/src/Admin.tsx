@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import {
     type FormEvent,
-    Fragment,
     type ReactNode,
     useCallback,
     useEffect,
@@ -285,12 +284,15 @@ function Audit() {
     );
 }
 
+const GREEN = "border-emerald-400/20 bg-emerald-400/10 text-emerald-300";
+const AMBER = "border-amber-400/20 bg-amber-400/10 text-amber-300";
+
 const eventTone = (event: string) =>
     event.startsWith("log")
         ? "border-sky-400/20 bg-sky-400/10 text-sky-300"
         : event.startsWith("session") || event === "sign"
-          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-          : "border-amber-400/20 bg-amber-400/10 text-amber-300";
+          ? GREEN
+          : AMBER;
 
 function Hosts({ users }: { users: SeenUser[] }) {
     const [hosts, setHosts] = useState<AdminHost[]>();
@@ -309,7 +311,6 @@ function Hosts({ users }: { users: SeenUser[] }) {
         reload();
     }, [reload]);
 
-    // Every mutation: clear the error, run, reload; show failures at the top.
     const act = async (fn: () => Promise<unknown>) => {
         setError("");
         try {
@@ -443,12 +444,12 @@ function AddHost({ onAdded }: { onAdded: () => void }) {
         e.preventDefault();
         setError("");
         try {
-            const { snippet, expiresAt } = await api<EnrollSnippet>(
-                "/api/admin/hosts",
-                "POST",
-                { name: name.trim(), address: address.trim() },
+            setSnippet(
+                await api<EnrollSnippet>("/api/admin/hosts", "POST", {
+                    name: name.trim(),
+                    address: address.trim(),
+                }),
             );
-            setSnippet({ snippet, expiresAt });
             onAdded();
         } catch (e) {
             setError((e as Error).message);
@@ -557,13 +558,7 @@ function Steps({ current }: { current: 1 | 2 }) {
 
 function Status({ enrolled }: { enrolled: boolean }) {
     return (
-        <Badge
-            className={
-                enrolled
-                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-                    : "border-amber-400/20 bg-amber-400/10 text-amber-300"
-            }
-        >
+        <Badge className={enrolled ? GREEN : AMBER}>
             <span className="size-1.5 rounded-full bg-current" />
             {enrolled ? "Enrolled" : "Pending"}
         </Badge>
@@ -588,7 +583,7 @@ function HostRow({
     onAccess: (rules: AccessRule[]) => void;
 }) {
     return (
-        <Fragment>
+        <>
             <TableRow
                 className="cursor-pointer data-[open=true]:border-b-0 data-[open=true]:bg-muted/40"
                 data-open={open}
@@ -655,7 +650,7 @@ function HostRow({
                     </TableCell>
                 </TableRow>
             )}
-        </Fragment>
+        </>
     );
 }
 

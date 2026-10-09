@@ -1,5 +1,3 @@
-// Shapes exchanged between apps/api and apps/web.
-
 export type User = {
     iss: string;
     sub: string;
