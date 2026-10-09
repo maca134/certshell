@@ -169,7 +169,8 @@ ${proxy === "none" ? `    ports: ["127.0.0.1:1411:1411"]\n` : ""}    volumes: ["
         "docker compose up -d",
     ];
     const heredocs = Object.entries(files).map(
-        ([name, text]) => `cat > ${name} <<'EOF'\n${text}EOF\n`,
+        ([name, text]) =>
+            `${name === ".env" ? "test -f .env || " : ""}cat > ${name} <<'EOF'\n${text}EOF\n`,
     );
     const script = [
         "mkdir -p certshell && cd certshell\n",

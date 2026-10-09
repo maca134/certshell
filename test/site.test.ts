@@ -107,6 +107,17 @@ describe("site one-command install", () => {
         expect(await Bun.file(pw).text()).toBe(first);
         rmSync(dir, { recursive: true });
     });
+
+    test("rerun keeps an edited .env", async () => {
+        const { script } = generate({});
+        const dir = mkdtempSync(`${tmpdir()}/certshell-`);
+        const env = Bun.file(`${dir}/certshell/.env`);
+        await run(script, dir);
+        await Bun.write(env, "OIDC_CLIENT_ID=abc\n");
+        await run(script, dir);
+        expect(await env.text()).toBe("OIDC_CLIENT_ID=abc\n");
+        rmSync(dir, { recursive: true });
+    });
 });
 
 describe("site install worker", () => {
