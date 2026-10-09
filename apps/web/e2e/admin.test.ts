@@ -131,3 +131,11 @@ test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {
         .click();
     await posted;
 });
+
+test("sidebar links to the website", async ({ page, isMobile }) => {
+    await openAdmin(page);
+    const nav = await sidebar(page, isMobile);
+    await expect(
+        nav.getByRole("link", { name: "certshell.dev" }),
+    ).toHaveAttribute("href", "https://certshell.dev");
+});

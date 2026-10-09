@@ -1,6 +1,7 @@
 import type { HostSummary, Me } from "@repo/shared";
 import {
     ChevronRight,
+    Globe,
     LogOut,
     type LucideIcon,
     ScrollText,
@@ -287,6 +288,22 @@ function AppSidebar({ me }: { me?: Me }) {
                             </div>
                         </SidebarMenuItem>
                     )}
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            tooltip="CertShell website"
+                            className="text-muted-foreground"
+                        >
+                            <a
+                                href="https://certshell.dev"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <Globe />
+                                <span>certshell.dev</span>
+                            </a>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                     <SidebarMenuItem>
                         <form method="post" action="/auth/logout">
                             <SidebarMenuButton
