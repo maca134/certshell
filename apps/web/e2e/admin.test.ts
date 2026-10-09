@@ -173,7 +173,7 @@ test("sidebar switches to users and audit", async ({ page, isMobile }) => {
     await expect(page.getByText("login", { exact: true })).toBeVisible();
 });
 
-test("sessions: lists open terminals, ends one or all of a user's", async ({
+test("sessions: lists open terminals, ends one at a time", async ({
     page,
     isMobile,
 }) => {
@@ -196,21 +196,21 @@ test("sessions: lists open terminals, ends one or all of a user's", async ({
         if (r.request().method() !== "DELETE")
             return r.fulfill({ json: sessions });
         deletes.push(url.pathname + url.search);
-        sessions = url.search ? [] : sessions.slice(1);
+        sessions = sessions.slice(1);
         return r.fulfill({ status: 204 });
     });
     await (await sidebar(page, isMobile))
         .getByRole("link", { name: "Sessions" })
         .click();
     await expect(page).toHaveURL("/admin/sessions");
-    await expect(page.getByRole("button", { name: "End all" })).toHaveCount(2);
+    await expect(page.getByRole("cell", { name: "web1 root" })).toHaveCount(2);
 
     page.once("dialog", (d) => d.accept());
     await page
         .getByRole("button", { name: "End", exact: true })
         .first()
         .click();
-    await expect(page.getByRole("button", { name: "End all" })).toHaveCount(0);
+    await expect(page.getByRole("cell", { name: "web1 root" })).toHaveCount(1);
     page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "End", exact: true }).click();
     await expect(page.getByText("No open terminals")).toBeVisible();
@@ -220,39 +220,39 @@ test("sessions: lists open terminals, ends one or all of a user's", async ({
     ]);
 });
 
-test("sessions: End all asks, then DELETEs by sub", async ({ page }) => {
+test("users: End sessions asks, then DELETEs by sub", async ({ page }) => {
     await page.route("/api/me", (r) =>
         r.fulfill({
             json: { sub: "s", groups: [], admin: true, version: "1" },
         }),
     );
-    await page.route("/api/admin/users", (r) => r.fulfill({ json: [] }));
+    await page.route("/api/admin/users", (r) =>
+        r.fulfill({
+            json: [
+                { iss: "i", sub: "u 1", email: null, groups: [], lastLogin: 0 },
+            ],
+        }),
+    );
     const deletes: string[] = [];
-    let sessions = ["t1", "t2"].map((id) => ({
-        id,
-        sub: "u 1",
-        email: null,
-        hostId: "h1",
-        hostName: "web1",
-        login: "root",
-        startedAt: Date.now(),
-    }));
     await page.route("/api/admin/sessions**", (r) => {
         const url = new URL(r.request().url());
-        if (r.request().method() !== "DELETE")
-            return r.fulfill({ json: sessions });
-        deletes.push(url.pathname + url.search);
-        sessions = [];
+        deletes.push(`${r.request().method()} ${url.pathname}${url.search}`);
         return r.fulfill({ status: 204 });
     });
-    await page.goto("/admin/sessions");
-    page.once("dialog", (d) => d.dismiss());
-    await page.getByRole("button", { name: "End all" }).first().click();
+    await page.goto("/admin/users");
+    let asked = "";
+    page.once("dialog", (d) => {
+        asked = d.message();
+        d.dismiss();
+    });
+    await page.getByRole("button", { name: "End sessions" }).click();
+    await expect.poll(() => asked).toContain("signs them out");
     expect(deletes).toEqual([]);
     page.once("dialog", (d) => d.accept());
-    await page.getByRole("button", { name: "End all" }).first().click();
-    await expect(page.getByText("No open terminals")).toBeVisible();
-    expect(deletes).toEqual(["/api/admin/sessions?sub=u%201"]);
+    await page.getByRole("button", { name: "End sessions" }).click();
+    await expect
+        .poll(() => deletes)
+        .toEqual(["DELETE /api/admin/sessions?sub=u%201"]);
 });
 
 test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {

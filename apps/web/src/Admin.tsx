@@ -137,11 +137,30 @@ function Groups({ groups }: { groups: string[] }) {
 }
 
 function Users({ users }: { users: SeenUser[] }) {
+    const [error, setError] = useState("");
+    const endAll = async (u: SeenUser) => {
+        if (
+            !confirm(
+                `End all sessions for ${u.email ?? u.sub}? This closes their terminals, stops their running tasks and signs them out.`,
+            )
+        )
+            return;
+        setError("");
+        await api(
+            `/api/admin/sessions?sub=${encodeURIComponent(u.sub)}`,
+            "DELETE",
+        ).catch((e) => setError(e.message));
+    };
     return (
         <Page
             title="Users"
             description="Everyone who has signed in, with their groups as of their last sign-in."
         >
+            {error && (
+                <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
             <Card className="py-0">
                 <Table>
                     <Head>
@@ -152,10 +171,11 @@ function Users({ users }: { users: SeenUser[] }) {
                         <TableHead className="text-right">
                             Last sign-in
                         </TableHead>
+                        <TableHead className="w-0" />
                     </Head>
                     <TableBody className={tableBody}>
                         {users.length === 0 && (
-                            <Empty cols={3}>
+                            <Empty cols={4}>
                                 <EmptyState
                                     icon={UsersIcon}
                                     title="No users yet"
@@ -189,6 +209,15 @@ function Users({ users }: { users: SeenUser[] }) {
                                 <TableCell className="text-right">
                                     <When t={u.lastLogin} />
                                 </TableCell>
+                                <TableCell>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => endAll(u)}
+                                    >
+                                        End sessions
+                                    </Button>
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -213,10 +242,10 @@ function Sessions() {
         const timer = setInterval(reload, 5000);
         return () => clearInterval(timer);
     }, [reload]);
-    const end = async (path: string, what: string) => {
-        if (!confirm(`End ${what}?`)) return;
+    const end = async (s: LiveSession) => {
+        if (!confirm(`End ${s.email ?? s.sub} on ${s.hostName}?`)) return;
         setError("");
-        await api(`/api/admin/sessions${path}`, "DELETE").catch((e) =>
+        await api(`/api/admin/sessions/${s.id}`, "DELETE").catch((e) =>
             setError(e.message),
         );
         await reload();
@@ -250,63 +279,36 @@ function Sessions() {
                                 />
                             </Empty>
                         )}
-                        {sessions.map((s) => {
-                            const user = s.email ?? s.sub;
-                            const many =
-                                sessions.filter((x) => x.sub === s.sub).length >
-                                1;
-                            return (
-                                <TableRow key={s.id}>
-                                    <TableCell
-                                        title={s.sub}
-                                        className="whitespace-normal break-all"
+                        {sessions.map((s) => (
+                            <TableRow key={s.id}>
+                                <TableCell
+                                    title={s.sub}
+                                    className="whitespace-normal break-all"
+                                >
+                                    {s.email ?? s.sub}
+                                </TableCell>
+                                <TableCell className="whitespace-normal">
+                                    <span className="font-medium">
+                                        {s.hostName}
+                                    </span>{" "}
+                                    <span className="font-mono text-muted-foreground">
+                                        {s.login}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell">
+                                    <When t={s.startedAt} />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => end(s)}
                                     >
-                                        {user}
-                                    </TableCell>
-                                    <TableCell className="whitespace-normal">
-                                        <span className="font-medium">
-                                            {s.hostName}
-                                        </span>{" "}
-                                        <span className="font-mono text-muted-foreground">
-                                            {s.login}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="hidden sm:table-cell">
-                                        <When t={s.startedAt} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex justify-end gap-2">
-                                            {many && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        end(
-                                                            `?sub=${encodeURIComponent(s.sub)}`,
-                                                            `all terminals of ${user}`,
-                                                        )
-                                                    }
-                                                >
-                                                    End all
-                                                </Button>
-                                            )}
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                onClick={() =>
-                                                    end(
-                                                        `/${s.id}`,
-                                                        `${user} on ${s.hostName}`,
-                                                    )
-                                                }
-                                            >
-                                                End
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
+                                        End
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
                 </Table>
             </Card>
