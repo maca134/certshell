@@ -5,6 +5,7 @@
 - **Follow existing code style** - check neighboring files for patterns
 - **Create tests in the right folder** in `test/` and the test must end in `.test.[ext]`
 - **Use absolute paths** - Always use absolute paths in file operations
+- **Temp files go in the session scratchpad dir, by its literal absolute path** - never `$TMPDIR`/`$TMP` (unset on this server, so `$TMPDIR/x` became `/x`; we run as root, so it silently wrote to `/`)
 - **Avoid shell commands** - Don't use `find` or `grep` in tests; use Bun's Glob and built-in tools
 - **Be humble & honest** - NEVER overstate what you got done or what actually works in commits, PRs or in messages to the user.
 - **If you need a paragraph-long comment to justify why the workaround is OK, the code is wrong — fix the code.**.
