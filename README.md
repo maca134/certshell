@@ -115,7 +115,7 @@ bun run lint
 bun run typecheck
 ```
 
-Design and decisions: [SPEC.md](SPEC.md). Reference deployment: [docs/dev-env.md](docs/dev-env.md).
+Design and decisions: [SPEC.md](SPEC.md).
 
 ## License
 

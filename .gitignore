@@ -7,3 +7,4 @@ dist/
 test-results/
 playwright-report/
 .playwright-mcp/
+docs/dev-env.md

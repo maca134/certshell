@@ -322,7 +322,6 @@ docker compose up -d
 - App container → IdP (discovery, code exchange) and → targets `:22`.
 - Targets → `APP_URL` (enroll only).
 - Passkeys bind to the IdP's domain → separate environments need separate passkey registration.
-- Reference homelab deployment (two-hop Traefik, dev compose, verified network paths): [docs/dev-env.md](docs/dev-env.md).
 
 ---
 
