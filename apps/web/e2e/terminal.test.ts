@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { expect, type Page, test } from "@playwright/test";
 
 // No backend: /api is faked with page.route and the terminal socket with routeWebSocket.
@@ -133,4 +134,70 @@ test("host list: dot shows whether port 22 answers", async ({ page }) => {
         row("web2").getByRole("img", { name: "offline" }),
     ).toBeVisible();
     await expect(row("web3").getByRole("img")).toHaveCount(0);
+});
+
+const paste = (page: Page, text: string) =>
+    page.evaluate((text) => {
+        const data = new DataTransfer();
+        data.setData("text/plain", text);
+        document.querySelector(".xterm-helper-textarea")?.dispatchEvent(
+            new ClipboardEvent("paste", {
+                clipboardData: data,
+                bubbles: true,
+                cancelable: true,
+            }),
+        );
+    }, text);
+
+test("paste: lines that would run ask first, unless bracketed paste is on", async ({
+    page,
+}) => {
+    const { typed } = await openTerminal(page);
+    await paste(page, "one line");
+    await expect.poll(() => typed.join("")).toBe("one line");
+
+    let asked = "";
+    page.once("dialog", (d) => {
+        asked = d.message();
+        d.dismiss();
+    });
+    await paste(page, "rm -rf x\nreboot\n");
+    await expect.poll(() => asked).toContain("runs 2 commands");
+    expect(typed.join("")).toBe("one line");
+
+    page.once("dialog", (d) => d.accept());
+    await paste(page, "ls\n");
+    await expect.poll(() => typed.join("")).toBe("one linels\r");
+});
+
+test("paste: no prompt when the shell turned on bracketed paste", async ({
+    page,
+}) => {
+    let server: { send: (m: Buffer) => void } | undefined;
+    await page.route("/api/me", (r) =>
+        r.fulfill({ json: { sub: "s", groups: [], admin: false } }),
+    );
+    await page.route("/api/hosts", (r) =>
+        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+    );
+    const typed: string[] = [];
+    await page.routeWebSocket(/\/api\/terminal/, (ws) => {
+        server = ws;
+        ws.onMessage((m) => {
+            const msg = JSON.parse(String(m));
+            if (msg.t === "in") typed.push(msg.d);
+        });
+    });
+    await page.goto("/ssh/h1/root");
+    await expect(page.getByText("Connected", { exact: true })).toBeVisible();
+    server?.send(Buffer.from("\x1b[?2004hready>"));
+    await expect(page.getByText("ready>", { exact: true })).toBeVisible();
+    let asked = false;
+    page.once("dialog", (d) => {
+        asked = true;
+        d.dismiss();
+    });
+    await paste(page, "a\nb\n");
+    await expect.poll(() => typed.join("")).toBe("\x1b[200~a\rb\r\x1b[201~");
+    expect(asked).toBe(false);
 });

@@ -146,10 +146,28 @@ export function TerminalView({
             );
             const onWindowResize = () => fit.fit();
             window.addEventListener("resize", onWindowResize);
+            // Capture runs before xterm's own paste handler. With bracketed paste on, the shell doesn't run pasted lines.
+            const onPaste = (e: ClipboardEvent) => {
+                const n =
+                    e.clipboardData?.getData("text").match(/\r\n|\r|\n/g)
+                        ?.length ?? 0;
+                if (
+                    n &&
+                    !term.modes.bracketedPasteMode &&
+                    !confirm(
+                        `This paste runs ${n} command${n === 1 ? "" : "s"} straight away. Paste anyway?`,
+                    )
+                ) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            };
+            el.addEventListener("paste", onPaste, true);
             term.focus();
 
             return () => {
                 window.removeEventListener("resize", onWindowResize);
+                el.removeEventListener("paste", onPaste, true);
                 ws.onclose = null;
                 ws.close();
                 term.dispose();
