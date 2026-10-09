@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -61,20 +60,11 @@ export function Logo() {
     return <img src="/favicon.svg" alt="" className="size-8 shrink-0" />;
 }
 
-export function Avatar({
-    name,
-    className,
-}: {
-    name: string;
-    className?: string;
-}) {
+export function Avatar({ name }: { name: string }) {
     return (
         <div
             aria-hidden
-            className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-b from-zinc-600 to-zinc-700 text-xs font-semibold text-white uppercase",
-                className,
-            )}
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-b from-zinc-600 to-zinc-700 text-xs font-semibold text-white uppercase"
         >
             {name.slice(0, 1)}
         </div>
