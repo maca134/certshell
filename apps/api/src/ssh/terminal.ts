@@ -1,11 +1,13 @@
 import type { Database } from "bun:sqlite";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import type { User } from "@repo/shared";
+import type { LiveSession, User } from "@repo/shared";
 import { audit } from "../lib/audit";
 import type { Host } from "../lib/hosts";
 import { now } from "../lib/sessions";
 import { mintUserCert } from "./certs";
+
+export type LiveTerminal = LiveSession & { kill: (reason: string) => void };
 
 export type TerminalDeps = {
     db: Database;
@@ -18,6 +20,8 @@ export type TerminalDeps = {
     maxSessions: number;
     /** All users together. */
     maxSessionsTotal: number;
+    /** Open terminals by session ID, for admins to list and end. */
+    live: Map<string, LiveTerminal>;
     /** `remote`: a task's command; absent for a terminal. */
     command?: (args: {
         key: string;
@@ -166,10 +170,21 @@ export async function openTerminal(
         reason = why;
         proc.kill();
     };
+    deps.live.set(sessionId, {
+        id: sessionId,
+        sub: user.sub,
+        email: user.email,
+        hostId: host.id,
+        hostName: host.name,
+        login,
+        startedAt: Date.now(),
+        kill,
+    });
     let idle = setTimeout(() => kill("idle timeout"), deps.idleMs);
     const max = setTimeout(() => kill("max session length"), deps.maxMs);
 
     proc.exited.then(async (code) => {
+        deps.live.delete(sessionId);
         clearTimeout(idle);
         clearTimeout(max);
         proc.terminal?.close();

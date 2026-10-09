@@ -40,6 +40,7 @@ export async function startApp(
             taskMs: 60_000,
             maxSessions: 64,
             maxSessionsTotal: 200,
+            live: new Map(),
             ...terminal,
         },
         latestVersion,

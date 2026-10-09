@@ -34,6 +34,7 @@ const app = createApp({
         taskMs: 30 * 60_000,
         maxSessions: 64,
         maxSessionsTotal: 200,
+        live: new Map(),
     },
     latestVersion,
 });

@@ -55,7 +55,7 @@ OIDC provider (Pocket ID, …) ◄── discovery, code exchange ── app
 - Authorization code + PKCE, confidential client. Redirect `${APP_URL}/auth/callback`. Scopes `openid email profile groups`.
 - Identity = `iss` + `sub`. Email is display/audit only — **never** used for access, since some IdPs let users edit their own email.
 - Groups come from the ID token's `groups` claim, compared as exact strings.
-  - Members of `OIDC_ADMIN_GROUP` (default `certshell-admins`) may enroll hosts, edit the access map and read the audit log.
+  - Members of `OIDC_ADMIN_GROUP` (default `certshell-admins`) may enroll hosts, edit the access map, read the audit log, and list or end open terminals (one, or all of a user's).
   - Restrict who can log in at all at the IdP (Pocket ID: client → Allowed User Groups).
 - App session: absolute 1h, then back through the IdP (silent while the IdP session lives). Groups are re-read on every login, so IdP changes (disable user, remove from group) apply to new connections within 1h.
 - OIDC discovery is fetched lazily and retried. The app boots and serves `/healthz` even if the IdP is down.
@@ -391,7 +391,6 @@ Don't re-propose these without new information.
 
 ## 12. Parked (later, not v1 blockers)
 
-- Admin "kill sessions" for a user: IdP revocation blocks new connections within 1h, but open terminals live up to 8h.
 - Audit log retention.
 - Task run retention (runs + output are kept forever).
 - CA rotation (§8).

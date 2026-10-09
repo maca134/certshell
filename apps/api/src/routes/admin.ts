@@ -1,5 +1,12 @@
 import type { Database } from "bun:sqlite";
-import type { AccessRule, AdminHost, AuditEntry, SeenUser } from "@repo/shared";
+import type {
+    AccessRule,
+    AdminHost,
+    AuditEntry,
+    LiveSession,
+    SeenUser,
+    User,
+} from "@repo/shared";
 import { Hono } from "hono";
 import type { Config } from "../config";
 import { audit } from "../lib/audit";
@@ -11,6 +18,7 @@ import {
     validLogin,
     validName,
 } from "../lib/validate";
+import type { LiveTerminal, TerminalDeps } from "../ssh/terminal";
 import { issueSnippet } from "./enroll";
 
 const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -18,7 +26,15 @@ const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 const newHostId = () =>
     `h${[...crypto.getRandomValues(new Uint8Array(7))].map((b) => ID_ALPHABET[b % 36]).join("")}`;
 
-export function adminRoutes({ config, db }: { config: Config; db: Database }) {
+export function adminRoutes({
+    config,
+    db,
+    live,
+}: {
+    config: Config;
+    db: Database;
+    live: TerminalDeps["live"];
+}) {
     const app = new Hono<AppEnv>();
     app.use(...writeGuards(config));
 
@@ -186,6 +202,46 @@ export function adminRoutes({ config, db }: { config: Config; db: Database }) {
                 })),
         ),
     );
+
+    app.get("/sessions", (c) =>
+        c.json<LiveSession[]>(
+            [...live.values()]
+                .map(({ kill: _, ...s }) => s)
+                .sort((a, b) => a.startedAt - b.startedAt),
+        ),
+    );
+
+    const endSessions = (by: User, sessions: LiveTerminal[]) => {
+        for (const s of sessions) {
+            s.kill("ended by admin");
+            audit(db, {
+                event: "session_kill",
+                sub: by.sub,
+                email: by.email,
+                session: s.id,
+                user: s.sub,
+                host: s.hostId,
+                login: s.login,
+            });
+        }
+    };
+
+    app.delete("/sessions/:id", (c) => {
+        const s = live.get(c.req.param("id"));
+        if (!s) return c.json({ error: "not found" }, 404);
+        endSessions(c.var.user, [s]);
+        return c.body(null, 204);
+    });
+
+    app.delete("/sessions", (c) => {
+        const sub = c.req.query("sub");
+        if (!sub) return c.json({ error: "sub required" }, 400);
+        endSessions(
+            c.var.user,
+            [...live.values()].filter((s) => s.sub === sub),
+        );
+        return c.body(null, 204);
+    });
 
     app.get("/audit", (c) => {
         const limit = Math.min(

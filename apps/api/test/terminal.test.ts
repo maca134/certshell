@@ -236,3 +236,56 @@ test("terminal: oversized frame closes the socket", async () => {
     const { code } = await t.closed;
     expect(code).toBe(1006);
 });
+
+test("admin: lists open terminals, ends one, then all for a user", async () => {
+    ctx = await startApp(fakeSsh, ["certshell-admins"]);
+    ctx.addHost("h1", "h1.test", "ssh-ed25519 AAAA", {
+        root: "certshell-admins",
+    });
+    const call = (method: string, path: string) =>
+        ctx.app.request(`${APP_URL}/api/admin${path}`, {
+            method,
+            headers: { cookie: ctx.cookie, origin: APP_URL },
+        });
+    const a = ctx.connect("host=h1&login=root");
+    const b = ctx.connect("host=h1&login=root");
+    const c = ctx.connect("host=h1&login=root");
+    await Promise.all([a, b, c].map((t) => t.waitFor("login=root")));
+
+    const list = (await (await call("GET", "/sessions")).json()) as {
+        id: string;
+    }[];
+    expect(list).toHaveLength(3);
+    expect(list[0]).toMatchObject({
+        sub: "user-1",
+        email: "a@b.c",
+        hostId: "h1",
+        hostName: "h1",
+        login: "root",
+    });
+
+    expect((await call("DELETE", "/sessions/nope")).status).toBe(404);
+    expect((await call("DELETE", "/sessions")).status).toBe(400);
+    expect((await call("DELETE", `/sessions/${list[0]?.id}`)).status).toBe(204);
+    const ended = await Promise.race([a.closed, b.closed, c.closed]);
+    expect([ended.code, ended.reason]).toEqual([1000, "ended by admin"]);
+    expect(await (await call("GET", "/sessions")).json()).toHaveLength(2);
+
+    expect((await call("DELETE", "/sessions?sub=user-1")).status).toBe(204);
+    await Promise.all([a.closed, b.closed, c.closed]);
+    expect(await (await call("GET", "/sessions")).json()).toEqual([]);
+    expect(
+        ctx.db
+            .query(
+                "SELECT count(*) AS n FROM audit WHERE event = 'session_kill'",
+            )
+            .get(),
+    ).toEqual({ n: 3 });
+});
+
+test("admin sessions: members get 403", async () => {
+    await setup();
+    expect(
+        (await req("/api/admin/sessions", { cookie: ctx.cookie })).status,
+    ).toBe(403);
+});

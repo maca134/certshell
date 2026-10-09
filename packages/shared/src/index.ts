@@ -78,6 +78,17 @@ export type EnrollSnippet = { snippet: string; expiresAt: number };
 /** Someone who has logged in at least once; groups as of their last login. */
 export type SeenUser = User & { lastLogin: number };
 
+/** An open terminal. `startedAt`: ms since epoch. */
+export type LiveSession = {
+    id: string;
+    sub: string;
+    email: string | null;
+    hostId: string;
+    hostName: string;
+    login: string;
+    startedAt: number;
+};
+
 export type AuditEntry = {
     id: number;
     ts: string;
