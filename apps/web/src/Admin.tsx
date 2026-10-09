@@ -67,7 +67,7 @@ const UNITS = [
     ["minute", 6e4],
 ] as const;
 
-function When({ t }: { t: string | number }) {
+export function When({ t }: { t: string | number }) {
     const d = new Date(t);
     const ago = d.getTime() - Date.now();
     const [unit, ms] = UNITS.find(([, ms]) => Math.abs(ago) >= ms) ?? [
@@ -286,8 +286,8 @@ function Audit() {
     );
 }
 
-const GREEN = "border-emerald-400/20 bg-emerald-400/10 text-emerald-300";
-const AMBER = "border-amber-400/20 bg-amber-400/10 text-amber-300";
+export const GREEN = "border-emerald-400/20 bg-emerald-400/10 text-emerald-300";
+export const AMBER = "border-amber-400/20 bg-amber-400/10 text-amber-300";
 
 const eventTone = (event: string) =>
     event.startsWith("log")

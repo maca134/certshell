@@ -4,6 +4,7 @@ import {
     CircleArrowUp,
     Globe,
     ListChecks,
+    ListTodo,
     LogOut,
     type LucideIcon,
     ScrollText,
@@ -37,6 +38,7 @@ import {
 } from "./components/ui/sidebar";
 import { Skeleton } from "./components/ui/skeleton";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { MAX_TARGETS, parseTargets, Tasks } from "./Tasks";
 
 // xterm is half the bundle: load it after the host list renders, before the user picks a host.
 const loadTerminal = () => import("./TerminalView");
@@ -49,16 +51,6 @@ const BroadcastView = lazy(() =>
 
 // Each pane signs a cert, and signing is rate limited to 10 a minute per user.
 const MAX_PANES = 8;
-
-/** `t=h1:root,h2:alice` → the targets the user still has access to. */
-function parseTargets(search: string, hosts: HostSummary[]) {
-    const keys = new URLSearchParams(search).get("t")?.split(",") ?? [];
-    return [...new Set(keys)].flatMap((key) => {
-        const [hostId, login = ""] = key.split(":");
-        const host = hosts.find((h) => h.id === hostId);
-        return host?.logins.includes(login) ? [{ host, login }] : [];
-    });
-}
 
 export function App() {
     const [me, setMe] = useState<Me>();
@@ -191,6 +183,9 @@ export function App() {
                                 <Route path="/admin" nest>
                                     <Admin />
                                 </Route>
+                                <Route path="/tasks" nest>
+                                    <Tasks hosts={hosts} />
+                                </Route>
                                 <Route>
                                     <Hosts hosts={hosts} />
                                 </Route>
@@ -220,7 +215,9 @@ const ADMIN_NAV = [
 const title = (location: string) =>
     location === "/"
         ? "Hosts"
-        : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
+        : location.startsWith("/tasks")
+          ? "Tasks"
+          : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
 
 function Hosts({ hosts }: { hosts?: HostSummary[] }) {
     // undefined: not selecting. Entries are `hostId:login`.
@@ -350,6 +347,18 @@ function Hosts({ hosts }: { hosts?: HostSummary[] }) {
                         <Terminal />
                         Open terminals
                     </Button>
+                    <Button
+                        size="sm"
+                        disabled={
+                            !selected.length || selected.length > MAX_TARGETS
+                        }
+                        onClick={() =>
+                            navigate(`/tasks?t=${selected.join(",")}`)
+                        }
+                    >
+                        <ListTodo />
+                        Run command
+                    </Button>
                 </div>
             )}
         </Page>
@@ -371,7 +380,10 @@ function NavItem({
         <SidebarMenuItem>
             <SidebarMenuButton
                 asChild
-                isActive={location === href}
+                isActive={
+                    location === href ||
+                    (href !== "/" && location.startsWith(`${href}/`))
+                }
                 tooltip={label}
             >
                 <Link href={href} onClick={() => setOpenMobile(false)}>
@@ -414,6 +426,11 @@ function AppSidebar({ me }: { me?: Me }) {
                     <SidebarGroupContent>
                         <SidebarMenu className="gap-1">
                             <NavItem href="/" label="Hosts" icon={Terminal} />
+                            <NavItem
+                                href="/tasks"
+                                label="Tasks"
+                                icon={ListTodo}
+                            />
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
