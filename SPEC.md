@@ -190,6 +190,7 @@ echo "enrolled: $(hostname)"
 - OIDC client: `openid-client` (panva). **Verify it and PTY spawning run under Bun early** — fall back to Node for the app process if not.
 - SSH client: spawn system `ssh` in a PTY (§3.2). Gets certs, ProxyJump and modern ciphers for free. `openssh-client` is in the image.
 - App `known_hosts`: generated from host keys recorded at enrollment → verifies targets, no TOFU.
+- DB schema: append-only list of SQL steps in `db.ts`, `PRAGMA user_version` = steps applied. Pending steps run at boot, one transaction each. Never edit a released step; add a new one.
 
 ### Configuration
 
