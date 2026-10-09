@@ -367,3 +367,27 @@ test("detached: the script finishes after the connection's pipe closes; plain do
         if (wrap) await Bun.file(marker).delete();
     }
 }, 15_000);
+
+test("detached: multi-line scripts with quotes, heredocs and $vars behave the same as plain", async () => {
+    const script = `set -e
+name="it's"
+echo 'single $HOME' "double $name"
+cat <<'END'
+heredoc 'quotes' $notexpanded
+END
+for i in 1 2; do
+  echo "loop $i"
+done
+echo "back\\slash" \`echo backtick\`
+exit 7`;
+    const run = async (cmd: string) => {
+        const p = Bun.spawn(["sh", "-c", cmd], { stdout: "pipe" });
+        const out = await new Response(p.stdout).text();
+        return { code: await p.exited, out: out.replace(/^\[log: .*\]\n/, "") };
+    };
+    const plain = await run(script);
+    expect(plain.code).toBe(7);
+    expect(plain.out).toContain("heredoc 'quotes' $notexpanded");
+    expect(plain.out).toContain("loop 2");
+    expect(await run(detached(script))).toEqual(plain);
+});
