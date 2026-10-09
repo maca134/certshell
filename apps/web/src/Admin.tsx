@@ -389,45 +389,14 @@ function Hosts({ users }: { users: SeenUser[] }) {
                                         open === host.id ? undefined : host.id,
                                     )
                                 }
-                                snippet={snippets[host.id]}
-                                onSave={(name, address) =>
-                                    act(() =>
-                                        api(
-                                            `/api/admin/hosts/${host.id}`,
-                                            "PATCH",
-                                            { name, address },
-                                        ),
-                                    )
-                                }
-                                onSnippet={() =>
-                                    act(async () =>
-                                        showSnippet(
-                                            host.id,
-                                            await api<EnrollSnippet>(
-                                                `/api/admin/hosts/${host.id}/snippet`,
-                                                "POST",
-                                            ),
-                                        ),
-                                    )
-                                }
-                                onAccess={(rules) =>
-                                    act(() =>
-                                        api(
-                                            `/api/admin/hosts/${host.id}/access`,
-                                            "PUT",
-                                            rules,
-                                        ),
-                                    )
-                                }
-                                onDelete={() =>
-                                    act(() =>
-                                        api(
-                                            `/api/admin/hosts/${host.id}`,
-                                            "DELETE",
-                                        ),
-                                    )
-                                }
-                            />
+                            >
+                                <HostPanel
+                                    host={host}
+                                    snippet={snippets[host.id]}
+                                    act={act}
+                                    onSnippet={(s) => showSnippet(host.id, s)}
+                                />
+                            </HostRow>
                         ))}
                     </TableBody>
                 </Table>
@@ -579,20 +548,12 @@ function HostRow({
     host,
     open,
     onToggle,
-    snippet,
-    onSave,
-    onSnippet,
-    onAccess,
-    onDelete,
+    children,
 }: {
     host: AdminHost;
     open: boolean;
     onToggle: () => void;
-    snippet?: EnrollSnippet;
-    onSave: (name: string, address: string) => void;
-    onSnippet: () => void;
-    onAccess: (rules: AccessRule[]) => void;
-    onDelete: () => void;
+    children: ReactNode;
 }) {
     return (
         <>
@@ -652,14 +613,7 @@ function HostRow({
                         colSpan={4}
                         className="px-4 pt-1 pb-5 whitespace-normal"
                     >
-                        <HostPanel
-                            host={host}
-                            snippet={snippet}
-                            onSave={onSave}
-                            onSnippet={onSnippet}
-                            onAccess={onAccess}
-                            onDelete={onDelete}
-                        />
+                        {children}
                     </TableCell>
                 </TableRow>
             )}
@@ -681,18 +635,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function HostPanel({
     host,
     snippet,
-    onSave,
+    act,
     onSnippet,
-    onAccess,
-    onDelete,
 }: {
     host: AdminHost;
     snippet?: EnrollSnippet;
-    onSave: (name: string, address: string) => void;
-    onSnippet: () => void;
-    onAccess: (rules: AccessRule[]) => void;
-    onDelete: () => void;
+    act: (fn: () => Promise<unknown>) => Promise<void>;
+    onSnippet: (snippet: EnrollSnippet) => void;
 }) {
+    const url = `/api/admin/hosts/${host.id}`;
     const [name, setName] = useState(host.name);
     const [address, setAddress] = useState(host.address);
     const changed = name !== host.name || address !== host.address;
@@ -705,7 +656,12 @@ function HostPanel({
                         className="flex flex-col gap-3"
                         onSubmit={(e) => {
                             e.preventDefault();
-                            onSave(name.trim(), address.trim());
+                            act(() =>
+                                api(url, "PATCH", {
+                                    name: name.trim(),
+                                    address: address.trim(),
+                                }),
+                            );
                         }}
                     >
                         <div className="flex flex-col gap-1.5">
@@ -738,12 +694,24 @@ function HostPanel({
                             >
                                 {host.id}
                             </code>
-                            <RemoveHost host={host} onDelete={onDelete} />
+                            <RemoveHost
+                                host={host}
+                                onDelete={() => act(() => api(url, "DELETE"))}
+                            />
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={onSnippet}
+                                onClick={() =>
+                                    act(async () =>
+                                        onSnippet(
+                                            await api<EnrollSnippet>(
+                                                `${url}/snippet`,
+                                                "POST",
+                                            ),
+                                        ),
+                                    )
+                                }
                             >
                                 {host.enrolled ? "Re-enroll" : "Enroll snippet"}
                             </Button>
@@ -756,7 +724,12 @@ function HostPanel({
                     </form>
                 </Section>
                 <Section title="Access">
-                    <Access rules={host.access} onSave={onAccess} />
+                    <Access
+                        rules={host.access}
+                        onSave={(rules) =>
+                            act(() => api(`${url}/access`, "PUT", rules))
+                        }
+                    />
                 </Section>
             </div>
             {snippet && <Snippet {...snippet} />}
