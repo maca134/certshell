@@ -1,4 +1,4 @@
-# certshell + Pocket ID behind Traefik (Let's Encrypt). Setup steps: README.md → Quick start.
+# CertShell + Pocket ID behind Traefik (Let's Encrypt). Setup steps: README.md → Quick start.
 name: certshell
 
 services:

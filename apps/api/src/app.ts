@@ -50,7 +50,7 @@ const SIGNED_OUT_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewpo
 <main style="width:min(360px,calc(100vw - 32px));padding:32px;box-sizing:border-box;border:1px solid rgb(255 255 255/8%);border-radius:16px;background:#1b1b1f;text-align:center">
 <svg width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="g" x2="0" y2="1"><stop offset="0" stop-color="#3b8cff"/><stop offset="1" stop-color="#2160e0"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#g)"/><path d="M9 11l5 5-5 5M16 22h7" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
 <h1 style="margin:16px 0 4px;font-size:20px;font-weight:600;letter-spacing:-.01em">You're signed out</h1>
-<p style="margin:0 0 24px;color:#a1a1aa;font-size:14px">Your certshell session has ended.</p>
+<p style="margin:0 0 24px;color:#a1a1aa;font-size:14px">Your CertShell session has ended.</p>
 <a href="/auth/login" style="display:block;padding:9px 0;border-radius:10px;background:#2f7bf5;color:#fff;font-weight:500;font-size:14px;text-decoration:none">Sign in again</a>
 </main>`;
 

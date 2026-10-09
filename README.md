@@ -1,4 +1,4 @@
-# certshell
+# CertShell
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
@@ -40,7 +40,7 @@ Then in Pocket ID (`https://id.example.com`):
 2. **User Groups** → create `certshell-admins` and add yourself.
 3. **OIDC Clients** → add `certshell`:
    - Callback URL: `https://ssh.example.com/auth/callback`
-   - Allowed user groups: whoever may use certshell at all.
+   - Allowed user groups: whoever may use CertShell at all.
 4. Copy the client ID and secret into `.env` (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`).
 
 ```sh

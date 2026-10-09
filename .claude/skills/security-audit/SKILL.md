@@ -1,7 +1,7 @@
 ---
 name: security-audit
 description: >
-  Whole-repo security audit of certshell. Like the security-reviewer agent, but
+  Whole-repo security audit of CertShell. Like the security-reviewer agent, but
   scans the entire tree instead of a diff: a ranked list of vulnerabilities and
   spec violations. Use when the user says "security audit", "audit for
   security", "is this secure", "find vulns", "security-audit", or

@@ -1,4 +1,4 @@
-# SPEC — certshell (short-lived certs)
+# SPEC — CertShell (short-lived certs)
 
 Status: build steps 1–6 (§9) implemented; step 7 (release) in progress: workflow, examples, README, MIT license done, no release tag yet.
 Scope: **browser SSH terminal only**. No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.

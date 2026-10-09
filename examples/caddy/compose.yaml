@@ -1,4 +1,4 @@
-# certshell + Pocket ID behind Caddy (automatic HTTPS). Setup steps: README.md → Quick start.
+# CertShell + Pocket ID behind Caddy (automatic HTTPS). Setup steps: README.md → Quick start.
 name: certshell
 
 services:
