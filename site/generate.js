@@ -142,25 +142,39 @@ ${proxy === "none" ? `    ports: ["127.0.0.1:1411:1411"]\n` : ""}    volumes: ["
     env += "OIDC_CLIENT_ID=\nOIDC_CLIENT_SECRET=\n";
     files[".env"] = env;
 
-    const steps = [
-        "mkdir certshell && cd certshell",
-        `# save ${Object.keys(files).join(", ")} here`,
-    ];
+    const setup = [];
     if (caPassword)
-        steps.push(
-            "mkdir secrets && openssl rand -base64 32 > secrets/ca_password",
+        setup.push(
+            "mkdir -p secrets && (test -f secrets/ca_password || openssl rand -base64 32 > secrets/ca_password)",
             "chown 1000:1000 secrets/ca_password && chmod 600 secrets/ca_password",
         );
     if (pid)
-        steps.push(
+        setup.push(
             `docker compose up -d${proxyName ? ` ${proxy}` : ""} pocket-id`,
             `# set up Pocket ID at https://${idDomain}/setup, add OIDC client`,
         );
-    steps.push(
+    const next = [
         `# callback URL: https://${sshDomain}/auth/callback`,
         "# put the client ID and secret in .env, then:",
+    ];
+    const steps = [
+        "mkdir certshell && cd certshell",
+        `# save ${Object.keys(files).join(", ")} here`,
+        ...setup,
+        ...next,
         "docker compose up -d",
+    ];
+    const heredocs = Object.entries(files).map(
+        ([name, text]) => `cat > ${name} <<'EOF'\n${text}EOF\n`,
     );
+    const script = [
+        "mkdir -p certshell && cd certshell\n",
+        ...heredocs,
+        ...setup,
+        "",
+        ...next,
+        "#   docker compose up -d",
+    ];
 
-    return { files, steps: steps.join("\n") };
+    return { files, steps: steps.join("\n"), script: script.join("\n") };
 }

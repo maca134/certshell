@@ -78,9 +78,13 @@
                     <div class="window">
                         <div class="window-bar">
                             <span class="window-title">Install</span>
-                            <button type="button" class="icon-btn" data-copy="steps" aria-label="Copy install steps"></button>
+                            <div class="seg seg-sm" id="mode">
+                                <label><input type="radio" name="mode" value="script" checked /><span>One command</span></label>
+                                <label><input type="radio" name="mode" value="steps" /><span>Step by step</span></label>
+                            </div>
+                            <button type="button" class="icon-btn" data-copy="steps" aria-label="Copy install commands"></button>
                         </div>
-                        <pre id="steps"></pre>
+                        <pre id="steps" class="scroll"></pre>
                     </div>
 
                     <div class="window">
@@ -113,13 +117,14 @@
             const form = document.getElementById("form");
             const tabs = document.getElementById("tabs");
             const key = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
-            let current = { files: {}, steps: "" };
+            let current = { files: {}, steps: "", script: "" };
+            const mode = () => document.querySelector("[name=mode]:checked").value;
             let active = "compose.yaml";
 
             for (const b of document.querySelectorAll("[data-copy]")) {
                 b.innerHTML = `${ICON.copy}<span>Copy</span>`;
                 b.onclick = async () => {
-                    await navigator.clipboard.writeText(b.dataset.copy === "steps" ? current.steps : current.files[active]);
+                    await navigator.clipboard.writeText(b.dataset.copy === "steps" ? current[mode()] : current.files[active]);
                     b.innerHTML = `${ICON.check}<span>Copied</span>`;
                     setTimeout(() => (b.innerHTML = `${ICON.copy}<span>Copy</span>`), 1500);
                 };
@@ -154,7 +159,7 @@
                 };
                 for (const el of form.querySelectorAll("[data-show]")) el.hidden = el.dataset.show !== opts.idp && el.dataset.show !== opts.proxy;
                 current = generate(opts);
-                document.getElementById("steps").innerHTML = highlight(current.steps, "sh");
+                document.getElementById("steps").innerHTML = highlight(current[mode()], "sh");
                 tabs.replaceChildren(
                     ...Object.keys(current.files).map((name) => {
                         const t = document.createElement("button");
@@ -169,6 +174,7 @@
             }
 
             form.addEventListener("input", render);
+            document.getElementById("mode").addEventListener("input", render);
             render();
         </script>
     </body>

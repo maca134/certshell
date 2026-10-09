@@ -448,6 +448,21 @@ footer {
     outline-offset: 2px;
 }
 
+.seg-sm {
+    margin: 0 auto 0 12px;
+}
+.window-title:has(+ .seg-sm) {
+    margin-right: 0;
+}
+.seg.seg-sm label span {
+    white-space: nowrap;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+}
+.window pre.scroll {
+    max-height: 420px;
+    overflow-y: auto;
+}
 .output {
     display: grid;
     gap: 20px;

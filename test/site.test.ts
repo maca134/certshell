@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { generate } from "../site/generate.js";
 import { highlight } from "../site/highlight.js";
 
@@ -67,5 +69,38 @@ describe("site highlighter", () => {
         expect(highlight("docker compose up", "yaml")).toBe(
             "docker compose up",
         );
+    });
+});
+
+describe("site one-command install", () => {
+    const run = (script: string, dir: string) =>
+        Bun.$`bash -ec ${`docker() { :; }; chown() { :; }\n${script}`}`
+            .cwd(dir)
+            .quiet();
+
+    test("script writes the same files as the generator", async () => {
+        const { files, script } = generate({ proxy: "traefik" });
+        const dir = mkdtempSync(`${tmpdir()}/certshell-`);
+        await run(script, dir);
+        for (const [name, text] of Object.entries(files)) {
+            expect(await Bun.file(`${dir}/certshell/${name}`).text()).toBe(
+                text,
+            );
+        }
+        expect(
+            await Bun.file(`${dir}/certshell/secrets/ca_password`).exists(),
+        ).toBe(true);
+        rmSync(dir, { recursive: true });
+    });
+
+    test("rerun keeps the existing CA password", async () => {
+        const { script } = generate({});
+        const dir = mkdtempSync(`${tmpdir()}/certshell-`);
+        const pw = `${dir}/certshell/secrets/ca_password`;
+        await run(script, dir);
+        const first = await Bun.file(pw).text();
+        await run(script, dir);
+        expect(await Bun.file(pw).text()).toBe(first);
+        rmSync(dir, { recursive: true });
     });
 });
