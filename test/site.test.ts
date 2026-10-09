@@ -166,3 +166,45 @@ describe("site install worker", () => {
         expect(await (await get("/setup.html")).text()).toBe("asset");
     });
 });
+
+describe("site SEO", () => {
+    const pages = ["index.html", "setup.html", "docs.html"];
+    const meta = (html: string, re: RegExp) => html.match(re)?.[1];
+
+    test("each page: own title and description, canonical in the sitemap", async () => {
+        const sitemap = await read("site/sitemap.xml");
+        const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+            (m) => m[1],
+        );
+        const seen = await Promise.all(
+            pages.map(async (p) => {
+                const html = await read(`site/${p}`);
+                const title = meta(html, /<title>([^<]+)<\/title>/);
+                const desc = meta(
+                    html,
+                    /<meta name="description" content="([^"]+)"/,
+                );
+                const canonical = meta(
+                    html,
+                    /<link rel="canonical" href="([^"]+)"/,
+                );
+                expect(title?.length).toBeLessThanOrEqual(60);
+                expect(desc?.length).toBeLessThanOrEqual(160);
+                expect(
+                    meta(html, /<meta property="og:title" content="([^"]+)"/),
+                ).toBe(title);
+                expect(
+                    meta(html, /<meta property="og:url" content="([^"]+)"/),
+                ).toBe(canonical);
+                expect(html).not.toMatch(/href="(setup|docs)\.html"/);
+                return { title, desc, canonical };
+            }),
+        );
+        expect(new Set(seen.map((s) => s.title)).size).toBe(pages.length);
+        expect(new Set(seen.map((s) => s.desc)).size).toBe(pages.length);
+        expect(seen.map((s) => s.canonical).sort()).toEqual([...locs].sort());
+        expect(await read("site/robots.txt")).toContain(
+            "Sitemap: https://certshell.dev/sitemap.xml",
+        );
+    });
+});
