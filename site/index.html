@@ -43,30 +43,57 @@
 
             <section>
                 <h2>How it works</h2>
+                <ol class="flow">
+                    <li class="step">
+                        <span class="step-n">1</span>
+                        <h3>Log in</h3>
+                        <p>Through Pocket ID or any OIDC provider. Your IdP groups decide which hosts and logins you get.</p>
+                    </li>
+                    <li class="step">
+                        <span class="step-n">2</span>
+                        <h3>Cert minted</h3>
+                        <p>CertShell signs a fresh key with a 15-minute cert for exactly one host and one login.</p>
+                    </li>
+                    <li class="step">
+                        <span class="step-n">3</span>
+                        <h3>Shell opens</h3>
+                        <p>A full terminal in your browser. The session is audit-logged and the cert expires on its own.</p>
+                    </li>
+                </ol>
+            </section>
+
+            <section>
+                <h2>Features</h2>
                 <div class="grid">
                     <div class="card">
-                        <h3>OIDC login</h3>
-                        <p>Sign in through Pocket ID or any OIDC provider. Your IdP groups decide what you can reach.</p>
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2M9 2h6" /></svg></span>
+                        <h3>Short-lived certificates</h3>
+                        <p>Every terminal gets its own cert. One host, one login, no forwarding, gone in 15 minutes.</p>
                     </div>
                     <div class="card">
-                        <h3>Per-session certificates</h3>
-                        <p>A fresh key and a 15-minute cert for every terminal. One host, one login, no forwarding.</p>
-                    </div>
-                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6M12 19h8" /></svg></span>
                         <h3>One-line enrollment</h3>
-                        <p>Hosts trust the CA through a script. Existing <code>authorized_keys</code> keep working, so you can't lock yourself out.</p>
+                        <p>Run a one-time snippet as root. Existing <code>authorized_keys</code> keep working, so you can't lock yourself out.</p>
                     </div>
                     <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" /><circle cx="12" cy="18" r="3" /><path d="M6 9v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9M12 12v3" /></svg></span>
                         <h3>Access map in the UI</h3>
-                        <p>Admins map IdP group → host → login. No edits on the host after enrollment.</p>
+                        <p>Map IdP group → host → login from the admin page. No edits on the host after enrollment.</p>
                     </div>
                     <div class="card">
-                        <h3>Audit log</h3>
-                        <p>Every login, cert and session is logged in the app and on stdout. sshd logs each cert's ID and serial too.</p>
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></span>
+                        <h3>Host key pinning</h3>
+                        <p>The host key is recorded at enrollment. A different machine at the same address is refused.</p>
                     </div>
                     <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg></span>
+                        <h3>Audit trail</h3>
+                        <p>Logins, certs and sessions go to the app and stdout. sshd logs each cert's ID and serial too.</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg></span>
                         <h3>Hardened container</h3>
-                        <p>Non-root, read-only root filesystem, all capabilities dropped, strict headers and rate limits.</p>
+                        <p>Non-root, read-only root filesystem, all capabilities dropped. Strict headers and rate limits.</p>
                     </div>
                 </div>
             </section>
