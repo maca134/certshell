@@ -14,6 +14,7 @@ export async function startApp(
     terminal: Partial<Omit<TerminalDeps, "db">> = {},
     groups = ["admins"],
     env: Record<string, string> = {},
+    latestVersion?: () => string | undefined,
 ) {
     const root = await mkdtemp(`${tmpdir()}/app-`);
     if (!terminal.caKey) await ensureCa(`${root}/ca`, "test-ca", "pw");
@@ -36,6 +37,7 @@ export async function startApp(
             maxMs: 60_000,
             ...terminal,
         },
+        latestVersion,
     });
     const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
     const cookie = `${SESSION_COOKIE}=${createSession(db, {

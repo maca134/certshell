@@ -6,6 +6,7 @@ export type Config = {
     adminGroup: string;
     trustedProxies: Set<string>;
     version: string;
+    updateCheck: boolean;
 };
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -27,5 +28,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
                 .filter(Boolean),
         ),
         version: env.CERTSHELL_VERSION || "dev",
+        updateCheck: env.UPDATE_CHECK !== "false",
     };
 }

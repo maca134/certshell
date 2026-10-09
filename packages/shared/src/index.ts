@@ -5,7 +5,8 @@ export type User = {
     groups: string[];
 };
 
-export type Me = User & { admin: boolean; version: string };
+/** `update`: a newer release on GitHub, sent to admins only. */
+export type Me = User & { admin: boolean; version: string; update?: string };
 
 export type HostSummary = {
     id: string;

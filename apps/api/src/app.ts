@@ -73,6 +73,7 @@ export type Deps = {
     db: Database;
     getOidc: GetOidc;
     terminal: TerminalDeps;
+    latestVersion?: () => string | undefined;
 };
 
 const termSize = (v: unknown, fallback: number) =>
@@ -98,7 +99,13 @@ function parseMessage(raw: unknown): ClientMessage | undefined {
     return undefined;
 }
 
-export function createApp({ config, db, getOidc, terminal }: Deps) {
+export function createApp({
+    config,
+    db,
+    getOidc,
+    terminal,
+    latestVersion,
+}: Deps) {
     const app = new Hono<Env>();
     const publicLimit = rateLimiter(60, 60_000);
     const enrollLimit = rateLimiter(10, 60_000);
@@ -249,13 +256,15 @@ export function createApp({ config, db, getOidc, terminal }: Deps) {
 
     app.get("/api/me", (c) => {
         const { iss, sub, email, groups } = c.var.user;
+        const admin = groups.includes(config.adminGroup);
         return c.json<Me>({
             iss,
             sub,
             email,
             groups,
-            admin: groups.includes(config.adminGroup),
+            admin,
             version: config.version,
+            update: admin ? latestVersion?.() : undefined,
         });
     });
 

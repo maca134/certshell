@@ -321,6 +321,7 @@ docker compose up -d
 
 - HTTPS for both the app and the IdP (`Secure` cookies; WebAuthn at the IdP needs a secure context). Terminate TLS at the reverse proxy.
 - App container → IdP (discovery, code exchange) and → targets `:22`.
+- App container → `api.github.com` every 12h for newer release tags (admins see an update badge). Optional: fails silently; `UPDATE_CHECK=false` turns it off.
 - Targets → `APP_URL` (enroll only).
 - Passkeys bind to the IdP's domain → separate environments need separate passkey registration.
 
