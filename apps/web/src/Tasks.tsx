@@ -69,10 +69,13 @@ function useRun() {
 function TaskList() {
     const [tasks, setTasks] = useState<Task[]>();
     const [runs, setRuns] = useState<RunSummary[]>();
-    const { run, error } = useRun();
+    const [loadError, setLoadError] = useState<string>();
+    const { run, error: runError } = useRun();
+    const error = loadError ?? runError;
     useEffect(() => {
-        api<Task[]>("/api/tasks").then(setTasks);
-        api<RunSummary[]>("/api/tasks/runs").then(setRuns);
+        const fail = (err: Error) => setLoadError(err.message);
+        api<Task[]>("/api/tasks").then(setTasks, fail);
+        api<RunSummary[]>("/api/tasks/runs").then(setRuns, fail);
     }, []);
 
     return (

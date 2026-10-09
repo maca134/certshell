@@ -169,3 +169,12 @@ test("edit a task: prefilled, change hosts, save; delete", async ({ page }) => {
         { method: "DELETE", path: "/api/tasks/5", body: undefined },
     ]);
 });
+
+test("task list shows an error when it fails to load", async ({ page }) => {
+    await fakeApi(page);
+    await page.route("/api/tasks", (r) =>
+        r.fulfill({ status: 500, json: { error: "Internal Server Error" } }),
+    );
+    await page.goto("/tasks");
+    await expect(page.getByText("Internal Server Error")).toBeVisible();
+});
