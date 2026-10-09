@@ -132,10 +132,17 @@ test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {
     await posted;
 });
 
-test("sidebar links to the website", async ({ page, isMobile }) => {
+test("footer links to the website and GitHub", async ({ page }) => {
     await openAdmin(page);
-    const nav = await sidebar(page, isMobile);
+    const footer = page.locator("footer");
     await expect(
-        nav.getByRole("link", { name: "certshell.dev" }),
+        footer.getByRole("link", { name: "certshell.dev" }),
     ).toHaveAttribute("href", "https://certshell.dev");
+    await expect(footer.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+        "href",
+        "https://github.com/maca134/certshell",
+    );
+    await page.screenshot({
+        fullPage: true,
+    });
 });
