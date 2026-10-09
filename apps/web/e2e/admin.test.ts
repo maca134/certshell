@@ -49,13 +49,18 @@ async function openAdmin(page: Page) {
             path: new URL(req.url()).pathname,
             body: req.postDataJSON(),
         });
+        if (req.url().endsWith("/snippet"))
+            return r.fulfill({
+                json: { snippet: "curl reenroll", expiresAt: 0 },
+            });
         if (req.method() === "POST") {
             hosts.push({ ...host, id: "h2", enrolled: false, access: [] });
             return r.fulfill({
                 json: { id: "h2", snippet: "curl enroll", expiresAt: 0 },
             });
         }
-        if (req.method() === "PUT") return r.fulfill({ status: 204 });
+        if (req.method() === "PUT" || req.method() === "PATCH")
+            return r.fulfill({ status: 204 });
         if (req.method() === "DELETE") {
             hosts.splice(0);
             return r.fulfill({ status: 204 });
@@ -84,6 +89,28 @@ test("add host shows the enroll snippet", async ({ page }) => {
         method: "POST",
         path: "/api/admin/hosts",
         body: { name: "db1", address: "10.0.0.2" },
+    });
+});
+
+test("editing details PATCHes; re-enroll shows a fresh snippet", async ({
+    page,
+}) => {
+    const calls = await openAdmin(page);
+    await page.getByLabel("name").fill("web2");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect
+        .poll(() => calls.find((c) => c.method === "PATCH"))
+        .toEqual({
+            method: "PATCH",
+            path: "/api/admin/hosts/h1",
+            body: { name: "web2", address: "10.0.0.1" },
+        });
+    await page.getByRole("button", { name: "Re-enroll" }).click();
+    await expect(page.getByText("curl reenroll")).toBeVisible();
+    expect(calls).toContainEqual({
+        method: "POST",
+        path: "/api/admin/hosts/h1/snippet",
+        body: null,
     });
 });
 
