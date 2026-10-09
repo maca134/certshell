@@ -9,7 +9,7 @@ import {
     Terminal,
     Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { Admin } from "./Admin";
 import { api } from "./api";
@@ -35,7 +35,12 @@ import {
 } from "./components/ui/sidebar";
 import { Skeleton } from "./components/ui/skeleton";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { TerminalView } from "./TerminalView";
+
+// xterm is half the bundle: load it after the host list renders, before the user picks a host.
+const loadTerminal = () => import("./TerminalView");
+const TerminalView = lazy(() =>
+    loadTerminal().then((m) => ({ default: m.TerminalView })),
+);
 
 export function App() {
     const [me, setMe] = useState<Me>();
@@ -47,7 +52,9 @@ export function App() {
         api<Me>("/api/me").then(setMe);
     }, []);
     useEffect(() => {
-        if (!onAdmin) api<HostSummary[]>("/api/hosts").then(setHosts);
+        if (onAdmin) return;
+        api<HostSummary[]>("/api/hosts").then(setHosts);
+        loadTerminal();
     }, [onAdmin]);
 
     return (
@@ -69,11 +76,13 @@ export function App() {
                             </div>
                         );
                     return (
-                        <TerminalView
-                            host={host}
-                            login={login}
-                            onBack={() => navigate("/")}
-                        />
+                        <Suspense>
+                            <TerminalView
+                                host={host}
+                                login={login}
+                                onBack={() => navigate("/")}
+                            />
+                        </Suspense>
                     );
                 }}
             </Route>

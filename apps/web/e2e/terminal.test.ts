@@ -89,3 +89,20 @@ test("closed session shows the reason and reconnects on demand", async ({
     await expect(page.getByText("Connected", { exact: true })).toBeVisible();
     expect(sockets).toBe(2);
 });
+
+test("host list preloads the terminal chunk before a host is picked", async ({
+    page,
+}) => {
+    await page.route("/api/me", (r) =>
+        r.fulfill({
+            json: { iss: "i", sub: "s", email: null, groups: [], admin: false },
+        }),
+    );
+    await page.route("/api/hosts", (r) =>
+        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+    );
+    const terminalChunk = page.waitForRequest(/TerminalView/);
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "root" })).toBeVisible();
+    await terminalChunk;
+});
