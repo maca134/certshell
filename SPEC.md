@@ -114,6 +114,7 @@ A task = a saved script + the host logins it runs on, e.g. `apt-get upgrade -y` 
 - Per target: the §3.2 flow, but the cert is `-O clear` only (**no `permit-pty`**): it runs the script, no terminal, no forwarding. `ssh` gets the script as its last argv element (the login's shell runs it), stdin `/dev/null`, so prompts read EOF instead of hanging.
 - Targets run in parallel. Killed after 30 min. Status per target: running → ok (exit 0) / failed (non-zero, ssh error, timeout). stdout + stderr merged; the last 256 KB is kept. The UI polls while a run is going.
 - A run counts once against the per-user sign rate limit.
+- **Detach** (per task): if the connection drops (app restart, or the script cuts it, e.g. a NetBird/VPN or sshd upgrade), sshd closes the session's pipes and a plain script dies of SIGPIPE on its next write. A detached task's script runs under `nohup` in the login's shell, output into a `mktemp` file on the host that `tail -f` streams back, so it finishes regardless; the run still gets the exit code if the connection holds. Logs stay in `/tmp` for after an interrupted run. POSIX tools only.
 - A run keeps a copy of the task's name and script: editing or deleting the task doesn't change past runs. On restart, still-running targets are marked failed.
 
 ---
