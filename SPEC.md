@@ -168,6 +168,7 @@ echo "enrolled: $(hostname)"
 - Admin-only (`OIDC_ADMIN_GROUP`).
 - `/api/enroll` validates the token and records the host public key against `HOST_ID`.
 - Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it), OpenRC (Alpine), else `SIGHUP` to `/run/sshd.pid` (init-less containers/LXCs). Fails loudly if the drop-in isn't loaded, instead of reporting success.
+- Removing a host (UI): the app drops it (no more certs for `ws:<hostId>:*`) and shows a root snippet that deletes the drop-in + CA pubkey and reloads sshd. No token: it only takes trust away.
 - Homelab: bake into the Proxmox LXC golden template for zero-touch enrollment on clone.
 
 ---
@@ -376,6 +377,5 @@ Don't re-propose these without new information.
 ## 12. Parked (later, not v1 blockers)
 
 - Admin "kill sessions" for a user: IdP revocation blocks new connections within 1h, but open terminals live up to 8h.
-- Un-enrolling a host (UI + a removal snippet).
 - Audit log retention.
 - CA rotation (§8).
