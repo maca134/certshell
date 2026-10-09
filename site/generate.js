@@ -143,6 +143,10 @@ ${proxy === "none" ? `    ports: ["127.0.0.1:1411:1411"]\n` : ""}    volumes: ["
     files[".env"] = env;
 
     const setup = [];
+    if (pid && !encryptionKey)
+        setup.push(
+            `sed -i "s|^POCKET_ID_ENCRYPTION_KEY=$|POCKET_ID_ENCRYPTION_KEY=$(openssl rand -base64 32)|" .env`,
+        );
     if (caPassword)
         setup.push(
             "mkdir -p secrets && (test -f secrets/ca_password || openssl rand -base64 32 > secrets/ca_password)",
@@ -177,4 +181,17 @@ ${proxy === "none" ? `    ports: ["127.0.0.1:1411:1411"]\n` : ""}    volumes: ["
     ];
 
     return { files, steps: steps.join("\n"), script: script.join("\n") };
+}
+
+export function installCommand(origin, o) {
+    const q = new URLSearchParams({
+        proxy: o.proxy,
+        idp: o.idp,
+        sshDomain: o.sshDomain,
+    });
+    if (o.idp === "pocket-id") q.set("idDomain", o.idDomain);
+    else q.set("issuer", o.issuer);
+    if (o.proxy === "none") q.set("trustedProxies", o.trustedProxies);
+    if (!o.caPassword) q.set("caPassword", "0");
+    return `curl -fsSL '${origin}/install?${q}' | sh\n`;
 }

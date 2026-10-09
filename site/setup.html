@@ -104,7 +104,7 @@
         </footer>
 
         <script type="module">
-            import { generate } from "./generate.js";
+            import { generate, installCommand } from "./generate.js";
             import { highlight } from "./highlight.js";
 
             const ICON = {
@@ -159,6 +159,7 @@
                 };
                 for (const el of form.querySelectorAll("[data-show]")) el.hidden = el.dataset.show !== opts.idp && el.dataset.show !== opts.proxy;
                 current = generate(opts);
+                current.script = installCommand(location.origin, opts);
                 document.getElementById("steps").innerHTML = highlight(current[mode()], "sh");
                 tabs.replaceChildren(
                     ...Object.keys(current.files).map((name) => {

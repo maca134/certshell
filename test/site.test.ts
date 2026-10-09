@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { generate } from "../site/generate.js";
+import { generate, installCommand } from "../site/generate.js";
 import { highlight } from "../site/highlight.js";
+import worker from "../site/worker.js";
 
 const root = `${import.meta.dir}/..`;
 const read = (p: string) => Bun.file(`${root}/${p}`).text();
@@ -79,7 +80,10 @@ describe("site one-command install", () => {
             .quiet();
 
     test("script writes the same files as the generator", async () => {
-        const { files, script } = generate({ proxy: "traefik" });
+        const { files, script } = generate({
+            proxy: "traefik",
+            encryptionKey: "k",
+        });
         const dir = mkdtempSync(`${tmpdir()}/certshell-`);
         await run(script, dir);
         for (const [name, text] of Object.entries(files)) {
@@ -102,5 +106,52 @@ describe("site one-command install", () => {
         await run(script, dir);
         expect(await Bun.file(pw).text()).toBe(first);
         rmSync(dir, { recursive: true });
+    });
+});
+
+describe("site install worker", () => {
+    const env = { ASSETS: { fetch: () => new Response("asset") } };
+    const get = (url: string) =>
+        worker.fetch(new Request(`https://certshell.dev${url}`), env);
+
+    test("command from the page installs the same files via sh", async () => {
+        const opts = {
+            proxy: "traefik",
+            idp: "pocket-id",
+            sshDomain: "ssh.a.com",
+            idDomain: "id.a.com",
+            caPassword: true,
+        };
+        const cmd = installCommand("https://certshell.dev", opts);
+        const url = cmd.match(/'https:\/\/certshell\.dev(.+)'/)?.[1] ?? "";
+        const res = await get(url);
+        expect(res.status).toBe(200);
+        const dir = mkdtempSync(`${tmpdir()}/certshell-`);
+        await Bun.$`sh -c ${`docker() { :; }; chown() { :; }\n${await res.text()}`}`
+            .cwd(dir)
+            .quiet();
+        const { files } = generate(opts);
+        expect(await Bun.file(`${dir}/certshell/compose.yaml`).text()).toBe(
+            files["compose.yaml"],
+        );
+        expect(await Bun.file(`${dir}/certshell/.env`).text()).toMatch(
+            /^POCKET_ID_ENCRYPTION_KEY=[A-Za-z0-9+/]{43}=$/m,
+        );
+        rmSync(dir, { recursive: true });
+    });
+
+    test("rejects bad or unknown parameters", async () => {
+        for (const q of [
+            "sshDomain=a.com%0Arm%20-rf%20~",
+            "proxy=nginx",
+            "toString=x",
+            "encryptionKey=abc",
+        ]) {
+            expect((await get(`/install?${q}`)).status).toBe(400);
+        }
+    });
+
+    test("other paths are static assets", async () => {
+        expect(await (await get("/setup.html")).text()).toBe("asset");
     });
 });
