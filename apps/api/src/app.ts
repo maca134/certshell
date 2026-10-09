@@ -143,10 +143,12 @@ export function createApp({
                 "SELECT id, address FROM hosts WHERE id IN (SELECT value FROM json_each(?))",
             )
             .all(JSON.stringify(ids));
+        for (const [address, check] of checks)
+            if (check.at < Date.now() - 30_000) checks.delete(address);
         const status = await Promise.all(
             hosts.map(async ({ id, address }) => {
                 let check = checks.get(address);
-                if (!check || check.at < Date.now() - 30_000) {
+                if (!check) {
                     check = { at: Date.now(), up: reachable(address) };
                     checks.set(address, check);
                 }
