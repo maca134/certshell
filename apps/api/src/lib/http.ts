@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import type { Config } from "./config";
+import type { Config } from "../config";
 
 /** For JSON APIs that change state: same-origin writes, 64 KB bodies. */
 export const writeGuards = (config: Config): MiddlewareHandler[] => [

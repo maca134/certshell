@@ -3,17 +3,17 @@ import type { Me } from "@repo/shared";
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { getCookie } from "hono/cookie";
-import { adminRoutes } from "./admin";
-import { authRoutes, SESSION_COOKIE } from "./auth";
 import type { Config } from "./config";
-import { enrollRoute } from "./enroll";
-import { accessibleHosts } from "./hosts";
-import type { GetOidc } from "./oidc";
-import { clientIp, rateLimiter } from "./ratelimit";
-import { type AppEnv, getSession } from "./sessions";
-import { taskRoutes } from "./tasks";
-import type { TerminalDeps } from "./terminal";
-import { terminalRoute } from "./terminal-ws";
+import { accessibleHosts } from "./lib/hosts";
+import type { GetOidc } from "./lib/oidc";
+import { clientIp, rateLimiter } from "./lib/ratelimit";
+import { type AppEnv, getSession } from "./lib/sessions";
+import { adminRoutes } from "./routes/admin";
+import { authRoutes, SESSION_COOKIE } from "./routes/auth";
+import { enrollRoute } from "./routes/enroll";
+import { taskRoutes } from "./routes/tasks";
+import { terminalRoute } from "./routes/terminal";
+import type { TerminalDeps } from "./ssh/terminal";
 
 const WEB_DIST = `${import.meta.dir}/../../web/dist`;
 

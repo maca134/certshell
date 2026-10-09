@@ -4,9 +4,9 @@ import { Database } from "bun:sqlite";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { readCaPassword } from "../src/ca";
-import { mintUserCert } from "../src/certs";
-import { run } from "../src/exec";
+import { readCaPassword } from "../src/ssh/ca";
+import { mintUserCert } from "../src/ssh/certs";
+import { run } from "../src/ssh/exec";
 import { startApp } from "./helpers/app";
 
 const target = process.env.SSH_TARGET;

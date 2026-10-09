@@ -8,11 +8,11 @@ import {
     type RunSummary,
     type Task,
 } from "@repo/shared";
-import { SESSION_COOKIE } from "../src/auth";
 import { loadConfig } from "../src/config";
-import { createSession } from "../src/sessions";
-import { taskRoutes } from "../src/tasks";
-import type { TerminalDeps } from "../src/terminal";
+import { createSession } from "../src/lib/sessions";
+import { SESSION_COOKIE } from "../src/routes/auth";
+import { taskRoutes } from "../src/routes/tasks";
+import type { TerminalDeps } from "../src/ssh/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 
 // Fake `ssh`: runs the task's script locally, with the host id as $0.

@@ -9,14 +9,14 @@ import {
     type Task,
 } from "@repo/shared";
 import { type Context, Hono } from "hono";
-import { audit } from "./audit";
-import type { Config } from "./config";
-import { allowedHost, type Host } from "./hosts";
-import { jsonBody, writeGuards } from "./http";
-import { taskRunner } from "./runner";
-import type { AppEnv } from "./sessions";
-import type { TerminalDeps } from "./terminal";
-import { validName, validScript } from "./validate";
+import type { Config } from "../config";
+import { audit } from "../lib/audit";
+import { allowedHost, type Host } from "../lib/hosts";
+import { jsonBody, writeGuards } from "../lib/http";
+import type { AppEnv } from "../lib/sessions";
+import { validName, validScript } from "../lib/validate";
+import { taskRunner } from "../ssh/runner";
+import type { TerminalDeps } from "../ssh/terminal";
 
 const MAX_TARGETS = 50;
 const MAX_TASKS = 100;

@@ -1,12 +1,17 @@
 import type { Database } from "bun:sqlite";
 import type { AccessRule, AdminHost, AuditEntry, SeenUser } from "@repo/shared";
 import { Hono } from "hono";
-import { audit } from "./audit";
-import type { Config } from "./config";
+import type { Config } from "../config";
+import { audit } from "../lib/audit";
+import { jsonBody, writeGuards } from "../lib/http";
+import type { AppEnv } from "../lib/sessions";
+import {
+    validAddress,
+    validGroup,
+    validLogin,
+    validName,
+} from "../lib/validate";
 import { issueSnippet } from "./enroll";
-import { jsonBody, writeGuards } from "./http";
-import type { AppEnv } from "./sessions";
-import { validAddress, validGroup, validLogin, validName } from "./validate";
 
 const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 

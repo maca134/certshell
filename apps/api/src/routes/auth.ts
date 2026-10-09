@@ -2,15 +2,15 @@ import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import * as oidc from "openid-client";
-import { audit } from "./audit";
-import type { Config } from "./config";
-import type { GetOidc } from "./oidc";
+import type { Config } from "../config";
+import { audit } from "../lib/audit";
+import type { GetOidc } from "../lib/oidc";
 import {
     type AppEnv,
     createSession,
     deleteSession,
     SESSION_TTL_SECONDS,
-} from "./sessions";
+} from "../lib/sessions";
 
 export const LOGIN_COOKIE = "__Host-certshell_login";
 export const SESSION_COOKIE = "__Host-certshell_session";

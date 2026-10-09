@@ -1,8 +1,8 @@
 import type { Database } from "bun:sqlite";
 import { rm } from "node:fs/promises";
 import type { RunStatus, User } from "@repo/shared";
-import { audit } from "./audit";
-import type { Host } from "./hosts";
+import { audit } from "../lib/audit";
+import type { Host } from "../lib/hosts";
 import { signSession, sshArgv, type TerminalDeps } from "./terminal";
 
 const MAX_OUTPUT = 256 * 1024;

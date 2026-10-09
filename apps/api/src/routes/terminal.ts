@@ -2,10 +2,10 @@ import type { Database } from "bun:sqlite";
 import type { ClientMessage } from "@repo/shared";
 import { Hono } from "hono";
 import { websocket as honoWebsocket, upgradeWebSocket } from "hono/bun";
-import type { Config } from "./config";
-import { allowedHost, type Host } from "./hosts";
-import type { AppEnv } from "./sessions";
-import { openTerminal, type TerminalDeps } from "./terminal";
+import type { Config } from "../config";
+import { allowedHost, type Host } from "../lib/hosts";
+import type { AppEnv } from "../lib/sessions";
+import { openTerminal, type TerminalDeps } from "../ssh/terminal";
 
 type Env = AppEnv & { Variables: { host: Host; login: string } };
 

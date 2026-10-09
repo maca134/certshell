@@ -1,10 +1,10 @@
 import { createApp } from "./app";
-import { ensureCa, readCaPassword } from "./ca";
 import { loadConfig } from "./config";
 import { openDb } from "./db";
-import { lazyDiscovery } from "./oidc";
-import { websocket } from "./terminal-ws";
-import { updateChecker } from "./version";
+import { lazyDiscovery } from "./lib/oidc";
+import { updateChecker } from "./lib/version";
+import { websocket } from "./routes/terminal";
+import { ensureCa, readCaPassword } from "./ssh/ca";
 
 const config = loadConfig(process.env);
 

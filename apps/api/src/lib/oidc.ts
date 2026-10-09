@@ -1,5 +1,5 @@
 import * as oidc from "openid-client";
-import type { Config } from "./config";
+import type { Config } from "../config";
 
 export type GetOidc = () => Promise<oidc.Configuration>;
 

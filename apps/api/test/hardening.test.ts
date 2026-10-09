@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import type { AuditEntry, SeenUser } from "@repo/shared";
-import { clientIp, rateLimiter } from "../src/ratelimit";
+import { clientIp, rateLimiter } from "../src/lib/ratelimit";
 import { APP_URL, startApp } from "./helpers/app";
 
 let ctx: Awaited<ReturnType<typeof startApp>> | undefined;

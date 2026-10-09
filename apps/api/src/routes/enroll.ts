@@ -2,10 +2,10 @@ import type { Database } from "bun:sqlite";
 import { type EnrollSnippet, RELOAD_SSHD, sq } from "@repo/shared";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { audit } from "./audit";
-import type { Config } from "./config";
-import { type AppEnv, hashToken, now, randomToken } from "./sessions";
-import { parseHostKey } from "./validate";
+import type { Config } from "../config";
+import { audit } from "../lib/audit";
+import { type AppEnv, hashToken, now, randomToken } from "../lib/sessions";
+import { parseHostKey } from "../lib/validate";
 
 const ENROLL_TOKEN_TTL_SECONDS = 600;
 

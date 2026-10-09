@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import type { Me } from "@repo/shared";
 import { loadConfig } from "../src/config";
-import { isNewer, updateChecker } from "../src/version";
+import { isNewer, updateChecker } from "../src/lib/version";
 import { APP_URL, startApp } from "./helpers/app";
 
 let ctx: Awaited<ReturnType<typeof startApp>>;

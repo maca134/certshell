@@ -1,8 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
-import { SESSION_COOKIE } from "../src/auth";
-import { createSession } from "../src/sessions";
+import { createSession } from "../src/lib/sessions";
+import { SESSION_COOKIE } from "../src/routes/auth";
 import { APP_URL, startApp } from "./helpers/app";
 
 // Fake `ssh`: prints the login and cert principal, then echoes input via the PTY.

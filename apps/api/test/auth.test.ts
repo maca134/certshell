@@ -1,10 +1,10 @@
 import { afterAll, beforeEach, expect, test } from "bun:test";
 import * as oidc from "openid-client";
 import { createApp } from "../src/app";
-import { LOGIN_COOKIE, SESSION_COOKIE } from "../src/auth";
 import { loadConfig } from "../src/config";
 import { openDb } from "../src/db";
-import { lazyDiscovery } from "../src/oidc";
+import { lazyDiscovery } from "../src/lib/oidc";
+import { LOGIN_COOKIE, SESSION_COOKIE } from "../src/routes/auth";
 import { startMockIdp } from "./helpers/mock-idp";
 
 const idp = await startMockIdp("cid", "csecret");

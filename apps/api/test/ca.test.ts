@@ -1,8 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { caPassphraseEnv, ensureCa, readCaPassword } from "../src/ca";
-import { run } from "../src/exec";
+import { caPassphraseEnv, ensureCa, readCaPassword } from "../src/ssh/ca";
+import { run } from "../src/ssh/exec";
 
 const pubFrom = (key: string, pw: string) =>
     run(["ssh-keygen", "-y", "-P", pw, "-f", key]);

@@ -1,9 +1,9 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { ensureCa } from "../src/ca";
-import { mintUserCert } from "../src/certs";
-import { run } from "../src/exec";
+import { ensureCa } from "../src/ssh/ca";
+import { mintUserCert } from "../src/ssh/certs";
+import { run } from "../src/ssh/exec";
 
 let root: string;
 afterEach(() => rm(root, { recursive: true, force: true }));
