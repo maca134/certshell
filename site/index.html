@@ -32,13 +32,13 @@
             </div>
 
             <div class="term">
-<pre><span class="c"># enroll a host (one-time snippet from the admin UI)</span>
-root@web1:~# curl -fsS https://ssh.example.com/enroll/… | sh
+<pre><span class="tok-c"># enroll a host (one-time snippet from the admin UI)</span>
+<span class="tok-k">root@web1:~#</span> curl -fsS https://ssh.example.com/enroll/… | sh
 <span class="g">✓</span> CA trusted, sshd reloaded, host key pinned
 
-<span class="c"># later, from the browser, as alice (group: ops)</span>
+<span class="tok-c"># later, from the browser, as alice (group: ops)</span>
 <span class="g">✓</span> cert serial 4182 · principal web1:root · valid 15m · no forwarding
-root@web1:~#</pre>
+<span class="tok-k">root@web1:~#</span></pre>
             </div>
 
             <section>
@@ -73,7 +73,7 @@ root@web1:~#</pre>
 
             <section>
                 <h2>Quick start</h2>
-<pre>cp -r examples/caddy certshell && cd certshell
+<pre data-lang="sh">cp -r examples/caddy certshell && cd certshell
 cp .env.example .env     # set SSH_DOMAIN, ID_DOMAIN, OIDC_* ...
 docker compose up -d</pre>
                 <p>Generate your own config with the <a href="setup.html">setup generator</a>. Full walkthrough in the <a href="docs.html">docs</a>.</p>
@@ -83,5 +83,10 @@ docker compose up -d</pre>
         <footer>
             <div class="wrap">CertShell · MIT License · <a href="https://github.com/maca134/certshell">GitHub</a></div>
         </footer>
+        <script type="module">
+            import { highlight } from "./highlight.js";
+
+            for (const pre of document.querySelectorAll("pre[data-lang]")) pre.innerHTML = highlight(pre.textContent, pre.dataset.lang);
+        </script>
     </body>
 </html>
