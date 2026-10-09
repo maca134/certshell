@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { type AdminHost, REMOVAL_SNIPPET } from "@repo/shared";
-import { renderSnippet } from "../src/admin";
+import { renderSnippet } from "../src/enroll";
 import { run } from "../src/exec";
 import { APP_URL, startApp } from "./helpers/app";
 

@@ -8,9 +8,10 @@ import {
 } from "hono/bun";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import * as oidc from "openid-client";
-import { adminRoutes, enrollRoute } from "./admin";
+import { adminRoutes } from "./admin";
 import { audit } from "./audit";
 import type { Config } from "./config";
+import { enrollRoute } from "./enroll";
 import { accessibleHosts, allowedHost, type Host } from "./hosts";
 import type { GetOidc } from "./oidc";
 import { clientIp, rateLimiter } from "./ratelimit";
