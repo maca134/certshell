@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
-import type { RunDetail, RunSummary, SavedCommand } from "@repo/shared";
+import type { RunDetail, RunSummary, Task } from "@repo/shared";
 import { SESSION_COOKIE } from "../src/app";
 import { loadConfig } from "../src/config";
 import { createSession } from "../src/sessions";
@@ -9,7 +9,7 @@ import { taskRoutes } from "../src/tasks";
 import type { TerminalDeps } from "../src/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 
-// Fake `ssh`: runs the task's command locally, with the host id as $0.
+// Fake `ssh`: runs the task's script locally, with the host id as $0.
 let keys: string[] = [];
 const fakeSsh: TerminalDeps["command"] = ({ key, host, remote }) => {
     keys.push(key);
@@ -55,11 +55,22 @@ const otherUser = () =>
         groups: ["admins"],
     })}`;
 
-async function startRun(command: string, targets: object[]) {
-    const res = await call("POST", "/runs", { command, targets });
+const h1root = [{ host: "h1", login: "root" }];
+
+async function createTask(script: string, targets: object[], name = "t") {
+    const res = await call("POST", "", { name, script, targets });
+    expect(res.status).toBe(201);
+    return ((await res.json()) as { id: number }).id;
+}
+
+async function runTask(taskId: number) {
+    const res = await call("POST", `/${taskId}/run`);
     expect(res.status).toBe(201);
     return ((await res.json()) as { id: string }).id;
 }
+
+const startRun = async (script: string, targets: object[]) =>
+    runTask(await createTask(script, targets));
 
 async function finished(id: string) {
     for (let i = 0; i < 100; i++) {
@@ -78,17 +89,80 @@ const events = () =>
         .all()
         .map((r) => JSON.parse(r.data));
 
-test("run: one command on each target, exit code + merged output per host", async () => {
+const count = (table: string) =>
+    ctx.db.query(`SELECT count(*) AS n FROM ${table}`).get();
+
+test("tasks: create, list, edit, delete; per user", async () => {
     await setup();
-    const id = await startRun(
-        'echo "out $0"; echo "err $0" >&2; [ "$0" = h1 ]',
-        [
-            { host: "h1", login: "root" },
-            { host: "h2", login: "root" },
-        ],
+    const id = await createTask("apt-get upgrade -y", h1root, "Upgrade");
+    await createTask("df -h", [{ host: "h2", login: "root" }], "Disk");
+    const list = async (cookie = ctx.cookie) =>
+        (await (await call("GET", "", undefined, { cookie })).json()) as Task[];
+    expect((await list()).map((t) => [t.name, t.script, t.targets])).toEqual([
+        ["Disk", "df -h", [{ host: "h2", login: "root" }]],
+        ["Upgrade", "apt-get upgrade -y", h1root],
+    ]);
+
+    const edit = {
+        name: "Upgrade all",
+        script: "apt-get update\napt-get upgrade -y",
+        targets: [...h1root, { host: "h2", login: "root" }],
+    };
+    expect((await call("PUT", `/${id}`, edit)).status).toBe(204);
+    expect((await list()).find((t) => t.id === id)).toMatchObject(edit);
+
+    const cookie = otherUser();
+    expect(await list(cookie)).toEqual([]);
+    expect((await call("PUT", `/${id}`, edit, { cookie })).status).toBe(404);
+    expect(
+        (await call("POST", `/${id}/run`, undefined, { cookie })).status,
+    ).toBe(404);
+    expect((await call("DELETE", `/${id}`, undefined, { cookie })).status).toBe(
+        404,
     );
+    expect((await call("DELETE", `/${id}`)).status).toBe(204);
+    expect((await list()).map((t) => t.name)).toEqual(["Disk"]);
+});
+
+test("tasks: invalid input and targets the user can't reach are refused", async () => {
+    await setup();
+    const bad = async (body: object) =>
+        expect((await call("POST", "", body)).status).toBe(400);
+    const ok = { name: "x", script: "id", targets: h1root };
+    await bad({ ...ok, name: "" });
+    await bad({ ...ok, script: " " });
+    await bad({ ...ok, script: "x".repeat(16 * 1024 + 1) });
+    await bad({ ...ok, targets: [] });
+    await bad({
+        ...ok,
+        targets: Array.from({ length: 51 }, () => h1root[0]),
+    });
+    await bad({ ...ok, targets: [{ host: "h1", login: 1 }] });
+    await bad({ ...ok, targets: [{ host: "h1", login: "alice" }] });
+    await bad({ ...ok, targets: [{ host: "h9", login: "root" }] });
+    expect(
+        (await call("POST", "", ok, { origin: "https://evil.test" })).status,
+    ).toBe(403);
+    expect(count("tasks")).toEqual({ n: 0 });
+});
+
+test("tasks: duplicate targets are saved once", async () => {
+    await setup();
+    await createTask("true", [...h1root, ...h1root]);
+    const [task] = (await (await call("GET", "")).json()) as Task[];
+    expect(task?.targets).toEqual(h1root);
+});
+
+test("run: the script on each target, exit code + merged output per host", async () => {
+    await setup();
+    const taskId = await createTask(
+        'echo "out $0"; echo "err $0" >&2; [ "$0" = h1 ]',
+        [...h1root, { host: "h2", login: "root" }],
+        "Check",
+    );
+    const id = await runTask(taskId);
     const run = await finished(id);
-    expect(run.command).toStartWith("echo");
+    expect(run).toMatchObject({ taskId, name: "Check" });
     expect(
         run.hosts.map((h) => [h.hostId, h.login, h.status, h.exitCode]),
     ).toEqual([
@@ -98,10 +172,17 @@ test("run: one command on each target, exit code + merged output per host", asyn
     expect(run.hosts[0]?.output).toContain("out h1");
     expect(run.hosts[0]?.output).toContain("err h1");
 
-    const list = (await (await call("GET", "/runs")).json()) as RunSummary[];
-    expect(list.map((r) => [r.id, r.counts])).toEqual([
-        [id, { running: 0, ok: 1, failed: 1 }],
+    const summary = { id, taskId, name: "Check" };
+    const runs = (await (await call("GET", "/runs")).json()) as RunSummary[];
+    expect(runs).toEqual([
+        {
+            ...summary,
+            createdAt: expect.any(Number),
+            counts: { running: 0, ok: 1, failed: 1 },
+        },
     ]);
+    const [task] = (await (await call("GET", "")).json()) as Task[];
+    expect(task?.lastRun).toMatchObject(summary);
 
     await Bun.sleep(50);
     expect(keys.map((k) => existsSync(dirname(k)))).toEqual([false, false]);
@@ -110,6 +191,7 @@ test("run: one command on each target, exit code + merged output per host", asyn
         event: "task_run",
         sub: "user-1",
         run: id,
+        task: taskId,
         targets: ["h1:root", "h2:root"],
     });
     expect(log.filter((e) => e.event === "sign")).toHaveLength(2);
@@ -122,86 +204,43 @@ test("run: one command on each target, exit code + merged output per host", asyn
     ).toContain("failed");
 });
 
+test("run: a later edit doesn't change a past run's script", async () => {
+    await setup();
+    const taskId = await createTask("echo one", h1root);
+    const id = await runTask(taskId);
+    await finished(id);
+    await call("PUT", `/${taskId}`, {
+        name: "t",
+        script: "echo two",
+        targets: h1root,
+    });
+    expect((await finished(id)).script).toBe("echo one");
+});
+
 test("run: cert is for ws:<host>:<login> and cannot open a terminal", async () => {
     await setup({
         command: ({ key }) => ["ssh-keygen", "-L", "-f", `${key}-cert.pub`],
     });
-    const run = await finished(
-        await startRun("true", [{ host: "h1", login: "root" }]),
-    );
+    const run = await finished(await startRun("true", h1root));
     const out = run.hosts[0]?.output;
     expect(out).toContain("ws:h1:root");
     expect(out).not.toContain("permit-pty");
     expect(out).toMatch(/Critical Options: \(none\)/);
 });
 
-test("run: only targets the user's groups allow; nothing signed otherwise", async () => {
+test("run: access is checked again; nothing signed once it's gone", async () => {
     await setup();
-    const bad = async (body: object, status: number) =>
-        expect((await call("POST", "/runs", body)).status).toBe(status);
-    await bad(
-        { command: "id", targets: [{ host: "h1", login: "alice" }] },
-        403,
-    );
-    await bad(
-        {
-            command: "id",
-            targets: [
-                { host: "h1", login: "root" },
-                { host: "h9", login: "root" },
-            ],
-        },
-        403,
-    );
-    await bad({ command: "", targets: [{ host: "h1", login: "root" }] }, 400);
-    await bad(
-        { command: "x".repeat(4097), targets: [{ host: "h1", login: "root" }] },
-        400,
-    );
-    await bad({ command: "id", targets: [] }, 400);
-    await bad(
-        {
-            command: "id",
-            targets: Array.from({ length: 51 }, () => ({
-                host: "h1",
-                login: "root",
-            })),
-        },
-        400,
-    );
-    await bad({ command: "id", targets: [{ host: "h1", login: 1 }] }, 400);
-    expect(
-        (
-            await call(
-                "POST",
-                "/runs",
-                { command: "id", targets: [{ host: "h1", login: "root" }] },
-                { origin: "https://evil.test" },
-            )
-        ).status,
-    ).toBe(403);
-    expect(ctx.db.query("SELECT count(*) AS n FROM signs").get()).toEqual({
-        n: 0,
-    });
-    expect(ctx.db.query("SELECT count(*) AS n FROM runs").get()).toEqual({
-        n: 0,
-    });
-});
-
-test("run: duplicate targets run once", async () => {
-    await setup();
-    const run = await finished(
-        await startRun("true", [
-            { host: "h1", login: "root" },
-            { host: "h1", login: "root" },
-        ]),
-    );
-    expect(run.hosts).toHaveLength(1);
+    const taskId = await createTask("true", h1root);
+    ctx.db.run("DELETE FROM access WHERE host_id = 'h1'");
+    const res = await call("POST", `/${taskId}/run`);
+    expect(res.status).toBe(403);
+    expect(count("signs")).toEqual({ n: 0 });
+    expect(count("runs")).toEqual({ n: 0 });
 });
 
 test("runs are private to the user who started them", async () => {
     await setup();
-    const id = await startRun("true", [{ host: "h1", login: "root" }]);
+    const id = await startRun("true", h1root);
     await finished(id);
     const cookie = otherUser();
     expect(
@@ -214,9 +253,7 @@ test("runs are private to the user who started them", async () => {
 
 test("run: output streams while running", async () => {
     await setup();
-    const id = await startRun("echo first; sleep 1; echo second", [
-        { host: "h1", login: "root" },
-    ]);
+    const id = await startRun("echo first; sleep 1; echo second", h1root);
     let run: RunDetail | undefined;
     for (let i = 0; i < 40; i++) {
         run = (await (await call("GET", `/runs/${id}`)).json()) as RunDetail;
@@ -233,9 +270,7 @@ test("run: output streams while running", async () => {
 
 test("run: killed after taskMs", async () => {
     await setup({ taskMs: 300 });
-    const run = await finished(
-        await startRun("exec sleep 10", [{ host: "h1", login: "root" }]),
-    );
+    const run = await finished(await startRun("exec sleep 10", h1root));
     expect(run.hosts[0]).toMatchObject({ status: "failed", exitCode: null });
     expect(run.hosts[0]?.output).toContain("[timed out]");
 });
@@ -243,9 +278,10 @@ test("run: killed after taskMs", async () => {
 test("run: keeps the last 256 KB of output", async () => {
     await setup();
     const run = await finished(
-        await startRun("head -c 300000 /dev/zero | tr '\\0' x; echo END", [
-            { host: "h1", login: "root" },
-        ]),
+        await startRun(
+            "head -c 300000 /dev/zero | tr '\\0' x; echo END",
+            h1root,
+        ),
     );
     const out = run.hosts[0]?.output;
     expect(out).toStartWith("[earlier output dropped]\n");
@@ -255,9 +291,7 @@ test("run: keeps the last 256 KB of output", async () => {
 
 test("run: CA failure → failed, not stuck running", async () => {
     await setup({ caKey: "/nonexistent/user_ca" });
-    const run = await finished(
-        await startRun("true", [{ host: "h1", login: "root" }]),
-    );
+    const run = await finished(await startRun("true", h1root));
     expect(run.hosts[0]).toMatchObject({ status: "failed", exitCode: null });
     expect(run.hosts[0]?.output).toContain("[failed to start]");
 });
@@ -265,7 +299,7 @@ test("run: CA failure → failed, not stuck running", async () => {
 test("targets still running at startup are marked failed", async () => {
     await setup();
     ctx.db.run(
-        "INSERT INTO runs (id, sub, email, command, created_at) VALUES ('r1', 'user-1', null, 'x', 0)",
+        "INSERT INTO runs (id, task_id, sub, email, name, script, created_at) VALUES ('r1', 1, 'user-1', null, 't', 'x', 0)",
     );
     ctx.db.run(
         "INSERT INTO run_hosts (run_id, host_id, host_name, login, status, output) VALUES ('r1', 'h1', 'h1', 'root', 'running', 'partial')",
@@ -286,39 +320,4 @@ test("targets still running at startup are marked failed", async () => {
         status: "failed",
         output: "partial\n[interrupted: app restarted]",
     });
-});
-
-test("saved commands: per user, create / list / delete", async () => {
-    await setup();
-    const save = (body: object) => call("POST", "/commands", body);
-    expect(
-        (await save({ name: "Upgrade", command: "apt-get upgrade -y" })).status,
-    ).toBe(201);
-    expect((await save({ name: "Disk", command: "df -h" })).status).toBe(201);
-    expect((await save({ name: "", command: "x" })).status).toBe(400);
-    expect((await save({ name: "x", command: " " })).status).toBe(400);
-
-    const list = (await (
-        await call("GET", "/commands")
-    ).json()) as SavedCommand[];
-    expect(list.map((c) => [c.name, c.command])).toEqual([
-        ["Disk", "df -h"],
-        ["Upgrade", "apt-get upgrade -y"],
-    ]);
-
-    const diskId = list[0]?.id;
-    const cookie = otherUser();
-    expect(
-        await (await call("GET", "/commands", undefined, { cookie })).json(),
-    ).toEqual([]);
-    expect(
-        (await call("DELETE", `/commands/${diskId}`, undefined, { cookie }))
-            .status,
-    ).toBe(404);
-    expect((await call("DELETE", `/commands/${diskId}`)).status).toBe(204);
-    expect(
-        ((await (await call("GET", "/commands")).json()) as SavedCommand[]).map(
-            (c) => c.name,
-        ),
-    ).toEqual(["Upgrade"]);
 });

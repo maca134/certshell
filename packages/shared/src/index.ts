@@ -19,15 +19,25 @@ export type ClientMessage =
     | { t: "in"; d: string }
     | { t: "resize"; cols: number; rows: number };
 
-export type SavedCommand = { id: number; name: string; command: string };
-
 export type RunTarget = { host: string; login: string };
+
+/** A saved script and the host logins it runs on. */
+export type Task = {
+    id: number;
+    name: string;
+    script: string;
+    targets: RunTarget[];
+    lastRun?: RunSummary;
+};
+
+export type TaskInput = Pick<Task, "name" | "script" | "targets">;
 
 export type RunStatus = "running" | "ok" | "failed";
 
 export type RunSummary = {
     id: string;
-    command: string;
+    taskId: number;
+    name: string;
     createdAt: number;
     counts: Record<RunStatus, number>;
 };
@@ -44,7 +54,9 @@ export type RunHost = {
 
 export type RunDetail = {
     id: string;
-    command: string;
+    taskId: number;
+    name: string;
+    script: string;
     createdAt: number;
     hosts: RunHost[];
 };

@@ -19,10 +19,10 @@ export const validLogin = (s: unknown): s is string =>
     typeof s === "string" && LOGIN.test(s);
 
 // Runs in the target login's shell; it only ever reaches ssh as one argv element.
-export const validCommand = (s: unknown): s is string =>
+export const validScript = (s: unknown): s is string =>
     typeof s === "string" &&
     s.trim() !== "" &&
-    s.length <= 4096 &&
+    s.length <= 16 * 1024 &&
     !s.includes("\0");
 
 const ED25519_PREFIX = Buffer.from("\0\0\0\x0bssh-ed25519\0\0\0\x20", "latin1");

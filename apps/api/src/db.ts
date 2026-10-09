@@ -52,17 +52,20 @@ export function openDb(path: string) {
         last_login INTEGER NOT NULL,
         PRIMARY KEY (iss, sub)
     )`);
-    db.run(`CREATE TABLE IF NOT EXISTS commands (
+    db.run(`CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sub TEXT NOT NULL,
         name TEXT NOT NULL,
-        command TEXT NOT NULL
+        script TEXT NOT NULL,
+        targets TEXT NOT NULL
     )`);
     db.run(`CREATE TABLE IF NOT EXISTS runs (
         id TEXT PRIMARY KEY,
+        task_id INTEGER NOT NULL,
         sub TEXT NOT NULL,
         email TEXT,
-        command TEXT NOT NULL,
+        name TEXT NOT NULL,
+        script TEXT NOT NULL,
         created_at INTEGER NOT NULL
     )`);
     db.run(`CREATE TABLE IF NOT EXISTS run_hosts (
