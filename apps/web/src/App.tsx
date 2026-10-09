@@ -1,6 +1,7 @@
 import type { HostSummary, Me } from "@repo/shared";
 import {
     ChevronRight,
+    CircleArrowUp,
     Globe,
     LogOut,
     type LucideIcon,
@@ -350,6 +351,24 @@ function AppSidebar({ me }: { me?: Me }) {
                         </form>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                {me && (
+                    <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+                        <span>
+                            {me.version === "dev" ? "dev" : `v${me.version}`}
+                        </span>
+                        {me.update && (
+                            <a
+                                href="https://github.com/maca134/certshell/tags"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-primary hover:underline"
+                            >
+                                <CircleArrowUp className="size-3.5" />v
+                                {me.update} available
+                            </a>
+                        )}
+                    </div>
+                )}
             </SidebarFooter>
             <SidebarRail />
         </Sidebar>

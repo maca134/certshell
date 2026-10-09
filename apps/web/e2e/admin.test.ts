@@ -19,6 +19,8 @@ async function openAdmin(page: Page) {
                 email: "a@b.c",
                 groups: [],
                 admin: true,
+                version: "1.1.1",
+                update: "1.2.0",
             },
         }),
     );
@@ -169,4 +171,16 @@ test("top bar links to the website and GitHub", async ({ page }) => {
     await page.screenshot({
         fullPage: true,
     });
+});
+
+test("sidebar shows the version and a newer release", async ({
+    page,
+    isMobile,
+}) => {
+    await openAdmin(page);
+    const bar = await sidebar(page, isMobile);
+    await expect(bar.getByText("v1.1.1", { exact: true })).toBeVisible();
+    await expect(
+        bar.getByRole("link", { name: "v1.2.0 available" }),
+    ).toHaveAttribute("href", "https://github.com/maca134/certshell/tags");
 });
