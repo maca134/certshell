@@ -83,6 +83,12 @@ export function adminRoutes({ config, db }: { config: Config; db: Database }) {
             return c.json({ error: "bad origin" }, 403);
         return next();
     });
+    app.use(
+        bodyLimit({
+            maxSize: 64 * 1024,
+            onError: (c) => c.json({ error: "too large" }, 413),
+        }),
+    );
 
     const hostExists = (id: string) =>
         !!db.query("SELECT 1 FROM hosts WHERE id = ?").get(id);

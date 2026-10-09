@@ -145,3 +145,17 @@ test("admin: seen users and audit log", async () => {
     });
     expect(audit[0]?.ts).toMatch(/^\d{4}-\d\d-\d\dT/);
 });
+
+test("admin: oversized body rejected", async () => {
+    ctx = await startApp({}, ["certshell-admins"]);
+    const res = await ctx.app.request(`${APP_URL}/api/admin/hosts`, {
+        method: "POST",
+        headers: {
+            cookie: ctx.cookie,
+            origin: APP_URL,
+            "content-type": "application/json",
+        },
+        body: JSON.stringify({ name: "x".repeat(70_000), address: "a.lan" }),
+    });
+    expect(res.status).toBe(413);
+});
