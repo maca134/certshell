@@ -7,7 +7,7 @@
         "apps/*"
     ],
     "scripts": {
-        "dev:up": "docker compose -f compose.yaml -f compose.dev.yaml up -d",
+        "dev:up": "docker compose -f compose.yaml -f compose.dev.yaml up",
         "dev:down": "docker compose -f compose.yaml -f compose.dev.yaml down --remove-orphans",
         "lint": "biome check",
         "format": "biome check --write",
