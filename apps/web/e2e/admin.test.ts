@@ -156,13 +156,13 @@ test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {
     await posted;
 });
 
-test("footer links to the website and GitHub", async ({ page }) => {
+test("top bar links to the website and GitHub", async ({ page }) => {
     await openAdmin(page);
-    const footer = page.locator("footer");
+    const header = page.locator("header");
     await expect(
-        footer.getByRole("link", { name: "certshell.dev" }),
+        header.getByRole("link", { name: "certshell.dev" }),
     ).toHaveAttribute("href", "https://certshell.dev");
-    await expect(footer.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+    await expect(header.getByRole("link", { name: "GitHub" })).toHaveAttribute(
         "href",
         "https://github.com/maca134/certshell",
     );
