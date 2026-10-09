@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
-import { SESSION_COOKIE } from "../src/app";
+import { SESSION_COOKIE } from "../src/auth";
 import { createSession } from "../src/sessions";
 import { APP_URL, startApp } from "./helpers/app";
 

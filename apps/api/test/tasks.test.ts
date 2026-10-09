@@ -8,7 +8,7 @@ import {
     type RunSummary,
     type Task,
 } from "@repo/shared";
-import { SESSION_COOKIE } from "../src/app";
+import { SESSION_COOKIE } from "../src/auth";
 import { loadConfig } from "../src/config";
 import { createSession } from "../src/sessions";
 import { taskRoutes } from "../src/tasks";

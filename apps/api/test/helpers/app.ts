@@ -1,11 +1,13 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { createApp, SESSION_COOKIE, websocket } from "../../src/app";
+import { createApp } from "../../src/app";
+import { SESSION_COOKIE } from "../../src/auth";
 import { ensureCa } from "../../src/ca";
 import { loadConfig } from "../../src/config";
 import { openDb } from "../../src/db";
 import { createSession } from "../../src/sessions";
 import type { TerminalDeps } from "../../src/terminal";
+import { websocket } from "../../src/terminal-ws";
 
 export const APP_URL = "https://ssh.test";
 

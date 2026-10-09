@@ -1,8 +1,9 @@
-import { createApp, websocket } from "./app";
+import { createApp } from "./app";
 import { ensureCa, readCaPassword } from "./ca";
 import { loadConfig } from "./config";
 import { openDb } from "./db";
 import { lazyDiscovery } from "./oidc";
+import { websocket } from "./terminal-ws";
 import { updateChecker } from "./version";
 
 const config = loadConfig(process.env);
