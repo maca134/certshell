@@ -132,6 +132,25 @@ test("terminal: process exit closes the socket", async () => {
     expect([code, reason]).toEqual([1000, "exited"]);
 });
 
+test("terminal: past maxSessions → 1013 until a session ends", async () => {
+    await setup({ maxSessions: 1 });
+    const first = ctx.connect("host=h1&login=root");
+    await first.waitFor("login=root");
+    const refused = await ctx.connect("host=h1&login=root").closed;
+    expect([refused.code, refused.reason]).toEqual([
+        1013,
+        "too many sessions open",
+    ]);
+    first.ws.close();
+    while (
+        !ctx.db.query("SELECT 1 FROM audit WHERE event = 'session_end'").get()
+    )
+        await Bun.sleep(20);
+    const next = ctx.connect("host=h1&login=root");
+    await next.waitFor("login=root");
+    next.ws.close();
+});
+
 test("terminal: idle timeout, reset by input", async () => {
     await setup({ idleMs: 400 });
     const t = ctx.connect("host=h1&login=root");

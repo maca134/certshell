@@ -13,6 +13,7 @@ import type { Config } from "../config";
 import { audit } from "../lib/audit";
 import { allowedHost, type Host } from "../lib/hosts";
 import { jsonBody, writeGuards } from "../lib/http";
+import type { ConcurrencyLimit } from "../lib/ratelimit";
 import type { AppEnv } from "../lib/sessions";
 import { validName, validScript } from "../lib/validate";
 import { taskRunner } from "../ssh/runner";
@@ -26,9 +27,16 @@ type Deps = {
     db: Database;
     terminal: TerminalDeps;
     signLimit: (key: string) => boolean;
+    sshLimit: ConcurrencyLimit;
 };
 
-export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
+export function taskRoutes({
+    config,
+    db,
+    terminal,
+    signLimit,
+    sshLimit,
+}: Deps) {
     const app = new Hono<AppEnv>();
     app.use(...writeGuards(config));
 
@@ -207,6 +215,8 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
         if (typeof targets === "string") return c.json({ error: targets }, 403);
         if (!signLimit(user.sub))
             return c.json({ error: "too many sessions, slow down" }, 429);
+        if (!sshLimit.acquire(user.sub, targets.length))
+            return c.json({ error: "too many sessions open" }, 429);
 
         const runId = crypto.randomUUID();
         db.transaction(() => {
@@ -242,7 +252,9 @@ export function taskRoutes({ config, db, terminal, signLimit }: Deps) {
         });
         const remote = task.detach ? detached(task.script) : task.script;
         for (const { host, login } of targets)
-            void runner.run(user, ip, runId, host, login, remote);
+            void runner
+                .run(user, ip, runId, host, login, remote)
+                .finally(() => sshLimit.release(user.sub));
         return c.json({ id: runId }, 201);
     });
 

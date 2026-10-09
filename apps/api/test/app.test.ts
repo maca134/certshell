@@ -23,6 +23,7 @@ test("/healthz returns 200 with no body", async () => {
             idleMs: 0,
             maxMs: 0,
             taskMs: 0,
+            maxSessions: 0,
         },
     });
     const res = await app.request("/healthz");

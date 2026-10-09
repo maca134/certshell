@@ -6,7 +6,7 @@ import { getCookie } from "hono/cookie";
 import type { Config } from "./config";
 import { accessibleHosts } from "./lib/hosts";
 import type { GetOidc } from "./lib/oidc";
-import { clientIp, rateLimiter } from "./lib/ratelimit";
+import { clientIp, concurrencyLimit, rateLimiter } from "./lib/ratelimit";
 import { type AppEnv, getSession } from "./lib/sessions";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes, SESSION_COOKIE } from "./routes/auth";
@@ -55,6 +55,7 @@ export function createApp({
     const publicLimit = rateLimiter(60, 60_000);
     const enrollLimit = rateLimiter(10, 60_000);
     const signLimit = rateLimiter(10, 60_000);
+    const sshLimit = concurrencyLimit(terminal.maxSessions);
 
     app.use("*", async (c, next) => {
         await next();
@@ -103,8 +104,14 @@ export function createApp({
     app.route("/", enrollRoute({ config, db, caPubPath }));
     app.route("/api/admin", adminRoutes({ config, db }));
     app.route("/", authRoutes({ config, db, getOidc }));
-    app.route("/api/tasks", taskRoutes({ config, db, terminal, signLimit }));
-    app.route("/", terminalRoute({ config, db, terminal, signLimit }));
+    app.route(
+        "/api/tasks",
+        taskRoutes({ config, db, terminal, signLimit, sshLimit }),
+    );
+    app.route(
+        "/",
+        terminalRoute({ config, db, terminal, signLimit, sshLimit }),
+    );
 
     app.get("/api/me", (c) => {
         const { iss, sub, email, groups } = c.var.user;

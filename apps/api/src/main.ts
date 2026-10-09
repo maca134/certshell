@@ -32,6 +32,7 @@ const app = createApp({
         idleMs: 30 * 60_000,
         maxMs: 8 * 60 * 60_000,
         taskMs: 30 * 60_000,
+        maxSessions: 64,
     },
     latestVersion,
 });

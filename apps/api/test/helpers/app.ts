@@ -38,6 +38,7 @@ export async function startApp(
             idleMs: 60_000,
             maxMs: 60_000,
             taskMs: 60_000,
+            maxSessions: 64,
             ...terminal,
         },
         latestVersion,

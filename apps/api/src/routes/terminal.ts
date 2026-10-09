@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { websocket as honoWebsocket, upgradeWebSocket } from "hono/bun";
 import type { Config } from "../config";
 import { allowedHost, type Host } from "../lib/hosts";
+import type { ConcurrencyLimit } from "../lib/ratelimit";
 import type { AppEnv } from "../lib/sessions";
 import { openTerminal, type TerminalDeps } from "../ssh/terminal";
 
@@ -40,11 +41,13 @@ export function terminalRoute({
     db,
     terminal,
     signLimit,
+    sshLimit,
 }: {
     config: Config;
     db: Database;
     terminal: TerminalDeps;
     signLimit: (key: string) => boolean;
+    sshLimit: ConcurrencyLimit;
 }) {
     const app = new Hono<Env>();
 
@@ -81,12 +84,19 @@ export function terminalRoute({
             };
             return {
                 onOpen(_evt, ws) {
+                    if (!sshLimit.acquire(user.sub)) {
+                        ws.close(1013, "too many sessions open");
+                        return;
+                    }
                     openTerminal(terminal, user, host, login, c.var.ip, {
                         cols: termSize(c.req.query("cols"), 80),
                         rows: termSize(c.req.query("rows"), 24),
                         onData: (data) =>
                             ws.send(data as Uint8Array<ArrayBuffer>),
-                        onExit: (reason) => ws.close(1000, reason),
+                        onExit: (reason) => {
+                            sshLimit.release(user.sub);
+                            ws.close(1000, reason);
+                        },
                     }).then(
                         (t) => {
                             term = t;
@@ -94,6 +104,7 @@ export function terminalRoute({
                             for (const msg of pending.splice(0)) handle(msg);
                         },
                         (err) => {
+                            sshLimit.release(user.sub);
                             console.warn(`terminal failed: ${err}`);
                             ws.close(1011, "failed to start session");
                         },

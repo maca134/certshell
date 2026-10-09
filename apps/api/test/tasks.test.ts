@@ -9,6 +9,7 @@ import {
     type Task,
 } from "@repo/shared";
 import { loadConfig } from "../src/config";
+import { concurrencyLimit } from "../src/lib/ratelimit";
 import { createSession } from "../src/lib/sessions";
 import { SESSION_COOKIE } from "../src/routes/auth";
 import { taskRoutes } from "../src/routes/tasks";
@@ -303,6 +304,18 @@ test("run: CA failure → failed, not stuck running", async () => {
     expect(run.hosts[0]?.output).toContain("[failed to start]");
 });
 
+test("run: refused past maxSessions until running targets end", async () => {
+    await setup({ maxSessions: 2 });
+    const slow = await startRun("sleep 0.3", [
+        ...h1root,
+        { host: "h2", login: "root" },
+    ]);
+    const quick = await createTask("true", h1root);
+    expect((await call("POST", `/${quick}/run`)).status).toBe(429);
+    await finished(slow);
+    await finished(await runTask(quick));
+});
+
 test("targets still running at startup are marked failed", async () => {
     await setup();
     ctx.db.run(
@@ -321,6 +334,7 @@ test("targets still running at startup are marked failed", async () => {
         db: ctx.db,
         terminal: {} as TerminalDeps,
         signLimit: () => true,
+        sshLimit: concurrencyLimit(1),
     });
     const run = (await (await call("GET", "/runs/r1")).json()) as RunDetail;
     expect(run.hosts[0]).toMatchObject({
