@@ -22,6 +22,14 @@ import type { TerminalDeps } from "../ssh/terminal";
 const MAX_TARGETS = 50;
 const MAX_TASKS = 100;
 
+type TaskRow = {
+    id: number;
+    name: string;
+    script: string;
+    targets: string;
+    detach: number;
+};
+
 type Deps = {
     config: Config;
     db: Database;
@@ -79,16 +87,7 @@ export function taskRoutes({
 
     const getTask = (id: string, sub: string) =>
         db
-            .query<
-                {
-                    id: number;
-                    name: string;
-                    script: string;
-                    targets: string;
-                    detach: number;
-                },
-                [number, string]
-            >(
+            .query<TaskRow, [number, string]>(
                 "SELECT id, name, script, targets, detach FROM tasks WHERE id = ? AND sub = ?",
             )
             .get(Number(id), sub);
@@ -131,16 +130,7 @@ export function taskRoutes({
             if (!last.has(r.taskId)) last.set(r.taskId, r);
         return c.json<Task[]>(
             db
-                .query<
-                    {
-                        id: number;
-                        name: string;
-                        script: string;
-                        targets: string;
-                        detach: number;
-                    },
-                    [string]
-                >(
+                .query<TaskRow, [string]>(
                     "SELECT id, name, script, targets, detach FROM tasks WHERE sub = ? ORDER BY name, id",
                 )
                 .all(sub)
