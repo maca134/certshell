@@ -276,7 +276,6 @@ test("client-side routes serve the SPA shell", async () => {
         "/admin",
         "/admin/users",
         "/ssh/habc/root",
-        "/broadcast",
         "/tasks",
         "/tasks/abc",
     ]) {

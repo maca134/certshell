@@ -3,8 +3,6 @@ import {
     ChevronRight,
     CircleArrowUp,
     Globe,
-    ListChecks,
-    ListTodo,
     LogOut,
     type LucideIcon,
     ScrollText,
@@ -13,7 +11,7 @@ import {
     Users,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Link, Route, Switch, useLocation, useSearch } from "wouter";
+import { Link, Route, Switch, useLocation } from "wouter";
 import { Admin } from "./Admin";
 import { api } from "./api";
 import { Avatar, EmptyState, HostIcon, Logo, Page } from "./components/layout";
@@ -38,25 +36,17 @@ import {
 } from "./components/ui/sidebar";
 import { Skeleton } from "./components/ui/skeleton";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { MAX_TARGETS, parseTargets, Tasks } from "./Tasks";
 
 // xterm is half the bundle: load it after the host list renders, before the user picks a host.
 const loadTerminal = () => import("./TerminalView");
 const TerminalView = lazy(() =>
     loadTerminal().then((m) => ({ default: m.TerminalView })),
 );
-const BroadcastView = lazy(() =>
-    loadTerminal().then((m) => ({ default: m.BroadcastView })),
-);
-
-// Each pane signs a cert, and signing is rate limited to 10 a minute per user.
-const MAX_PANES = 8;
 
 export function App() {
     const [me, setMe] = useState<Me>();
     const [hosts, setHosts] = useState<HostSummary[]>();
     const [location, navigate] = useLocation();
-    const search = useSearch();
     const onAdmin = location.startsWith("/admin");
 
     useEffect(() => {
@@ -91,34 +81,6 @@ export function App() {
                             <TerminalView
                                 host={host}
                                 login={login}
-                                onBack={() => navigate("/")}
-                            />
-                        </Suspense>
-                    );
-                }}
-            </Route>
-            <Route path="/broadcast">
-                {() => {
-                    if (!hosts) return null;
-                    const targets = parseTargets(search, hosts).slice(
-                        0,
-                        MAX_PANES,
-                    );
-                    if (!targets.length)
-                        return (
-                            <div className="grid h-full place-items-center">
-                                <EmptyState icon={Server} title="No hosts">
-                                    None of the selected hosts are available.{" "}
-                                    <Link href="/" className="text-primary">
-                                        Back to hosts
-                                    </Link>
-                                </EmptyState>
-                            </div>
-                        );
-                    return (
-                        <Suspense>
-                            <BroadcastView
-                                targets={targets}
                                 onBack={() => navigate("/")}
                             />
                         </Suspense>
@@ -183,9 +145,6 @@ export function App() {
                                 <Route path="/admin" nest>
                                     <Admin />
                                 </Route>
-                                <Route path="/tasks" nest>
-                                    <Tasks hosts={hosts} />
-                                </Route>
                                 <Route>
                                     <Hosts hosts={hosts} />
                                 </Route>
@@ -215,40 +174,13 @@ const ADMIN_NAV = [
 const title = (location: string) =>
     location === "/"
         ? "Hosts"
-        : location.startsWith("/tasks")
-          ? "Tasks"
-          : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
+        : (ADMIN_NAV.find((n) => n.href === location)?.label ?? "");
 
 function Hosts({ hosts }: { hosts?: HostSummary[] }) {
-    // undefined: not selecting. Entries are `hostId:login`.
-    const [selected, setSelected] = useState<string[]>();
-    const [, navigate] = useLocation();
-    const toggle = (key: string) =>
-        setSelected((s = []) =>
-            s.includes(key) ? s.filter((k) => k !== key) : [...s, key],
-        );
     return (
         <Page
             title="Hosts"
             description="Choose a server and an account to open a secure shell."
-            actions={
-                !!hosts?.length && (
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setSelected((s) => (s ? undefined : []))}
-                    >
-                        {selected ? (
-                            "Cancel"
-                        ) : (
-                            <>
-                                <ListChecks />
-                                Select
-                            </>
-                        )}
-                    </Button>
-                )
-            }
         >
             <Card className="gap-0 py-0">
                 {!hosts &&
@@ -291,76 +223,25 @@ function Hosts({ hosts }: { hosts?: HostSummary[] }) {
                                 </span>
                             </div>
                             <div className="flex flex-wrap justify-end gap-2">
-                                {host.logins.map((login) => {
-                                    const key = `${host.id}:${login}`;
-                                    const on = selected?.includes(key);
-                                    return selected ? (
-                                        <Button
-                                            key={login}
-                                            variant={on ? "default" : "outline"}
-                                            size="sm"
-                                            className="font-mono"
-                                            aria-pressed={on}
-                                            onClick={() => toggle(key)}
-                                        >
+                                {host.logins.map((login) => (
+                                    <Button
+                                        key={login}
+                                        asChild
+                                        variant="secondary"
+                                        size="sm"
+                                        className="font-mono hover:bg-primary hover:text-primary-foreground"
+                                    >
+                                        <Link href={`/ssh/${host.id}/${login}`}>
                                             <Terminal />
                                             {login}
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            key={login}
-                                            asChild
-                                            variant="secondary"
-                                            size="sm"
-                                            className="font-mono hover:bg-primary hover:text-primary-foreground"
-                                        >
-                                            <Link
-                                                href={`/ssh/${host.id}/${login}`}
-                                            >
-                                                <Terminal />
-                                                {login}
-                                            </Link>
-                                        </Button>
-                                    );
-                                })}
+                                        </Link>
+                                    </Button>
+                                ))}
                             </div>
                         </li>
                     ))}
                 </ul>
             </Card>
-            {selected && (
-                <div className="sticky bottom-4 flex flex-wrap items-center gap-2 rounded-xl border bg-popover/90 p-2 pl-4 shadow-lg backdrop-blur-xl">
-                    <span className="mr-auto text-sm text-muted-foreground">
-                        {selected.length} selected
-                        {selected.length > MAX_PANES &&
-                            ` · terminals open ${MAX_PANES} at most`}
-                    </span>
-                    <Button
-                        size="sm"
-                        disabled={
-                            !selected.length || selected.length > MAX_PANES
-                        }
-                        onClick={() =>
-                            navigate(`/broadcast?t=${selected.join(",")}`)
-                        }
-                    >
-                        <Terminal />
-                        Open terminals
-                    </Button>
-                    <Button
-                        size="sm"
-                        disabled={
-                            !selected.length || selected.length > MAX_TARGETS
-                        }
-                        onClick={() =>
-                            navigate(`/tasks?t=${selected.join(",")}`)
-                        }
-                    >
-                        <ListTodo />
-                        Run command
-                    </Button>
-                </div>
-            )}
         </Page>
     );
 }
@@ -380,10 +261,7 @@ function NavItem({
         <SidebarMenuItem>
             <SidebarMenuButton
                 asChild
-                isActive={
-                    location === href ||
-                    (href !== "/" && location.startsWith(`${href}/`))
-                }
+                isActive={location === href}
                 tooltip={label}
             >
                 <Link href={href} onClick={() => setOpenMobile(false)}>
@@ -426,11 +304,6 @@ function AppSidebar({ me }: { me?: Me }) {
                     <SidebarGroupContent>
                         <SidebarMenu className="gap-1">
                             <NavItem href="/" label="Hosts" icon={Terminal} />
-                            <NavItem
-                                href="/tasks"
-                                label="Tasks"
-                                icon={ListTodo}
-                            />
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
