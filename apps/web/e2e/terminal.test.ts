@@ -201,3 +201,38 @@ test("paste: no prompt when the shell turned on bracketed paste", async ({
     await expect.poll(() => typed.join("")).toBe("\x1b[200~a\rb\r\x1b[201~");
     expect(asked).toBe(false);
 });
+
+test("search: finds text in scrollback, says when nothing matches", async ({
+    page,
+}) => {
+    let server: { send: (m: Buffer) => void } | undefined;
+    await page.route("/api/me", (r) =>
+        r.fulfill({ json: { sub: "s", groups: [], admin: false } }),
+    );
+    await page.route("/api/hosts", (r) =>
+        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+    );
+    const typed: string[] = [];
+    await page.routeWebSocket(/\/api\/terminal/, (ws) => {
+        server = ws;
+        ws.onMessage((m) => typed.push(JSON.parse(String(m)).d));
+    });
+    await page.goto("/ssh/h1/root");
+    await expect(page.getByText("Connected", { exact: true })).toBeVisible();
+    const lines = Array.from({ length: 200 }, (_, i) => `line ${i}`);
+    server?.send(Buffer.from(`needle\r\n${lines.join("\r\n")}\r\nend>`));
+    await expect(page.getByText("end>", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Search scrollback" }).click();
+    const box = page.getByRole("textbox", { name: "Search" });
+    await box.fill("needle");
+    await expect(page.getByText("needle", { exact: true })).toBeVisible();
+    await expect(page.getByText("No match")).toBeHidden();
+    await box.fill("haystack");
+    await expect(page.getByText("No match")).toBeVisible();
+
+    await box.press("Escape");
+    await expect(box).toBeHidden();
+    await page.keyboard.type("x");
+    await expect.poll(() => typed.join("")).toContain("x");
+});

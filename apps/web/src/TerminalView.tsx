@@ -1,11 +1,20 @@
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon } from "@xterm/addon-search";
 import { type ITheme, Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import type { ClientMessage, HostSummary } from "@repo/shared";
 import { cn } from "cn";
-import { ChevronLeft, RotateCw } from "lucide-react";
+import {
+    ChevronDown,
+    ChevronLeft,
+    ChevronUp,
+    RotateCw,
+    Search,
+    X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
 import { KEYS, type Key, keyBytes, type Mods, withMods } from "./keys";
 
 const NO_MODS: Mods = { ctrl: false, alt: false };
@@ -53,6 +62,27 @@ export function TerminalView({
     const [mods, setMods] = useState(NO_MODS);
     const modsRef = useRef(NO_MODS);
     const pressRef = useRef<(key: Key) => void>(() => {});
+    const termRef = useRef<Terminal>(undefined);
+    const searchRef = useRef<SearchAddon>(undefined);
+    const [searching, setSearching] = useState(false);
+    const [query, setQuery] = useState("");
+    const [missing, setMissing] = useState(false);
+
+    const find = (back = false, q = query, incremental = false) => {
+        const search = searchRef.current;
+        if (!search || !q) return setMissing(false);
+        setMissing(
+            !(back
+                ? search.findPrevious(q)
+                : search.findNext(q, { incremental })),
+        );
+    };
+    const closeSearch = () => {
+        setSearching(false);
+        setMissing(false);
+        termRef.current?.clearSelection();
+        termRef.current?.focus();
+    };
 
     useEffect(() => {
         const prev = document.title;
@@ -88,6 +118,20 @@ export function TerminalView({
             });
             const fit = new FitAddon();
             term.loadAddon(fit);
+            const search = new SearchAddon();
+            term.loadAddon(search);
+            termRef.current = term;
+            searchRef.current = search;
+            term.attachCustomKeyEventHandler((e) => {
+                if (
+                    e.type !== "keydown" ||
+                    !(e.ctrlKey && e.shiftKey && e.code === "KeyF")
+                )
+                    return true;
+                e.preventDefault();
+                setSearching(true);
+                return false;
+            });
             term.open(el);
             // Gboard ignores autocorrect="off" (set by xterm); this sometimes stops suggestions.
             term.textarea?.setAttribute("autocomplete", "off");
@@ -144,8 +188,9 @@ export function TerminalView({
             term.onResize(({ cols, rows }) =>
                 send({ t: "resize", cols, rows }),
             );
-            const onWindowResize = () => fit.fit();
-            window.addEventListener("resize", onWindowResize);
+            // Also refits when the search bar opens or closes.
+            const resized = new ResizeObserver(() => fit.fit());
+            resized.observe(el);
             // Capture runs before xterm's own paste handler. With bracketed paste on, the shell doesn't run pasted lines.
             const onPaste = (e: ClipboardEvent) => {
                 const n =
@@ -166,7 +211,7 @@ export function TerminalView({
             term.focus();
 
             return () => {
-                window.removeEventListener("resize", onWindowResize);
+                resized.disconnect();
                 el.removeEventListener("paste", onPaste, true);
                 ws.onclose = null;
                 ws.close();
@@ -196,6 +241,18 @@ export function TerminalView({
                     {host.name}
                 </span>
                 <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground"
+                        aria-label="Search scrollback"
+                        title="Search scrollback (Ctrl+Shift+F)"
+                        onClick={() =>
+                            searching ? closeSearch() : setSearching(true)
+                        }
+                    >
+                        <Search />
+                    </Button>
                     {status.state === "closed" && (
                         <Button
                             variant="secondary"
@@ -209,6 +266,54 @@ export function TerminalView({
                     <StatusPill {...status} />
                 </div>
             </header>
+            {searching && (
+                <div className="flex shrink-0 items-center gap-1 border-b bg-sidebar px-2 py-1.5">
+                    <Input
+                        autoFocus
+                        aria-label="Search"
+                        placeholder="Search scrollback"
+                        className="h-7 max-w-64"
+                        value={query}
+                        onChange={(e) => {
+                            setQuery(e.target.value);
+                            find(false, e.target.value, true);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") find(e.shiftKey);
+                            else if (e.key === "Escape") closeSearch();
+                        }}
+                    />
+                    {missing && (
+                        <span className="px-1 text-xs text-muted-foreground">
+                            No match
+                        </span>
+                    )}
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Previous match"
+                        onClick={() => find(true)}
+                    >
+                        <ChevronUp />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Next match"
+                        onClick={() => find()}
+                    >
+                        <ChevronDown />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Close search"
+                        onClick={closeSearch}
+                    >
+                        <X />
+                    </Button>
+                </div>
+            )}
             <div ref={ref} className="min-h-0 flex-1 py-2 pl-3" />
             <div className="hidden grid-cols-7 gap-1.5 border-t bg-sidebar p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] pointer-coarse:grid">
                 {KEYS.map((key) => (
