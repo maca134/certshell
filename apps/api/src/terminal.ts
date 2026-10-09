@@ -13,11 +13,14 @@ export type TerminalDeps = {
     caPassword: string | undefined;
     idleMs: number;
     maxMs: number;
+    taskMs: number;
+    /** `remote`: a task's command; absent for a terminal. */
     command?: (args: {
         key: string;
         knownHosts: string;
         login: string;
         host: Host;
+        remote?: string;
     }) => string[];
 };
 
@@ -33,6 +36,7 @@ const sshCommand: NonNullable<TerminalDeps["command"]> = ({
     knownHosts,
     login,
     host,
+    remote,
 }) => [
     "ssh",
     "-i",
@@ -49,20 +53,26 @@ const sshCommand: NonNullable<TerminalDeps["command"]> = ({
     "ServerAliveInterval=30",
     "--",
     `${login}@${host.address}`,
+    ...(remote === undefined ? [] : [remote]),
 ];
 
-export async function openTerminal(
+export const sshArgv = (
+    deps: TerminalDeps,
+    args: Parameters<typeof sshCommand>[0],
+) => (deps.command ?? sshCommand)(args);
+
+/** Mints a cert for `ws:<host>:<login>` into a new temp dir. The caller removes `dir`. */
+export async function signSession(
     deps: TerminalDeps,
     user: User,
     host: Host,
     login: string,
     ip: string,
-    handlers: TerminalHandlers,
+    opts: { pty?: boolean; run?: string } = {},
 ) {
     const sessionId = crypto.randomUUID();
     const principal = `ws:${host.id}:${login}`;
     const dir = await mkdtemp(`${tmpdir()}/s-`);
-    let proc: Bun.Subprocess;
     try {
         const serial = Number(
             deps.db.run(
@@ -78,6 +88,7 @@ export async function openTerminal(
             // Some IdPs let users edit their email; a `/` or newline would forge the key ID in target sshd logs.
             keyId: `${(user.email ?? "").replace(/[/\p{Cc}]/gu, "_")}/${user.sub}/${sessionId}`,
             serial,
+            pty: opts.pty,
         });
         await Bun.write(
             `${dir}/known_hosts`,
@@ -93,24 +104,47 @@ export async function openTerminal(
             ttl: "15m",
             serial,
             session: sessionId,
+            run: opts.run,
         });
-        proc = Bun.spawn(
-            (deps.command ?? sshCommand)({
-                key,
-                knownHosts: `${dir}/known_hosts`,
-                login,
-                host,
-            }),
-            {
-                // ssh forwards TERM to the remote pty; the container has none, so curses apps like top exit.
-                env: { ...process.env, TERM: "xterm-256color" },
-                terminal: {
-                    cols: handlers.cols,
-                    rows: handlers.rows,
-                    data: (_t, data) => handlers.onData(data),
-                },
+        return {
+            sessionId,
+            principal,
+            dir,
+            key,
+            knownHosts: `${dir}/known_hosts`,
+        };
+    } catch (err) {
+        await rm(dir, { recursive: true, force: true });
+        throw err;
+    }
+}
+
+export async function openTerminal(
+    deps: TerminalDeps,
+    user: User,
+    host: Host,
+    login: string,
+    ip: string,
+    handlers: TerminalHandlers,
+) {
+    const { sessionId, principal, dir, key, knownHosts } = await signSession(
+        deps,
+        user,
+        host,
+        login,
+        ip,
+    );
+    let proc: Bun.Subprocess;
+    try {
+        proc = Bun.spawn(sshArgv(deps, { key, knownHosts, login, host }), {
+            // ssh forwards TERM to the remote pty; the container has none, so curses apps like top exit.
+            env: { ...process.env, TERM: "xterm-256color" },
+            terminal: {
+                cols: handlers.cols,
+                rows: handlers.rows,
+                data: (_t, data) => handlers.onData(data),
             },
-        );
+        });
     } catch (err) {
         await rm(dir, { recursive: true, force: true });
         throw err;

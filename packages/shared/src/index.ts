@@ -19,6 +19,36 @@ export type ClientMessage =
     | { t: "in"; d: string }
     | { t: "resize"; cols: number; rows: number };
 
+export type SavedCommand = { id: number; name: string; command: string };
+
+export type RunTarget = { host: string; login: string };
+
+export type RunStatus = "running" | "ok" | "failed";
+
+export type RunSummary = {
+    id: string;
+    command: string;
+    createdAt: number;
+    counts: Record<RunStatus, number>;
+};
+
+/** `exitCode`: null while running, or when ssh never ran or was killed. */
+export type RunHost = {
+    hostId: string;
+    hostName: string;
+    login: string;
+    status: RunStatus;
+    exitCode: number | null;
+    output: string;
+};
+
+export type RunDetail = {
+    id: string;
+    command: string;
+    createdAt: number;
+    hosts: RunHost[];
+};
+
 export type AccessRule = { login: string; group: string };
 
 export type AdminHost = {

@@ -21,6 +21,7 @@ import {
     getSession,
     SESSION_TTL_SECONDS,
 } from "./sessions";
+import { taskRoutes } from "./tasks";
 import { openTerminal, type TerminalDeps } from "./terminal";
 
 const WEB_DIST = `${import.meta.dir}/../../web/dist`;
@@ -157,6 +158,7 @@ export function createApp({
     const caPubPath = `${terminal.caKey}.pub`;
     app.route("/", enrollRoute({ config, db, caPubPath }));
     app.route("/api/admin", adminRoutes({ config, db }));
+    app.route("/api/tasks", taskRoutes({ config, db, terminal, signLimit }));
 
     app.get("/auth/login", async (c) => {
         let oidcConfig: oidc.Configuration;
@@ -350,7 +352,7 @@ export function createApp({
     );
     app.get("/favicon.svg", serveStatic({ root: WEB_DIST }));
     // Client-side routes (apps/web/src/App.tsx) all get the SPA shell.
-    for (const path of ["/", "/admin/*", "/ssh/*", "/broadcast"])
+    for (const path of ["/", "/admin/*", "/ssh/*", "/broadcast", "/tasks/*"])
         app.get(path, async (c) => {
             c.header("Cache-Control", "no-cache");
             return c.html(await Bun.file(`${WEB_DIST}/index.html`).text());

@@ -16,7 +16,14 @@ test("/healthz returns 200 with no body", async () => {
         config,
         db,
         getOidc,
-        terminal: { db, caKey: "", caPassword: undefined, idleMs: 0, maxMs: 0 },
+        terminal: {
+            db,
+            caKey: "",
+            caPassword: undefined,
+            idleMs: 0,
+            maxMs: 0,
+            taskMs: 0,
+        },
     });
     const res = await app.request("/healthz");
     expect(res.status).toBe(200);

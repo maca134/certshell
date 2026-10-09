@@ -35,6 +35,7 @@ export async function startApp(
             caPassword: "pw",
             idleMs: 60_000,
             maxMs: 60_000,
+            taskMs: 60_000,
             ...terminal,
         },
         latestVersion,

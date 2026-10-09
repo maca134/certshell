@@ -11,6 +11,8 @@ type MintOptions = {
     keyId: string;
     serial: number;
     validity?: string;
+    /** false: the cert can run a command but not open a terminal. */
+    pty?: boolean;
 };
 
 // Writes dir/id + dir/id-cert.pub; `ssh -i dir/id` picks up the cert.
@@ -35,8 +37,7 @@ export async function mintUserCert(opts: MintOptions) {
             String(opts.serial),
             "-O",
             "clear",
-            "-O",
-            "permit-pty",
+            ...(opts.pty === false ? [] : ["-O", "permit-pty"]),
             `${key}.pub`,
         ],
         opts.caPassword ? caPassphraseEnv(opts.caPassword) : undefined,

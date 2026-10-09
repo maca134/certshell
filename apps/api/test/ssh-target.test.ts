@@ -38,7 +38,12 @@ describe.skipIf(!target)("ssh-target", () => {
     async function sshAs(
         login: string,
         principal: string,
-        { validity = "+15m", args = [] as string[], command = ["whoami"] } = {},
+        {
+            validity = "+15m",
+            args = [] as string[],
+            command = ["whoami"],
+            pty = true,
+        } = {},
     ) {
         const dir = `${root}/${++n}`;
         await run(["mkdir", "-m", "700", dir]);
@@ -50,6 +55,7 @@ describe.skipIf(!target)("ssh-target", () => {
             keyId: `test/${n}`,
             serial: n,
             validity,
+            pty,
         });
         const proc = Bun.spawn(
             [
@@ -114,6 +120,20 @@ describe.skipIf(!target)("ssh-target", () => {
         });
         expect(code).toBe(255);
         expect(err).toMatch(/administratively prohibited|refused/i);
+    });
+
+    test("task cert (no permit-pty): runs a command, refuses a PTY", async () => {
+        const opts = { pty: false, command: ["whoami; exit 7"] };
+        expect(await sshAs("alice", `ws:${hostId}:alice`, opts)).toMatchObject({
+            code: 7,
+            out: "alice",
+        });
+        const { code, err } = await sshAs("alice", `ws:${hostId}:alice`, {
+            ...opts,
+            args: ["-tt"],
+        });
+        expect(code).toBe(255);
+        expect(err).toContain("PTY allocation request failed");
     });
 
     test("web terminal: WS → signed cert → ssh → shell", async () => {

@@ -7,7 +7,7 @@ import {
     RELOAD_SSHD,
     type SeenUser,
 } from "@repo/shared";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { audit } from "./audit";
 import type { Config } from "./config";
@@ -66,24 +66,31 @@ main "$@"
 `;
 }
 
-export function adminRoutes({ config, db }: { config: Config; db: Database }) {
-    const app = new Hono<AppEnv>();
-
+/** For JSON APIs that change state: same-origin writes, 64 KB bodies. */
+export const writeGuards = (config: Config): MiddlewareHandler[] => [
     // Session cookies are SameSite=Lax, which still allows same-site (sibling subdomain) requests.
-    app.use(async (c, next) => {
+    async (c, next) => {
         if (
             c.req.method !== "GET" &&
             c.req.header("origin") !== config.appUrl.origin
         )
             return c.json({ error: "bad origin" }, 403);
         return next();
-    });
-    app.use(
-        bodyLimit({
-            maxSize: 64 * 1024,
-            onError: (c) => c.json({ error: "too large" }, 413),
-        }),
-    );
+    },
+    bodyLimit({
+        maxSize: 64 * 1024,
+        onError: (c) => c.json({ error: "too large" }, 413),
+    }),
+];
+
+export const jsonBody = async (c: { req: { json: () => Promise<unknown> } }) =>
+    (await c.req.json().catch(() => undefined)) as
+        | Record<string, unknown>
+        | undefined;
+
+export function adminRoutes({ config, db }: { config: Config; db: Database }) {
+    const app = new Hono<AppEnv>();
+    app.use(...writeGuards(config));
 
     const hostExists = (id: string) =>
         !!db.query("SELECT 1 FROM hosts WHERE id = ?").get(id);
@@ -104,11 +111,6 @@ export function adminRoutes({ config, db }: { config: Config; db: Database }) {
             expiresAt,
         };
     }
-
-    const body = async (c: { req: { json: () => Promise<unknown> } }) =>
-        (await c.req.json().catch(() => undefined)) as
-            | Record<string, unknown>
-            | undefined;
 
     app.get("/hosts", (c) => {
         const hosts = db
@@ -138,7 +140,7 @@ export function adminRoutes({ config, db }: { config: Config; db: Database }) {
     });
 
     app.post("/hosts", async (c) => {
-        const input = await body(c);
+        const input = await jsonBody(c);
         if (!validName(input?.name))
             return c.json({ error: "invalid name" }, 400);
         if (!validAddress(input?.address))
@@ -163,7 +165,7 @@ export function adminRoutes({ config, db }: { config: Config; db: Database }) {
     app.patch("/hosts/:id", async (c) => {
         const id = c.req.param("id");
         if (!hostExists(id)) return c.json({ error: "not found" }, 404);
-        const input = await body(c);
+        const input = await jsonBody(c);
         if (input?.name !== undefined && !validName(input.name))
             return c.json({ error: "invalid name" }, 400);
         if (input?.address !== undefined && !validAddress(input.address))
@@ -219,7 +221,7 @@ export function adminRoutes({ config, db }: { config: Config; db: Database }) {
     app.put("/hosts/:id/access", async (c) => {
         const id = c.req.param("id");
         if (!hostExists(id)) return c.json({ error: "not found" }, 404);
-        const rules = await body(c);
+        const rules = await jsonBody(c);
         if (!Array.isArray(rules) || rules.length > 500)
             return c.json({ error: "expected a list of rules" }, 400);
         for (const r of rules as Partial<AccessRule>[])

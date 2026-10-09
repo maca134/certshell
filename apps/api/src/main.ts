@@ -30,6 +30,7 @@ const app = createApp({
         caPassword,
         idleMs: 30 * 60_000,
         maxMs: 8 * 60 * 60_000,
+        taskMs: 30 * 60_000,
     },
     latestVersion,
 });

@@ -25,7 +25,14 @@ beforeEach(() => {
         config,
         db,
         getOidc: lazyDiscovery(config, insecure),
-        terminal: { db, caKey: "", caPassword: undefined, idleMs: 0, maxMs: 0 },
+        terminal: {
+            db,
+            caKey: "",
+            caPassword: undefined,
+            idleMs: 0,
+            maxMs: 0,
+            taskMs: 0,
+        },
     });
     app.get("/api/admin/ping", (c) => c.text("pong"));
     idp.nextClaims = {
@@ -227,7 +234,14 @@ test("IdP down → 503, then retries discovery", async () => {
         config,
         db,
         getOidc: flaky,
-        terminal: { db, caKey: "", caPassword: undefined, idleMs: 0, maxMs: 0 },
+        terminal: {
+            db,
+            caKey: "",
+            caPassword: undefined,
+            idleMs: 0,
+            maxMs: 0,
+            taskMs: 0,
+        },
     });
     expect((await get("/auth/login")).status).toBe(503);
     expect((await get("/auth/login")).status).toBe(302);
@@ -263,6 +277,8 @@ test("client-side routes serve the SPA shell", async () => {
         "/admin/users",
         "/ssh/habc/root",
         "/broadcast",
+        "/tasks",
+        "/tasks/abc",
     ]) {
         const res = await get(path, cookie);
         expect(res.status).toBe(200);

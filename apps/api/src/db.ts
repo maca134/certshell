@@ -52,5 +52,29 @@ export function openDb(path: string) {
         last_login INTEGER NOT NULL,
         PRIMARY KEY (iss, sub)
     )`);
+    db.run(`CREATE TABLE IF NOT EXISTS commands (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sub TEXT NOT NULL,
+        name TEXT NOT NULL,
+        command TEXT NOT NULL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS runs (
+        id TEXT PRIMARY KEY,
+        sub TEXT NOT NULL,
+        email TEXT,
+        command TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS run_hosts (
+        run_id TEXT NOT NULL REFERENCES runs(id),
+        host_id TEXT NOT NULL,
+        host_name TEXT NOT NULL,
+        login TEXT NOT NULL,
+        status TEXT NOT NULL,
+        exit_code INTEGER,
+        output TEXT NOT NULL DEFAULT '',
+        finished_at INTEGER,
+        PRIMARY KEY (run_id, host_id, login)
+    )`);
     return db;
 }
