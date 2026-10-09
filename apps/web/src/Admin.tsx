@@ -1,9 +1,10 @@
-import type {
-    AccessRule,
-    AdminHost,
-    AuditEntry,
-    EnrollSnippet,
-    SeenUser,
+import {
+    type AccessRule,
+    type AdminHost,
+    type AuditEntry,
+    type EnrollSnippet,
+    REMOVAL_SNIPPET,
+    type SeenUser,
 } from "@repo/shared";
 import { cn } from "cn";
 import {
@@ -13,6 +14,7 @@ import {
     Plus,
     ScrollText,
     Server,
+    Trash2,
     Users as UsersIcon,
     X,
 } from "lucide-react";
@@ -417,6 +419,14 @@ function Hosts({ users }: { users: SeenUser[] }) {
                                         ),
                                     )
                                 }
+                                onDelete={() =>
+                                    act(() =>
+                                        api(
+                                            `/api/admin/hosts/${host.id}`,
+                                            "DELETE",
+                                        ),
+                                    )
+                                }
                             />
                         ))}
                     </TableBody>
@@ -573,6 +583,7 @@ function HostRow({
     onSave,
     onSnippet,
     onAccess,
+    onDelete,
 }: {
     host: AdminHost;
     open: boolean;
@@ -581,6 +592,7 @@ function HostRow({
     onSave: (name: string, address: string) => void;
     onSnippet: () => void;
     onAccess: (rules: AccessRule[]) => void;
+    onDelete: () => void;
 }) {
     return (
         <>
@@ -646,6 +658,7 @@ function HostRow({
                             onSave={onSave}
                             onSnippet={onSnippet}
                             onAccess={onAccess}
+                            onDelete={onDelete}
                         />
                     </TableCell>
                 </TableRow>
@@ -671,12 +684,14 @@ function HostPanel({
     onSave,
     onSnippet,
     onAccess,
+    onDelete,
 }: {
     host: AdminHost;
     snippet?: EnrollSnippet;
     onSave: (name: string, address: string) => void;
     onSnippet: () => void;
     onAccess: (rules: AccessRule[]) => void;
+    onDelete: () => void;
 }) {
     const [name, setName] = useState(host.name);
     const [address, setAddress] = useState(host.address);
@@ -718,16 +733,16 @@ function HostPanel({
                         </div>
                         <div className="flex items-center gap-2 pt-1">
                             <code
-                                className="truncate font-mono text-xs text-muted-foreground"
+                                className="mr-auto truncate font-mono text-xs text-muted-foreground"
                                 title="Host ID"
                             >
                                 {host.id}
                             </code>
+                            <RemoveHost host={host} onDelete={onDelete} />
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="ml-auto"
                                 onClick={onSnippet}
                             >
                                 {host.enrolled ? "Re-enroll" : "Enroll snippet"}
@@ -749,8 +764,46 @@ function HostPanel({
     );
 }
 
+function RemoveHost({
+    host,
+    onDelete,
+}: {
+    host: AdminHost;
+    onDelete: () => void;
+}) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button type="button" variant="destructive" size="sm">
+                    <Trash2 />
+                    Remove
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="grid-cols-[minmax(0,1fr)] sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Remove {host.name}</DialogTitle>
+                    <DialogDescription>
+                        CertShell stops signing certs for this host right away.
+                        {host.enrolled &&
+                            " To make the host stop trusting the CertShell CA, run this as root on it too."}
+                    </DialogDescription>
+                </DialogHeader>
+                {host.enrolled && <Shell text={REMOVAL_SNIPPET} />}
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button variant="destructive" onClick={onDelete}>
+                        <Trash2 />
+                        Remove host
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function Snippet({ snippet, expiresAt }: EnrollSnippet) {
-    const [copied, setCopied] = useState(false);
     return (
         <Section title="Enroll">
             <p className="text-sm text-muted-foreground">
@@ -761,35 +814,38 @@ function Snippet({ snippet, expiresAt }: EnrollSnippet) {
                 })}
                 .
             </p>
-            <div className="overflow-hidden rounded-lg border bg-[#0e0e11]">
-                <div className="flex items-center gap-2 border-b px-3 py-1.5">
-                    <span className="font-mono text-xs text-muted-foreground">
-                        shell
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="xs"
-                        className="ml-auto text-muted-foreground"
-                        onClick={() =>
-                            navigator.clipboard.writeText(snippet).then(() => {
-                                setCopied(true);
-                                setTimeout(() => setCopied(false), 2000);
-                            })
-                        }
-                    >
-                        {copied ? (
-                            <Check className="text-emerald-400" />
-                        ) : (
-                            <Copy />
-                        )}
-                        {copied ? "Copied" : "Copy"}
-                    </Button>
-                </div>
-                <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
-                    {snippet}
-                </pre>
-            </div>
+            <Shell text={snippet} />
         </Section>
+    );
+}
+
+function Shell({ text }: { text: string }) {
+    const [copied, setCopied] = useState(false);
+    return (
+        <div className="overflow-hidden rounded-lg border bg-[#0e0e11]">
+            <div className="flex items-center gap-2 border-b px-3 py-1.5">
+                <span className="font-mono text-xs text-muted-foreground">
+                    shell
+                </span>
+                <Button
+                    variant="ghost"
+                    size="xs"
+                    className="ml-auto text-muted-foreground"
+                    onClick={() =>
+                        navigator.clipboard.writeText(text).then(() => {
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                        })
+                    }
+                >
+                    {copied ? <Check className="text-emerald-400" /> : <Copy />}
+                    {copied ? "Copied" : "Copy"}
+                </Button>
+            </div>
+            <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
+                {text}
+            </pre>
+        </div>
     );
 }
 

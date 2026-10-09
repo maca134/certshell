@@ -40,3 +40,16 @@ export type AuditEntry = {
     sub?: string | null;
     [key: string]: unknown;
 };
+
+/** systemd only if actually running (containers often ship systemctl without it), else OpenRC, else SIGHUP. */
+export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
+  systemctl reload ssh 2>/dev/null || systemctl reload sshd
+elif command -v rc-service >/dev/null 2>&1; then
+  rc-service sshd reload
+else
+  kill -HUP "$(cat /run/sshd.pid)"
+fi`;
+
+/** Undoes the enroll script on the host. Run as root. */
+export const REMOVAL_SNIPPET = `rm -f /etc/ssh/sshd_config.d/50-certshell.conf /etc/ssh/certshell_user_ca.pub
+sshd -t && ${RELOAD_SSHD}`;

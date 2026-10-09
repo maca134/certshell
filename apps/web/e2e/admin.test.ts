@@ -54,6 +54,10 @@ async function openAdmin(page: Page) {
             });
         }
         if (req.method() === "PUT") return r.fulfill({ status: 204 });
+        if (req.method() === "DELETE") {
+            hosts.splice(0);
+            return r.fulfill({ status: 204 });
+        }
         return r.fulfill({ json: hosts });
     });
     await page.goto("/admin/hosts");
@@ -97,6 +101,26 @@ test("removing an access rule asks first, then PUTs the remaining rules", async 
             path: "/api/admin/hosts/h1/access",
             body: [],
         });
+});
+
+test("remove host shows the removal snippet, then DELETEs", async ({
+    page,
+}) => {
+    const calls = await openAdmin(page);
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText(/rm -f .*50-certshell\.conf/)).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await dialog.getByRole("button", { name: "Remove host" }).click();
+    await expect(page.getByText("No hosts yet")).toBeVisible();
+    expect(calls).toContainEqual({
+        method: "DELETE",
+        path: "/api/admin/hosts/h1",
+        body: null,
+    });
 });
 
 // On mobile the sidebar is a sheet behind the trigger.

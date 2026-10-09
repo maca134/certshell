@@ -1,10 +1,11 @@
 import type { Database } from "bun:sqlite";
-import type {
-    AccessRule,
-    AdminHost,
-    AuditEntry,
-    EnrollSnippet,
-    SeenUser,
+import {
+    type AccessRule,
+    type AdminHost,
+    type AuditEntry,
+    type EnrollSnippet,
+    RELOAD_SSHD,
+    type SeenUser,
 } from "@repo/shared";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -58,13 +59,7 @@ printf 'Authorization: Bearer %s\\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/
   -H @- \\
   --data-binary @/etc/ssh/ssh_host_ed25519_key.pub
 
-if [ -d /run/systemd/system ]; then
-  systemctl reload ssh 2>/dev/null || systemctl reload sshd
-elif command -v rc-service >/dev/null 2>&1; then
-  rc-service sshd reload
-else
-  kill -HUP "$(cat /run/sshd.pid)"
-fi
+${RELOAD_SSHD}
 echo "enrolled: $(hostname)"
 }
 main "$@"

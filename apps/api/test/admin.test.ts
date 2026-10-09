@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import type { AdminHost } from "@repo/shared";
+import { type AdminHost, REMOVAL_SNIPPET } from "@repo/shared";
 import { renderSnippet } from "../src/admin";
 import { run } from "../src/exec";
 import { APP_URL, startApp } from "./helpers/app";
@@ -374,4 +374,20 @@ test("delete host: drops host, access and tokens; users lose it", async () => {
             .query("SELECT event FROM audit WHERE event = 'host_delete'")
             .all(),
     ).toHaveLength(2);
+});
+
+test("removal snippet deletes exactly the files the enroll script writes", async () => {
+    const snippet = renderSnippet({
+        appUrl: "https://x",
+        hostId: "h1",
+        caPub: "k",
+        token: "t",
+    });
+    const written = [
+        ...(snippet.match(/^CONF=(\S+)$/m)?.slice(1) ?? []),
+        ...(snippet.match(/> (\/etc\/ssh\/\S+)$/m)?.slice(1) ?? []),
+    ];
+    expect(written).toHaveLength(2);
+    expect(REMOVAL_SNIPPET.split("\n")[0]).toBe(`rm -f ${written.join(" ")}`);
+    expect(await run(["sh", "-n", "-c", REMOVAL_SNIPPET])).toBe("");
 });
