@@ -31,7 +31,7 @@ ${pid ? `      ID_DOMAIN: \${ID_DOMAIN}\n` : ""}`;
 
     if (proxy === "caddy") {
         c += `  caddy:
-    image: caddy:2
+    image: caddy:2.11
     restart: unless-stopped
 ${proxyEnv}    volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -42,7 +42,7 @@ ${proxyNet}
         files.Caddyfile = `{$SSH_DOMAIN} {\n\treverse_proxy certshell:3000\n}\n${pid ? "\n{$ID_DOMAIN} {\n\treverse_proxy pocket-id:1411\n}\n" : ""}`;
     } else if (proxy === "traefik") {
         c += `  traefik:
-    image: traefik:v3
+    image: traefik:v3.7
     restart: unless-stopped
 ${proxyEnv}    command:
       - --providers.file.filename=/etc/traefik/routes.yml
@@ -105,7 +105,7 @@ ${caPassword ? "    secrets: [ca_password]\n" : ""}${proxy === "none" ? `    por
     if (pid) {
         c += `
   pocket-id:
-    image: ghcr.io/pocket-id/pocket-id:v2
+    image: ghcr.io/pocket-id/pocket-id:v2.18
     restart: unless-stopped
     environment:
       APP_URL: https://\${ID_DOMAIN}

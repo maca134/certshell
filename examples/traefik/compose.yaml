@@ -3,7 +3,7 @@ name: certshell
 
 services:
   traefik:
-    image: traefik:v3
+    image: traefik:v3.7
     restart: unless-stopped
     environment:
       SSH_DOMAIN: ${SSH_DOMAIN}
@@ -45,7 +45,7 @@ services:
     mem_limit: 512m
 
   pocket-id:
-    image: ghcr.io/pocket-id/pocket-id:v2
+    image: ghcr.io/pocket-id/pocket-id:v2.18
     restart: unless-stopped
     environment:
       APP_URL: https://${ID_DOMAIN}
