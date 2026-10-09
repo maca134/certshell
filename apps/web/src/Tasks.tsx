@@ -32,10 +32,10 @@ import { Label } from "./components/ui/label";
 const MAX_TARGETS = 50;
 
 const RED = "border-red-400/20 bg-red-400/10 text-red-300";
-const STATUS: Record<RunStatus, { label: string; className: string }> = {
-    running: { label: "running", className: AMBER },
-    ok: { label: "ok", className: GREEN },
-    failed: { label: "failed", className: RED },
+const STATUS: Record<RunStatus, string> = {
+    running: AMBER,
+    ok: GREEN,
+    failed: RED,
 };
 
 export function Tasks({ hosts }: { hosts?: HostSummary[] }) {
@@ -184,8 +184,8 @@ function Counts({ counts }: { counts: Record<RunStatus, number> }) {
             {(Object.keys(STATUS) as RunStatus[]).map(
                 (s) =>
                     counts[s] > 0 && (
-                        <Badge key={s} className={STATUS[s].className}>
-                            {counts[s]} {STATUS[s].label}
+                        <Badge key={s} className={STATUS[s]}>
+                            {counts[s]} {s}
                         </Badge>
                     ),
             )}
@@ -514,14 +514,14 @@ function HostResult({ hostName, login, status, exitCode, output }: RunHost) {
                                 exit {exitCode}
                             </span>
                         )}
-                        <Badge className={STATUS[status].className}>
+                        <Badge className={STATUS[status]}>
                             <span
                                 className={cn(
                                     "size-1.5 rounded-full bg-current",
                                     status === "running" && "animate-pulse",
                                 )}
                             />
-                            {STATUS[status].label}
+                            {status}
                         </Badge>
                     </span>
                 </summary>
