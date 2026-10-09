@@ -1,5 +1,5 @@
 // Integration test against the dev `ssh-target` compose service, after enrolling it via the UI. Run:
-// docker compose run --rm --no-deps -T -v ./apps/api/test:/app/apps/api/test:ro -e SSH_TARGET=ssh-target -w /app/apps/api --entrypoint bun web-ssh test
+// docker compose run --rm --no-deps -T -v ./apps/api/test:/app/apps/api/test:ro -e SSH_TARGET=ssh-target -w /app/apps/api --entrypoint bun certshell test
 import { Database } from "bun:sqlite";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";

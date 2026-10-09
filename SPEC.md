@@ -1,4 +1,4 @@
-# SPEC — Web SSH Client (short-lived certs)
+# SPEC — certshell (short-lived certs)
 
 Status: build steps 1–6 (§9) implemented; step 7 (release) in progress: workflow, examples, README, MIT license done, no release tag yet.
 Scope: **browser SSH terminal only**. No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
@@ -31,7 +31,7 @@ Browser-based SSH terminal with **no stored SSH user keys anywhere**. Released p
 **Single container, single process.** One image, one volume. The IdP is external.
 
 ```
-┌─ web-ssh container ──────────────────────────────────────┐
+┌─ certshell container ──────────────────────────────────────┐
 │  Bun app                                                 │
 │    ├─ HTTP :3000   web UI, OIDC login, terminal WS,      │
 │    │               enroll API                            │
@@ -55,7 +55,7 @@ OIDC provider (Pocket ID, …) ◄── discovery, code exchange ── app
 - Authorization code + PKCE, confidential client. Redirect `${APP_URL}/auth/callback`. Scopes `openid email profile groups`.
 - Identity = `iss` + `sub`. Email is display/audit only — **never** used for access, since some IdPs let users edit their own email.
 - Groups come from the ID token's `groups` claim, compared as exact strings.
-  - Members of `OIDC_ADMIN_GROUP` (default `web-ssh-admins`) may enroll hosts, edit the access map and read the audit log.
+  - Members of `OIDC_ADMIN_GROUP` (default `certshell-admins`) may enroll hosts, edit the access map and read the audit log.
   - Restrict who can log in at all at the IdP (Pocket ID: client → Allowed User Groups).
 - App session: absolute 1h, then back through the IdP (silent while the IdP session lives). Groups are re-read on every login, so IdP changes (disable user, remove from group) apply to new connections within 1h.
 - OIDC discovery is fetched lazily and retried. The app boots and serves `/healthz` even if the IdP is down.
@@ -110,8 +110,8 @@ ssh.exited.finally(() => rm(dir, { recursive: true }));
 ## 4. Target host configuration
 
 ```
-# /etc/ssh/sshd_config.d/50-web-ssh.conf
-TrustedUserCAKeys               /etc/ssh/web_ssh_user_ca.pub
+# /etc/ssh/sshd_config.d/50-certshell.conf
+TrustedUserCAKeys               /etc/ssh/certshell_user_ca.pub
 AuthorizedPrincipalsCommand     /bin/echo ws:h7f3k2ab:%u
 AuthorizedPrincipalsCommandUser nobody
 ```
@@ -136,19 +136,19 @@ The token goes to curl on stdin (`-H @-`), never argv, so other local users can'
 set -eu
 APP_URL='https://ssh.example.com'  # rendered from the app's APP_URL
 HOST_ID='h7f3k2ab'                 # app-assigned, immutable
-CA_PUB='ssh-ed25519 AAAA... web-ssh'
+CA_PUB='ssh-ed25519 AAAA... certshell'
 TOKEN='eyJ...'                     # one-time, 10 min, bound to this host
-CONF=/etc/ssh/sshd_config.d/50-web-ssh.conf
+CONF=/etc/ssh/sshd_config.d/50-certshell.conf
 
-printf '%s\n' "$CA_PUB" > /etc/ssh/web_ssh_user_ca.pub
+printf '%s\n' "$CA_PUB" > /etc/ssh/certshell_user_ca.pub
 cat > "$CONF" <<EOF
-TrustedUserCAKeys /etc/ssh/web_ssh_user_ca.pub
+TrustedUserCAKeys /etc/ssh/certshell_user_ca.pub
 AuthorizedPrincipalsCommand /bin/echo ws:$HOST_ID:%u
 AuthorizedPrincipalsCommandUser nobody
 EOF
 
 sshd -t
-sshd -T | grep -qx 'trustedusercakeys /etc/ssh/web_ssh_user_ca.pub' || {
+sshd -T | grep -qx 'trustedusercakeys /etc/ssh/certshell_user_ca.pub' || {
   echo "sshd_config does not Include sshd_config.d/*.conf" >&2; rm "$CONF"; exit 1; }
 
 printf 'Authorization: Bearer %s\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \
@@ -187,8 +187,8 @@ echo "enrolled: $(hostname)"
 | `OIDC_ISSUER` | yes | — |
 | `OIDC_CLIENT_ID` | yes | — |
 | `OIDC_CLIENT_SECRET` | yes | — |
-| `OIDC_ADMIN_GROUP` | no | `web-ssh-admins` |
-| `CA_NAME` | no | `web-ssh` |
+| `OIDC_ADMIN_GROUP` | no | `certshell-admins` |
+| `CA_NAME` | no | `certshell` |
 | `TRUSTED_PROXIES` | no | none → `X-Forwarded-For` ignored |
 | `/run/secrets/ca_password` | no | none → CA key stored unencrypted, warning logged |
 
@@ -216,7 +216,7 @@ echo "enrolled: $(hostname)"
 
 ### 6.1 Image
 
-Published as `ghcr.io/maca134/web-ssh` for `linux/amd64` and `linux/arm64` by `.github/workflows/release.yml` on a `vX.Y.Z` tag (tags `X.Y.Z`, `X.Y`, `X`, `latest`; a manual run builds without pushing). Accepted risk in §3.3.
+Published as `ghcr.io/maca134/certshell` for `linux/amd64` and `linux/arm64` by `.github/workflows/release.yml` on a `vX.Y.Z` tag (tags `X.Y.Z`, `X.Y`, `X`, `latest`; a manual run builds without pushing). Accepted risk in §3.3.
 
 ```dockerfile
 # Bun stages run on the build host (output is arch-independent); arm64 only emulates apt-get.
@@ -277,12 +277,12 @@ Public examples, each a full stack with Pocket ID as the IdP: `examples/caddy` (
 - The proxy carries a network alias for the IdP domain, so the app's IdP calls stay on the compose network (no hairpin NAT).
 - The app service has the full hardening set: `read_only`, `tmpfs /tmp` (`noexec,nosuid`), `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit`, `mem_limit`, `init: true`.
 - Hardening limits what an attacker can do to the box (no persistence outside `/data`, no privilege escalation). It does not stop cert minting while compromised — see §3.3.
-- Never mount `docker.sock` into `web-ssh`, nor into the internet-facing proxy (hence Traefik's file provider, not Docker labels).
-- Without compose: `docker run -d -p 127.0.0.1:3000:3000 -v web-ssh-data:/data -e APP_URL=… -e OIDC_ISSUER=… -e OIDC_CLIENT_ID=… -e OIDC_CLIENT_SECRET=… ghcr.io/maca134/web-ssh:1` (CA key unencrypted).
+- Never mount `docker.sock` into `certshell`, nor into the internet-facing proxy (hence Traefik's file provider, not Docker labels).
+- Without compose: `docker run -d -p 127.0.0.1:3000:3000 -v certshell-data:/data -e APP_URL=… -e OIDC_ISSUER=… -e OIDC_CLIENT_ID=… -e OIDC_CLIENT_SECRET=… ghcr.io/maca134/certshell:1` (CA key unencrypted).
 
 ### 6.4 Backup
 
-- Volumes `web-ssh-data` (CA + app DB) and the IdP's data (`pocket-id-data` + `POCKET_ID_ENCRYPTION_KEY`).
+- Volumes `certshell-data` (CA + app DB) and the IdP's data (`pocket-id-data` + `POCKET_ID_ENCRYPTION_KEY`).
 - If `ca_password` is set, **back it up separately**, or the backup is useless. If not set, the backup *is* the CA — protect it accordingly.
 
 ### 6.5 What the web UI owns
@@ -308,8 +308,8 @@ mkdir secrets && openssl rand -base64 32 > secrets/ca_password   # optional, enc
 chown 1000:1000 secrets/ca_password && chmod 600 secrets/ca_password   # app runs as uid 1000; unreadable = crash at boot
 docker compose up -d caddy pocket-id   # or traefik
 # https://id.example.com/setup → admin account + passkeys
-# Pocket ID: create group web-ssh-admins, add yourself
-#   create OIDC client web-ssh: callback https://ssh.example.com/auth/callback
+# Pocket ID: create group certshell-admins, add yourself
+#   create OIDC client certshell: callback https://ssh.example.com/auth/callback
 #   → OIDC_CLIENT_ID/OIDC_CLIENT_SECRET into .env
 docker compose up -d
 ```

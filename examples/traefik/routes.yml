@@ -1,15 +1,15 @@
 http:
   routers:
-    web-ssh:
+    certshell:
       rule: Host(`{{ env "SSH_DOMAIN" }}`)
-      service: web-ssh
+      service: certshell
     pocket-id:
       rule: Host(`{{ env "ID_DOMAIN" }}`)
       service: pocket-id
   services:
-    web-ssh:
+    certshell:
       loadBalancer:
-        servers: [{ url: "http://web-ssh:3000" }]
+        servers: [{ url: "http://certshell:3000" }]
     pocket-id:
       loadBalancer:
         servers: [{ url: "http://pocket-id:1411" }]

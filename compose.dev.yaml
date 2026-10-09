@@ -1,8 +1,8 @@
 # Dev overlay: Vite with HMR + API with bun --watch, both on bind-mounted source.
 #   docker compose -f compose.yaml -f compose.dev.yaml up -d
-# https://$SSH_DOMAIN → Traefik → web-dev (Vite) → /api, /auth → web-ssh
+# https://$SSH_DOMAIN → Traefik → web-dev (Vite) → /api, /auth → certshell
 services:
-  web-ssh:
+  certshell:
     entrypoint: ["bun", "--watch", "apps/api/src/main.ts"]
     environment:
       TRUSTED_PROXIES: 172.30.0.2,${UPSTREAM_PROXY},172.30.0.3   # + web-dev
@@ -17,7 +17,7 @@ services:
     working_dir: /app/apps/web
     command: ["bun", "run", "dev"]
     environment:
-      API_URL: http://web-ssh:3000
+      API_URL: http://certshell:3000
       DEV_PUBLIC_HOST: ${SSH_DOMAIN}
     volumes:
       - ./apps/web:/app/apps/web   # rw: Vite writes its cache to apps/web/node_modules/.vite

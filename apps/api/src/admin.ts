@@ -41,17 +41,17 @@ APP_URL=${sq(opts.appUrl)}
 HOST_ID=${sq(opts.hostId)}
 CA_PUB=${sq(opts.caPub)}
 TOKEN=${sq(opts.token)}
-CONF=/etc/ssh/sshd_config.d/50-web-ssh.conf
+CONF=/etc/ssh/sshd_config.d/50-certshell.conf
 
-printf '%s\\n' "$CA_PUB" > /etc/ssh/web_ssh_user_ca.pub
+printf '%s\\n' "$CA_PUB" > /etc/ssh/certshell_user_ca.pub
 cat > "$CONF" <<EOF
-TrustedUserCAKeys /etc/ssh/web_ssh_user_ca.pub
+TrustedUserCAKeys /etc/ssh/certshell_user_ca.pub
 AuthorizedPrincipalsCommand /bin/echo ws:$HOST_ID:%u
 AuthorizedPrincipalsCommandUser nobody
 EOF
 
 sshd -t
-sshd -T | grep -qx 'trustedusercakeys /etc/ssh/web_ssh_user_ca.pub' || {
+sshd -T | grep -qx 'trustedusercakeys /etc/ssh/certshell_user_ca.pub' || {
   echo "sshd_config does not Include sshd_config.d/*.conf" >&2; rm "$CONF"; exit 1; }
 
 printf 'Authorization: Bearer %s\\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \\

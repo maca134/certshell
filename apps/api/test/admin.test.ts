@@ -14,7 +14,7 @@ afterEach(async () => {
 });
 
 const admin = async () => {
-    ctx = await startApp({}, ["web-ssh-admins"]);
+    ctx = await startApp({}, ["certshell-admins"]);
     return ctx;
 };
 
@@ -319,14 +319,14 @@ test("access map: validated, replaces rules, only enrolled hosts reach users", a
         expect((await put(bad)).status).toBe(400);
 
     const rules = [
-        { login: "root", group: "web-ssh-admins" },
-        { login: "deploy", group: "web-ssh-admins" },
-        { login: "deploy", group: "web-ssh-admins" },
+        { login: "root", group: "certshell-admins" },
+        { login: "deploy", group: "certshell-admins" },
+        { login: "deploy", group: "certshell-admins" },
     ];
     expect((await put(rules)).status).toBe(204);
     expect((await hosts())[0]?.access).toEqual([
-        { login: "deploy", group: "web-ssh-admins" },
-        { login: "root", group: "web-ssh-admins" },
+        { login: "deploy", group: "certshell-admins" },
+        { login: "root", group: "certshell-admins" },
     ]);
 
     expect(await (await call("GET", "/api/hosts")).json()).toEqual([]);
@@ -340,9 +340,9 @@ test("access map: validated, replaces rules, only enrolled hosts reach users", a
     ]);
 
     expect(
-        (await put([{ login: "root", group: "web-ssh-admins" }])).status,
+        (await put([{ login: "root", group: "certshell-admins" }])).status,
     ).toBe(204);
     expect((await hosts())[0]?.access).toEqual([
-        { login: "root", group: "web-ssh-admins" },
+        { login: "root", group: "certshell-admins" },
     ]);
 });

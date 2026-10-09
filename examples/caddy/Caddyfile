@@ -1,5 +1,5 @@
 {$SSH_DOMAIN} {
-	reverse_proxy web-ssh:3000
+	reverse_proxy certshell:3000
 }
 
 {$ID_DOMAIN} {

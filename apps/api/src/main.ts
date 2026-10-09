@@ -7,7 +7,7 @@ import { lazyDiscovery } from "./oidc";
 const config = loadConfig(process.env);
 
 const caPassword = await readCaPassword();
-await ensureCa("/data/ca", process.env.CA_NAME || "web-ssh", caPassword);
+await ensureCa("/data/ca", process.env.CA_NAME || "certshell", caPassword);
 
 const db = openDb("/data/app.sqlite");
 const app = createApp({

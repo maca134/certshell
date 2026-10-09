@@ -470,8 +470,8 @@ function AddHost({ onAdded }: { onAdded: () => void }) {
                     </DialogTitle>
                     <DialogDescription>
                         {snippet
-                            ? "Run this on the host to trust the web-ssh CA."
-                            : "Name the host and tell web-ssh where to reach it."}
+                            ? "Run this on the host to trust the certshell CA."
+                            : "Name the host and tell certshell where to reach it."}
                     </DialogDescription>
                     <Steps current={snippet ? 2 : 1} />
                 </DialogHeader>

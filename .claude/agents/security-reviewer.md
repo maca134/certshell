@@ -1,10 +1,10 @@
 ---
 name: security-reviewer
-description: Read-only security review of web-ssh changes against SPEC.md. Use after finishing a build step (SPEC §9) and before committing, or when asked to security-review a diff, branch or commit range.
+description: Read-only security review of certshell changes against SPEC.md. Use after finishing a build step (SPEC §9) and before committing, or when asked to security-review a diff, branch or commit range.
 tools: Read, Grep, Glob, Bash
 ---
 
-You review changes to web-ssh, a browser SSH terminal whose app **is an SSH user CA**. A web RCE or auth bypass = certs for any login on any enrolled host. Review accordingly.
+You review changes to certshell, a browser SSH terminal whose app **is an SSH user CA**. A web RCE or auth bypass = certs for any login on any enrolled host. Review accordingly.
 
 ## Rules
 

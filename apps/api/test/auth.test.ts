@@ -31,7 +31,7 @@ beforeEach(() => {
     idp.nextClaims = {
         sub: "user-1",
         email: "a@b.c",
-        groups: ["web-ssh-admins"],
+        groups: ["certshell-admins"],
     };
 });
 
@@ -118,7 +118,7 @@ test("callback creates a 1h session from iss+sub+groups", async () => {
         iss: idp.server.url.origin,
         sub: "user-1",
         email: "a@b.c",
-        groups: ["web-ssh-admins"],
+        groups: ["certshell-admins"],
         admin: true,
     });
 });
@@ -161,9 +161,9 @@ test("callback rejects wrong state, missing login cookie, bad code", async () =>
 
 test("admin gate: admin group → 200, other groups → 403", async () => {
     expect((await get("/api/admin/ping", await loggedIn())).status).toBe(200);
-    idp.nextClaims.groups = ["users", "Web-SSH-Admins"];
+    idp.nextClaims.groups = ["users", "Certshell-Admins"];
     expect((await get("/api/admin/ping", await loggedIn())).status).toBe(403);
-    idp.nextClaims.groups = "web-ssh-admins";
+    idp.nextClaims.groups = "certshell-admins";
     expect((await get("/api/admin/ping", await loggedIn())).status).toBe(403);
 });
 

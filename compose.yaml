@@ -1,7 +1,6 @@
-name: web-ssh
 
 services:
-  web-ssh:
+  certshell:
     build: .
     init: true
     restart: unless-stopped
@@ -23,8 +22,8 @@ services:
     mem_limit: 512m
     labels:
       traefik.enable: "true"
-      traefik.http.routers.webssh.rule: Host(`${SSH_DOMAIN}`)
-      traefik.http.services.webssh.loadbalancer.server.port: "3000"
+      traefik.http.routers.certshell.rule: Host(`${SSH_DOMAIN}`)
+      traefik.http.services.certshell.loadbalancer.server.port: "3000"
     networks: [ingress]
 
   pocket-id:

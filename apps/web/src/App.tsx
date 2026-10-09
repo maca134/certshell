@@ -237,7 +237,7 @@ function AppSidebar({ me }: { me?: Me }) {
                                 <Logo />
                                 <div className="flex flex-col leading-tight">
                                     <span className="font-semibold tracking-tight">
-                                        web-ssh
+                                        certshell
                                     </span>
                                     <span className="text-xs text-muted-foreground">
                                         Secure shell

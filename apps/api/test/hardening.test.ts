@@ -97,10 +97,10 @@ test("per-user limit on terminal sessions", async () => {
 }, 30_000);
 
 test("admin: seen users and audit log", async () => {
-    ctx = await startApp({}, ["web-ssh-admins"]);
+    ctx = await startApp({}, ["certshell-admins"]);
     ctx.db.run(
         "INSERT INTO users (iss, sub, email, groups, last_login) VALUES (?, ?, ?, ?, ?)",
-        ["https://id.test", "u2", "b@c.d", '["ops","web-ssh-admins"]', 1000],
+        ["https://id.test", "u2", "b@c.d", '["ops","certshell-admins"]', 1000],
     );
     const get = (path: string) =>
         ctx?.app.request(`${APP_URL}${path}`, {
@@ -114,7 +114,7 @@ test("admin: seen users and audit log", async () => {
             iss: "https://id.test",
             sub: "u2",
             email: "b@c.d",
-            groups: ["ops", "web-ssh-admins"],
+            groups: ["ops", "certshell-admins"],
             lastLogin: 1000,
         },
     ]);

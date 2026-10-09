@@ -1,8 +1,8 @@
-# web-ssh
+# certshell
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
-> **Pre-release.** No image published yet. Build your own with `docker build -t ghcr.io/maca134/web-ssh:1 .`
+> **Pre-release.** No image published yet. Build your own with `docker build -t ghcr.io/maca134/certshell:1 .`
 
 ## How it works
 
@@ -22,7 +22,7 @@ You need a server with Docker, ports 80/443 open, and two DNS names pointing at 
 - [`examples/traefik`](examples/traefik): Traefik with Let's Encrypt. Routes live in `routes.yml`, so Traefik needs no `docker.sock`.
 
 ```sh
-cp -r examples/caddy web-ssh && cd web-ssh      # or examples/traefik
+cp -r examples/caddy certshell && cd certshell      # or examples/traefik
 cp .env.example .env            # set SSH_DOMAIN, ID_DOMAIN, POCKET_ID_ENCRYPTION_KEY
 
 # Optional but recommended: encrypts the CA key at rest. The container runs as uid 1000.
@@ -37,10 +37,10 @@ docker compose up -d caddy pocket-id           # or: traefik pocket-id
 Then in Pocket ID (`https://id.example.com`):
 
 1. Open `/setup` and create your admin account and passkey.
-2. **User Groups** → create `web-ssh-admins` and add yourself.
-3. **OIDC Clients** → add `web-ssh`:
+2. **User Groups** → create `certshell-admins` and add yourself.
+3. **OIDC Clients** → add `certshell`:
    - Callback URL: `https://ssh.example.com/auth/callback`
-   - Allowed user groups: whoever may use web-ssh at all.
+   - Allowed user groups: whoever may use certshell at all.
 4. Copy the client ID and secret into `.env` (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`).
 
 ```sh
@@ -49,7 +49,7 @@ docker compose up -d
 
 Open `https://ssh.example.com` and log in.
 
-Already have a reverse proxy? Drop the `caddy`/`traefik` service, publish `web-ssh` on `127.0.0.1:3000`, and set `TRUSTED_PROXIES` to your proxy's address. Already have an IdP? Drop `pocket-id`. Any OIDC provider works if it sends a `groups` claim that users can't change themselves.
+Already have a reverse proxy? Drop the `caddy`/`traefik` service, publish `certshell` on `127.0.0.1:3000`, and set `TRUSTED_PROXIES` to your proxy's address. Already have an IdP? Drop `pocket-id`. Any OIDC provider works if it sends a `groups` claim that users can't change themselves.
 
 ## Adding a host
 
@@ -59,7 +59,7 @@ Already have a reverse proxy? Drop the `caddy`/`traefik` service, publish `web-s
 
 Host requirements: Linux, OpenSSH ≥ 7, `curl`, an `sshd_config` that includes `sshd_config.d/*.conf`, and reachable on port 22 from the app. The host must reach `https://ssh.example.com` only while enrolling.
 
-The script writes the CA public key, adds `/etc/ssh/sshd_config.d/50-web-ssh.conf`, checks sshd loads it, records the host key with the app, and reloads sshd. The app pins that host key, so a different machine at the same address is refused.
+The script writes the CA public key, adds `/etc/ssh/sshd_config.d/50-certshell.conf`, checks sshd loads it, records the host key with the app, and reloads sshd. The app pins that host key, so a different machine at the same address is refused.
 
 ## Configuration
 
@@ -69,8 +69,8 @@ The script writes the CA public key, adds `/etc/ssh/sshd_config.d/50-web-ssh.con
 | `OIDC_ISSUER` | yes | |
 | `OIDC_CLIENT_ID` | yes | |
 | `OIDC_CLIENT_SECRET` | yes | |
-| `OIDC_ADMIN_GROUP` | no | `web-ssh-admins` |
-| `CA_NAME` | no | `web-ssh` (comment on the CA key) |
+| `OIDC_ADMIN_GROUP` | no | `certshell-admins` |
+| `CA_NAME` | no | `certshell` (comment on the CA key) |
 | `TRUSTED_PROXIES` | no | none: `X-Forwarded-For` ignored. Comma-separated IPs. |
 | `/run/secrets/ca_password` | no | none: CA key stored unencrypted, warning logged |
 
@@ -93,13 +93,13 @@ Recommendations:
 
 - Keep a break-glass SSH key offline, not signed by this CA.
 - Put it behind a VPN if you can. Internet exposure is supported, not encouraged.
-- Never mount `docker.sock` into the `web-ssh` container.
+- Never mount `docker.sock` into the `certshell` container.
 
 Full threat model: [SPEC.md §3.3](SPEC.md#33-accepted-risk).
 
 ## Backup
 
-- Volume `web-ssh-data`: the CA key and the app database (hosts, access map, audit log).
+- Volume `certshell-data`: the CA key and the app database (hosts, access map, audit log).
 - `secrets/ca_password`, **stored separately**. Without it the CA key in the backup is useless; without a password the backup *is* your CA, so protect it.
 - Pocket ID: volume `pocket-id-data` and `POCKET_ID_ENCRYPTION_KEY`.
 
