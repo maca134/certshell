@@ -346,3 +346,32 @@ test("access map: validated, replaces rules, only enrolled hosts reach users", a
         { login: "root", group: "certshell-admins" },
     ]);
 });
+
+test("delete host: drops host, access and tokens; users lose it", async () => {
+    await admin();
+    const { id, token } = await createHost();
+    await call("PUT", `/api/admin/hosts/${id}/access`, [
+        { login: "root", group: "certshell-admins" },
+    ]);
+    expect((await enroll(token, await hostKey())).status).toBe(204);
+    const pending = await createHost("db1", "db1.lan");
+
+    expect((await call("DELETE", `/api/admin/hosts/${id}`)).status).toBe(204);
+    expect((await call("DELETE", `/api/admin/hosts/${id}`)).status).toBe(404);
+    expect(
+        (await call("DELETE", `/api/admin/hosts/${pending.id}`)).status,
+    ).toBe(204);
+    expect(await hosts()).toEqual([]);
+    expect(await (await call("GET", "/api/hosts")).json()).toEqual([]);
+    expect(
+        (await call("GET", `/api/terminal?host=${id}&login=root`)).status,
+    ).toBe(403);
+    expect(ctx.db.query("SELECT * FROM access").all()).toEqual([]);
+    expect(ctx.db.query("SELECT * FROM enroll_tokens").all()).toEqual([]);
+    expect((await script(pending.token)).status).toBe(401);
+    expect(
+        ctx.db
+            .query("SELECT event FROM audit WHERE event = 'host_delete'")
+            .all(),
+    ).toHaveLength(2);
+});

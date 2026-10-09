@@ -192,6 +192,23 @@ export function adminRoutes({ config, db }: { config: Config; db: Database }) {
         return c.body(null, 204);
     });
 
+    app.delete("/hosts/:id", (c) => {
+        const id = c.req.param("id");
+        if (!hostExists(id)) return c.json({ error: "not found" }, 404);
+        db.transaction(() => {
+            db.run("DELETE FROM access WHERE host_id = ?", [id]);
+            db.run("DELETE FROM enroll_tokens WHERE host_id = ?", [id]);
+            db.run("DELETE FROM hosts WHERE id = ?", [id]);
+        })();
+        audit(db, {
+            event: "host_delete",
+            sub: c.var.user.sub,
+            email: c.var.user.email,
+            host: id,
+        });
+        return c.body(null, 204);
+    });
+
     app.post("/hosts/:id/snippet", async (c) => {
         const id = c.req.param("id");
         if (!hostExists(id)) return c.json({ error: "not found" }, 404);
