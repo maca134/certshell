@@ -173,6 +173,88 @@ test("sidebar switches to users and audit", async ({ page, isMobile }) => {
     await expect(page.getByText("login", { exact: true })).toBeVisible();
 });
 
+test("sessions: lists open terminals, ends one or all of a user's", async ({
+    page,
+    isMobile,
+}) => {
+    await openAdmin(page);
+    const session = {
+        sub: "s",
+        email: "a@b.c",
+        hostId: "h1",
+        hostName: "web1",
+        login: "root",
+        startedAt: Date.now(),
+    };
+    let sessions = [
+        { ...session, id: "t1" },
+        { ...session, id: "t2" },
+    ];
+    const deletes: string[] = [];
+    await page.route("/api/admin/sessions**", (r) => {
+        const url = new URL(r.request().url());
+        if (r.request().method() !== "DELETE")
+            return r.fulfill({ json: sessions });
+        deletes.push(url.pathname + url.search);
+        sessions = url.search ? [] : sessions.slice(1);
+        return r.fulfill({ status: 204 });
+    });
+    await (await sidebar(page, isMobile))
+        .getByRole("link", { name: "Sessions" })
+        .click();
+    await expect(page).toHaveURL("/admin/sessions");
+    await expect(page.getByRole("button", { name: "End all" })).toHaveCount(2);
+
+    page.once("dialog", (d) => d.accept());
+    await page
+        .getByRole("button", { name: "End", exact: true })
+        .first()
+        .click();
+    await expect(page.getByRole("button", { name: "End all" })).toHaveCount(0);
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(page.getByText("No open terminals")).toBeVisible();
+    expect(deletes).toEqual([
+        "/api/admin/sessions/t1",
+        "/api/admin/sessions/t2",
+    ]);
+});
+
+test("sessions: End all asks, then DELETEs by sub", async ({ page }) => {
+    await page.route("/api/me", (r) =>
+        r.fulfill({
+            json: { sub: "s", groups: [], admin: true, version: "1" },
+        }),
+    );
+    await page.route("/api/admin/users", (r) => r.fulfill({ json: [] }));
+    const deletes: string[] = [];
+    let sessions = ["t1", "t2"].map((id) => ({
+        id,
+        sub: "u 1",
+        email: null,
+        hostId: "h1",
+        hostName: "web1",
+        login: "root",
+        startedAt: Date.now(),
+    }));
+    await page.route("/api/admin/sessions**", (r) => {
+        const url = new URL(r.request().url());
+        if (r.request().method() !== "DELETE")
+            return r.fulfill({ json: sessions });
+        deletes.push(url.pathname + url.search);
+        sessions = [];
+        return r.fulfill({ status: 204 });
+    });
+    await page.goto("/admin/sessions");
+    page.once("dialog", (d) => d.dismiss());
+    await page.getByRole("button", { name: "End all" }).first().click();
+    expect(deletes).toEqual([]);
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "End all" }).first().click();
+    await expect(page.getByText("No open terminals")).toBeVisible();
+    expect(deletes).toEqual(["/api/admin/sessions?sub=u%201"]);
+});
+
 test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {
     await openAdmin(page);
     const posted = page.waitForRequest(

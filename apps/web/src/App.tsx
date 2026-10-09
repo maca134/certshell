@@ -6,6 +6,7 @@ import {
     ListTodo,
     LogOut,
     type LucideIcon,
+    MonitorDot,
     ScrollText,
     Server,
     Terminal,
@@ -173,6 +174,7 @@ function GitHubIcon() {
 const ADMIN_NAV = [
     { href: "/admin/hosts", label: "Hosts", icon: Server },
     { href: "/admin/users", label: "Users", icon: Users },
+    { href: "/admin/sessions", label: "Sessions", icon: MonitorDot },
     { href: "/admin/audit", label: "Audit", icon: ScrollText },
 ];
 

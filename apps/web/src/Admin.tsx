@@ -3,6 +3,7 @@ import {
     type AdminHost,
     type AuditEntry,
     type EnrollSnippet,
+    type LiveSession,
     REMOVAL_SNIPPET,
     type SeenUser,
 } from "@repo/shared";
@@ -11,6 +12,7 @@ import {
     Check,
     ChevronRight,
     Copy,
+    MonitorDot,
     Plus,
     ScrollText,
     Server,
@@ -53,7 +55,7 @@ import {
     TableRow,
 } from "./components/ui/table";
 
-const VIEWS = ["hosts", "users", "audit"] as const;
+const VIEWS = ["hosts", "users", "sessions", "audit"] as const;
 
 const noFill = { autoComplete: "off", "data-lpignore": "true" };
 
@@ -98,6 +100,7 @@ export function Admin() {
         return <Redirect to="/hosts" replace />;
     if (view === "hosts") return <Hosts users={users} />;
     if (view === "users") return <Users users={users} />;
+    if (view === "sessions") return <Sessions />;
     return <Audit />;
 }
 
@@ -188,6 +191,122 @@ function Users({ users }: { users: SeenUser[] }) {
                                 </TableCell>
                             </TableRow>
                         ))}
+                    </TableBody>
+                </Table>
+            </Card>
+        </Page>
+    );
+}
+
+function Sessions() {
+    const [sessions, setSessions] = useState<LiveSession[]>([]);
+    const [error, setError] = useState("");
+    const reload = useCallback(
+        () =>
+            api<LiveSession[]>("/api/admin/sessions").then(setSessions, (e) =>
+                setError(e.message),
+            ),
+        [],
+    );
+    useEffect(() => {
+        reload();
+        const timer = setInterval(reload, 5000);
+        return () => clearInterval(timer);
+    }, [reload]);
+    const end = async (path: string, what: string) => {
+        if (!confirm(`End ${what}?`)) return;
+        setError("");
+        await api(`/api/admin/sessions${path}`, "DELETE").catch((e) =>
+            setError(e.message),
+        );
+        await reload();
+    };
+    return (
+        <Page
+            title="Sessions"
+            description="Open terminals, oldest first. Ending one closes it right away."
+        >
+            {error && (
+                <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
+            <Card className="py-0">
+                <Table>
+                    <Head>
+                        <TableHead>User</TableHead>
+                        <TableHead>Host</TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                            Started
+                        </TableHead>
+                        <TableHead className="w-0" />
+                    </Head>
+                    <TableBody className={tableBody}>
+                        {sessions.length === 0 && (
+                            <Empty cols={4}>
+                                <EmptyState
+                                    icon={MonitorDot}
+                                    title="No open terminals"
+                                />
+                            </Empty>
+                        )}
+                        {sessions.map((s) => {
+                            const user = s.email ?? s.sub;
+                            const many =
+                                sessions.filter((x) => x.sub === s.sub).length >
+                                1;
+                            return (
+                                <TableRow key={s.id}>
+                                    <TableCell
+                                        title={s.sub}
+                                        className="whitespace-normal break-all"
+                                    >
+                                        {user}
+                                    </TableCell>
+                                    <TableCell className="whitespace-normal">
+                                        <span className="font-medium">
+                                            {s.hostName}
+                                        </span>{" "}
+                                        <span className="font-mono text-muted-foreground">
+                                            {s.login}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="hidden sm:table-cell">
+                                        <When t={s.startedAt} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex justify-end gap-2">
+                                            {many && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        end(
+                                                            `?sub=${encodeURIComponent(s.sub)}`,
+                                                            `all terminals of ${user}`,
+                                                        )
+                                                    }
+                                                >
+                                                    End all
+                                                </Button>
+                                            )}
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() =>
+                                                    end(
+                                                        `/${s.id}`,
+                                                        `${user} on ${s.hostName}`,
+                                                    )
+                                                }
+                                            >
+                                                End
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </Card>
