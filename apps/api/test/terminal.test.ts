@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { dirname } from "node:path";
+import { reachable } from "../src/lib/hosts";
 import { createSession } from "../src/lib/sessions";
 import { SESSION_COOKIE } from "../src/routes/auth";
 import { APP_URL, startApp } from "./helpers/app";
@@ -42,6 +43,24 @@ test("/api/hosts lists only hosts+logins for the user's groups", async () => {
     expect(await res.json()).toEqual([
         { id: "h1", name: "h1", logins: ["root"] },
     ]);
+});
+
+test("/api/hosts/status: only the user's hosts, up = TCP connect works", async () => {
+    await setup();
+    ctx.addHost("h2", "h2.test", "ssh-ed25519 BBBB", { root: "others" });
+    const res = await req("/api/hosts/status", { cookie: ctx.cookie });
+    expect(await res.json()).toEqual({ h1: false });
+});
+
+test("reachable: true on a listening port, false when refused", async () => {
+    const listener = Bun.listen({
+        hostname: "127.0.0.1",
+        port: 0,
+        socket: { data() {} },
+    });
+    expect(await reachable("127.0.0.1", listener.port)).toBeTrue();
+    listener.stop(true);
+    expect(await reachable("127.0.0.1", listener.port)).toBeFalse();
 });
 
 test("WS upgrade: no session → 401, bad origin / no access → 403", async () => {

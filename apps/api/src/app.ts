@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { getCookie } from "hono/cookie";
 import type { Config } from "./config";
-import { accessibleHosts } from "./lib/hosts";
+import { accessibleHosts, reachable } from "./lib/hosts";
 import type { GetOidc } from "./lib/oidc";
 import { clientIp, concurrencyLimit, rateLimiter } from "./lib/ratelimit";
 import { type AppEnv, getSession } from "./lib/sessions";
@@ -133,6 +133,28 @@ export function createApp({
     app.get("/api/hosts", (c) =>
         c.json(accessibleHosts(db, c.var.user.groups)),
     );
+
+    // Cached so page loads can't make the app hammer hosts.
+    const checks = new Map<string, { at: number; up: Promise<boolean> }>();
+    app.get("/api/hosts/status", async (c) => {
+        const ids = accessibleHosts(db, c.var.user.groups).map((h) => h.id);
+        const hosts = db
+            .query<{ id: string; address: string }, [string]>(
+                "SELECT id, address FROM hosts WHERE id IN (SELECT value FROM json_each(?))",
+            )
+            .all(JSON.stringify(ids));
+        const status = await Promise.all(
+            hosts.map(async ({ id, address }) => {
+                let check = checks.get(address);
+                if (!check || check.at < Date.now() - 30_000) {
+                    check = { at: Date.now(), up: reachable(address) };
+                    checks.set(address, check);
+                }
+                return [id, await check.up] as const;
+            }),
+        );
+        return c.json<Record<string, boolean>>(Object.fromEntries(status));
+    });
 
     app.get(
         "/assets/*",

@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import { connect } from "node:net";
 import type { HostSummary } from "@repo/shared";
 
 export type Host = {
@@ -41,3 +42,16 @@ export function allowedHost(
             .get(hostId, login, JSON.stringify(groups)) ?? undefined
     );
 }
+
+/** TCP connect only: says nothing about whether sshd will take our certs. */
+export const reachable = (host: string, port = 22, timeoutMs = 2000) =>
+    new Promise<boolean>((resolve) => {
+        const s = connect({ host, port });
+        const done = (ok: boolean) => {
+            s.destroy();
+            resolve(ok);
+        };
+        s.setTimeout(timeoutMs, () => done(false));
+        s.once("connect", () => done(true));
+        s.once("error", () => done(false));
+    });
