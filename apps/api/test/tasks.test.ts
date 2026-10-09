@@ -95,8 +95,8 @@ test("run: one command on each target, exit code + merged output per host", asyn
         ["h1", "root", "ok", 0],
         ["h2", "root", "failed", 1],
     ]);
-    expect(run.hosts[0].output).toContain("out h1");
-    expect(run.hosts[0].output).toContain("err h1");
+    expect(run.hosts[0]?.output).toContain("out h1");
+    expect(run.hosts[0]?.output).toContain("err h1");
 
     const list = (await (await call("GET", "/runs")).json()) as RunSummary[];
     expect(list.map((r) => [r.id, r.counts])).toEqual([
@@ -129,7 +129,7 @@ test("run: cert is for ws:<host>:<login> and cannot open a terminal", async () =
     const run = await finished(
         await startRun("true", [{ host: "h1", login: "root" }]),
     );
-    const out = run.hosts[0].output;
+    const out = run.hosts[0]?.output;
     expect(out).toContain("ws:h1:root");
     expect(out).not.toContain("permit-pty");
     expect(out).toMatch(/Critical Options: \(none\)/);
@@ -220,7 +220,7 @@ test("run: output streams while running", async () => {
     let run: RunDetail | undefined;
     for (let i = 0; i < 40; i++) {
         run = (await (await call("GET", `/runs/${id}`)).json()) as RunDetail;
-        if (run.hosts[0].output.includes("first")) break;
+        if (run.hosts[0]?.output.includes("first")) break;
         await Bun.sleep(25);
     }
     expect(run?.hosts[0]).toMatchObject({
@@ -228,7 +228,7 @@ test("run: output streams while running", async () => {
         exitCode: null,
         output: "first\n",
     });
-    expect((await finished(id)).hosts[0].output).toBe("first\nsecond\n");
+    expect((await finished(id)).hosts[0]?.output).toBe("first\nsecond\n");
 });
 
 test("run: killed after taskMs", async () => {
@@ -237,7 +237,7 @@ test("run: killed after taskMs", async () => {
         await startRun("exec sleep 10", [{ host: "h1", login: "root" }]),
     );
     expect(run.hosts[0]).toMatchObject({ status: "failed", exitCode: null });
-    expect(run.hosts[0].output).toContain("[timed out]");
+    expect(run.hosts[0]?.output).toContain("[timed out]");
 });
 
 test("run: keeps the last 256 KB of output", async () => {
@@ -247,10 +247,10 @@ test("run: keeps the last 256 KB of output", async () => {
             { host: "h1", login: "root" },
         ]),
     );
-    const out = run.hosts[0].output;
+    const out = run.hosts[0]?.output;
     expect(out).toStartWith("[earlier output dropped]\n");
     expect(out).toEndWith("xEND\n");
-    expect(out.length).toBe(256 * 1024 + "[earlier output dropped]\n".length);
+    expect(out?.length).toBe(256 * 1024 + "[earlier output dropped]\n".length);
 });
 
 test("run: CA failure → failed, not stuck running", async () => {
@@ -259,7 +259,7 @@ test("run: CA failure → failed, not stuck running", async () => {
         await startRun("true", [{ host: "h1", login: "root" }]),
     );
     expect(run.hosts[0]).toMatchObject({ status: "failed", exitCode: null });
-    expect(run.hosts[0].output).toContain("[failed to start]");
+    expect(run.hosts[0]?.output).toContain("[failed to start]");
 });
 
 test("targets still running at startup are marked failed", async () => {
@@ -306,15 +306,16 @@ test("saved commands: per user, create / list / delete", async () => {
         ["Upgrade", "apt-get upgrade -y"],
     ]);
 
+    const diskId = list[0]?.id;
     const cookie = otherUser();
     expect(
         await (await call("GET", "/commands", undefined, { cookie })).json(),
     ).toEqual([]);
     expect(
-        (await call("DELETE", `/commands/${list[0].id}`, undefined, { cookie }))
+        (await call("DELETE", `/commands/${diskId}`, undefined, { cookie }))
             .status,
     ).toBe(404);
-    expect((await call("DELETE", `/commands/${list[0].id}`)).status).toBe(204);
+    expect((await call("DELETE", `/commands/${diskId}`)).status).toBe(204);
     expect(
         ((await (await call("GET", "/commands")).json()) as SavedCommand[]).map(
             (c) => c.name,
