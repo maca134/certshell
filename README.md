@@ -15,8 +15,9 @@ A browser SSH terminal for your servers. You log in with your identity provider 
 - Hosts trust the CA through a one-line enroll script. Existing `authorized_keys` keep working, so enrolling can't lock you out.
 - Admins map **IdP group → host → login** in the web UI. No edits on the host after enrollment.
 - Every login, cert and session goes to an audit log (in the app and on stdout). The host's sshd logs each cert's ID and serial too.
+- **Tasks**: run one command (e.g. `apt-get upgrade -y`) on many hosts at once, with each host's exit code and output. Or open up to 8 terminals and type into all of them.
 
-Scope: browser terminal only. No native `ssh`/`scp`/`sftp` and no port forwarding.
+Scope: browser terminal and tasks. No native `ssh`/`scp`/`sftp` and no port forwarding.
 
 ## Quick start (Pocket ID)
 

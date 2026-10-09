@@ -1,7 +1,7 @@
 # SPEC — CertShell (short-lived certs)
 
 Status: build steps 1–6 (§9) implemented; step 7 (release) in progress: workflow, examples, README, MIT license done, no release tag yet.
-Scope: **browser SSH terminal only**. No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
+Scope: **browser SSH terminal and tasks** (one command on many hosts, §3.4). No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
 
 ---
 
@@ -20,7 +20,7 @@ Browser-based SSH terminal with **no stored SSH user keys anywhere**. Released p
 
 - Built-in auth: no app-side passwords, passkeys, invites or account recovery. That is the IdP's job.
 - RBAC beyond "group may log in as login on host" + an admin group.
-- Native SSH clients (`ssh`, `scp`, `sftp`, VS Code Remote). Web terminal only.
+- Native SSH clients (`ssh`, `scp`, `sftp`, VS Code Remote). Web terminal and tasks only.
 - Protocols other than SSH.
 - Replacing break-glass access (stays offline, independent of this system).
 
@@ -90,6 +90,18 @@ ssh.exited.finally(() => rm(dir, { recursive: true }));
 - `-O clear -O permit-pty`: no port/agent/X11 forwarding, no `~/.ssh/rc`. A cert can open a terminal and nothing else, so a minted cert can't pivot through a target.
 - Logins are validated (`^[a-z_][a-z0-9_-]*$`) when added to the access map; a comma would inject extra principals into `ssh-keygen -n`.
 - Terminals: killed after 30 min without input, and always after 8h. Cert TTL only gates connection setup.
+- Broadcast (UI only): up to 8 terminals in one window, typing goes to all of them or the focused one. Each pane is an ordinary terminal session with its own cert.
+
+### 3.4 Tasks
+
+Run one command on many hosts at once, e.g. `apt-get upgrade -y`, without a terminal.
+
+- Any user, on hosts + logins the access map already gives them (same check as a terminal, §3.2). One run: up to 50 targets, a command up to 4 KB.
+- Per target: the §3.2 flow, but the cert is `-O clear` only (**no `permit-pty`**): it runs the one command, no shell, no forwarding. `ssh` gets the command as its last argv element, stdin `/dev/null`, so prompts read EOF instead of hanging.
+- Targets run in parallel. Killed after 30 min. Status per target: running → ok (exit 0) / failed (non-zero, ssh error, timeout). stdout + stderr merged; the last 256 KB is kept.
+- A run counts once against the per-user sign rate limit.
+- Runs and output stored in SQLite; users see their own runs only. On restart, still-running targets are marked failed.
+- Saved commands: name + command, per user. Picked when starting a run; targets are always chosen per run.
 
 ### 3.3 Accepted risk
 
@@ -207,7 +219,7 @@ echo "enrolled: $(hostname)"
 
 ### Audit
 
-- The app is the CA, so **the audit log is the only record of issuance**. Log logins, every sign (`sub`, email, principal, host, TTL, serial, session) and session start/end.
+- The app is the CA, so **the audit log is the only record of issuance**. Log logins, every sign (`sub`, email, principal, host, TTL, serial, session) and session start/end, task runs (command + targets) and each target's result.
 - Write audit events to stdout as well as SQLite. An attacker in the container can rewrite the DB, not log lines already shipped.
 - Targets' sshd logs the cert key ID (`email/sub/sessionId`) and serial on every login — an independent record the app can't touch.
 
@@ -379,4 +391,5 @@ Don't re-propose these without new information.
 
 - Admin "kill sessions" for a user: IdP revocation blocks new connections within 1h, but open terminals live up to 8h.
 - Audit log retention.
+- Task run retention (runs + output are kept forever).
 - CA rotation (§8).
