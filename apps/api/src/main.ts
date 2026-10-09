@@ -33,6 +33,7 @@ const app = createApp({
         maxMs: 8 * 60 * 60_000,
         taskMs: 30 * 60_000,
         maxSessions: 64,
+        maxSessionsTotal: 200,
     },
     latestVersion,
 });

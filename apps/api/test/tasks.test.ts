@@ -316,6 +316,29 @@ test("run: refused past maxSessions until running targets end", async () => {
     await finished(await runTask(quick));
 });
 
+test("run: refused past maxSessionsTotal, across users", async () => {
+    await setup({ maxSessionsTotal: 2 });
+    const slow = await startRun("sleep 0.3", [
+        ...h1root,
+        { host: "h2", login: "root" },
+    ]);
+    const cookie = otherUser();
+    const res = await call(
+        "POST",
+        "",
+        { name: "t", script: "true", targets: h1root },
+        { cookie },
+    );
+    const { id } = (await res.json()) as { id: number };
+    expect(
+        (await call("POST", `/${id}/run`, undefined, { cookie })).status,
+    ).toBe(429);
+    await finished(slow);
+    expect(
+        (await call("POST", `/${id}/run`, undefined, { cookie })).status,
+    ).toBe(201);
+});
+
 test("targets still running at startup are marked failed", async () => {
     await setup();
     ctx.db.run(
@@ -334,7 +357,7 @@ test("targets still running at startup are marked failed", async () => {
         db: ctx.db,
         terminal: {} as TerminalDeps,
         signLimit: () => true,
-        sshLimit: concurrencyLimit(1),
+        sshLimit: concurrencyLimit(1, 1),
     });
     const run = (await (await call("GET", "/runs/r1")).json()) as RunDetail;
     expect(run.hosts[0]).toMatchObject({

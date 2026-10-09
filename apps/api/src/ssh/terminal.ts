@@ -16,6 +16,8 @@ export type TerminalDeps = {
     taskMs: number;
     /** Per user: terminals + running task targets. */
     maxSessions: number;
+    /** All users together. */
+    maxSessionsTotal: number;
     /** `remote`: a task's command; absent for a terminal. */
     command?: (args: {
         key: string;

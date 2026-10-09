@@ -34,6 +34,7 @@ beforeEach(() => {
             maxMs: 0,
             taskMs: 0,
             maxSessions: 0,
+            maxSessionsTotal: 0,
         },
     });
     app.get("/api/admin/ping", (c) => c.text("pong"));
@@ -244,6 +245,7 @@ test("IdP down → 503, then retries discovery", async () => {
             maxMs: 0,
             taskMs: 0,
             maxSessions: 0,
+            maxSessionsTotal: 0,
         },
     });
     expect((await get("/auth/login")).status).toBe(503);

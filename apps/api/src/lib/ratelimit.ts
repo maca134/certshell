@@ -34,19 +34,23 @@ export function clientIp(
     return peer;
 }
 
-// Concurrent ssh processes per key: each holds a pid for up to 8h, and the container has pids_limit 256.
-export function concurrencyLimit(max: number) {
+// Concurrent ssh processes, per key and in total: each holds a pid for up to 8h, and the container has pids_limit 256.
+export function concurrencyLimit(perKey: number, total: number) {
     const active = new Map<string, number>();
+    let sum = 0;
     return {
         acquire(key: string, n = 1) {
             const count = (active.get(key) ?? 0) + n;
-            if (count > max) return false;
+            if (count > perKey || sum + n > total) return false;
             active.set(key, count);
+            sum += n;
             return true;
         },
         release(key: string) {
-            const count = (active.get(key) ?? 1) - 1;
-            if (count > 0) active.set(key, count);
+            const count = active.get(key);
+            if (!count) return;
+            sum--;
+            if (count > 1) active.set(key, count - 1);
             else active.delete(key);
         },
     };

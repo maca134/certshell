@@ -55,7 +55,10 @@ export function createApp({
     const publicLimit = rateLimiter(60, 60_000);
     const enrollLimit = rateLimiter(10, 60_000);
     const signLimit = rateLimiter(10, 60_000);
-    const sshLimit = concurrencyLimit(terminal.maxSessions);
+    const sshLimit = concurrencyLimit(
+        terminal.maxSessions,
+        terminal.maxSessionsTotal,
+    );
 
     app.use("*", async (c, next) => {
         await next();
