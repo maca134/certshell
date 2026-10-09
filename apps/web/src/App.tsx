@@ -216,7 +216,7 @@ function Hosts({ hosts }: { hosts?: HostSummary[] }) {
                             key={host.id}
                             className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60"
                         >
-                            <HostIcon icon={Server} />
+                            <HostIcon />
                             <div className="flex min-w-0 flex-1 flex-col">
                                 <span
                                     className="truncate font-medium"

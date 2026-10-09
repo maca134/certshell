@@ -607,7 +607,7 @@ function HostRow({
                         aria-expanded={open}
                         className="flex items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                        <HostIcon icon={Server} />
+                        <HostIcon />
                         <div>
                             <div className="font-medium">{host.name}</div>
                             <div className="font-mono text-xs break-all text-muted-foreground">

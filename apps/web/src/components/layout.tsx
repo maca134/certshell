@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import { type LucideIcon, Server } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function Page({
@@ -71,10 +71,10 @@ export function Avatar({ name }: { name: string }) {
     );
 }
 
-export function HostIcon({ icon: Icon }: { icon: LucideIcon }) {
+export function HostIcon() {
     return (
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-linear-to-b from-white/8 to-white/2">
-            <Icon className="size-4 text-muted-foreground" />
+            <Server className="size-4 text-muted-foreground" />
         </div>
     );
 }
