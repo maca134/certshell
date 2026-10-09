@@ -14,7 +14,6 @@ import {
     Pencil,
     Play,
     Plus,
-    Terminal,
     Trash2,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
@@ -194,8 +193,9 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
     const [, navigate] = useLocation();
     const [name, setName] = useState("");
     const [script, setScript] = useState("");
-    // Entries are `hostId:login`.
-    const [selected, setSelected] = useState<string[]>([]);
+    const [checked, setChecked] = useState<string[]>([]);
+    // hostId → login picked in that host's dropdown; unset means its first login.
+    const [picked, setPicked] = useState<Record<string, string>>({});
     const [error, setError] = useState<string>();
     const [busy, setBusy] = useState(false);
 
@@ -206,18 +206,27 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
             if (!task) return setError("Task not found");
             setName(task.name);
             setScript(task.script);
-            setSelected(task.targets.map((t) => `${t.host}:${t.login}`));
+            setChecked(task.targets.map((t) => t.host));
+            setPicked(
+                Object.fromEntries(task.targets.map((t) => [t.host, t.login])),
+            );
         });
     }, [id]);
 
+    const loginOn = (host: HostSummary) =>
+        host.logins.includes(picked[host.id] ?? "")
+            ? (picked[host.id] as string)
+            : host.logins[0];
     // Saved targets the user can no longer reach drop out on save.
-    const reachable = selected.filter((key) => {
-        const [hostId, login = ""] = key.split(":");
-        return hosts?.some((h) => h.id === hostId && h.logins.includes(login));
+    const reachable = (hosts ?? []).flatMap((host) => {
+        const login = loginOn(host);
+        return checked.includes(host.id) && login
+            ? [{ host: host.id, login }]
+            : [];
     });
-    const toggle = (key: string) =>
-        setSelected((s) =>
-            s.includes(key) ? s.filter((k) => k !== key) : [...s, key],
+    const check = (hostId: string, on: boolean) =>
+        setChecked((c) =>
+            on ? [...new Set([...c, hostId])] : c.filter((h) => h !== hostId),
         );
 
     const save = async (e: FormEvent) => {
@@ -227,10 +236,7 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
         const body: TaskInput = {
             name: name.trim(),
             script,
-            targets: reachable.map((key) => {
-                const [host = "", login = ""] = key.split(":");
-                return { host, login };
-            }),
+            targets: reachable,
         };
         try {
             if (id === undefined) await api("/api/tasks", "POST", body);
@@ -300,38 +306,40 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
                             {hosts?.map((host) => (
                                 <li
                                     key={host.id}
-                                    className="flex flex-wrap items-center gap-3 px-3 py-2"
+                                    className="flex items-center gap-3 px-3 py-2"
                                 >
-                                    <span
-                                        className="min-w-0 flex-1 truncate text-sm"
-                                        title={host.name}
+                                    <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            className="size-4 shrink-0 accent-primary"
+                                            checked={checked.includes(host.id)}
+                                            onChange={(e) =>
+                                                check(host.id, e.target.checked)
+                                            }
+                                        />
+                                        <span
+                                            className="truncate"
+                                            title={host.name}
+                                        >
+                                            {host.name}
+                                        </span>
+                                    </label>
+                                    <select
+                                        aria-label={`Login on ${host.name}`}
+                                        value={loginOn(host)}
+                                        onChange={(e) => {
+                                            setPicked((p) => ({
+                                                ...p,
+                                                [host.id]: e.target.value,
+                                            }));
+                                            check(host.id, true);
+                                        }}
+                                        className="h-8 w-32 shrink-0 rounded-lg border border-input bg-transparent px-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
                                     >
-                                        {host.name}
-                                    </span>
-                                    <div className="flex flex-wrap justify-end gap-2">
-                                        {host.logins.map((login) => {
-                                            const key = `${host.id}:${login}`;
-                                            const on = selected.includes(key);
-                                            return (
-                                                <Button
-                                                    key={login}
-                                                    type="button"
-                                                    variant={
-                                                        on
-                                                            ? "default"
-                                                            : "outline"
-                                                    }
-                                                    size="sm"
-                                                    className="font-mono"
-                                                    aria-pressed={on}
-                                                    onClick={() => toggle(key)}
-                                                >
-                                                    <Terminal />
-                                                    {login}
-                                                </Button>
-                                            );
-                                        })}
-                                    </div>
+                                        {host.logins.map((login) => (
+                                            <option key={login}>{login}</option>
+                                        ))}
+                                    </select>
                                 </li>
                             ))}
                         </ul>

@@ -94,11 +94,11 @@ test("new task: name, script and hosts picked on the tasks page", async ({
     await page.getByLabel("Script").fill("df -h");
     const save = page.getByRole("button", { name: "Save" });
     await expect(save).toBeDisabled();
-    await page
-        .getByRole("listitem")
-        .filter({ hasText: "web2" })
-        .getByRole("button", { name: "deploy" })
-        .click();
+    await page.getByRole("checkbox", { name: "web1" }).check();
+    await page.getByRole("checkbox", { name: "web1" }).uncheck();
+    // Picking a login ticks the host.
+    await page.getByLabel("Login on web2").selectOption("deploy");
+    await expect(page.getByRole("checkbox", { name: "web2" })).toBeChecked();
     await expect(page.getByText("1 selected")).toBeVisible();
     await save.click();
 
@@ -146,12 +146,9 @@ test("edit a task: prefilled, change hosts, save; delete", async ({ page }) => {
     await expect(page.getByLabel("Name")).toHaveValue("Upgrade");
     await expect(page.getByLabel("Script")).toHaveValue("apt-get upgrade -y");
     await expect(page.getByText("2 selected")).toBeVisible();
+    await expect(page.getByLabel("Login on web2")).toHaveValue("root");
 
-    await page
-        .getByRole("listitem")
-        .filter({ hasText: "web1" })
-        .getByRole("button", { name: "root" })
-        .click();
+    await page.getByRole("checkbox", { name: "web1" }).uncheck();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page).toHaveURL("/tasks");
 
