@@ -215,6 +215,7 @@ echo "enrolled: $(hostname)"
 - Cookies `Secure`/`HttpOnly`/`SameSite=Lax` (`Strict` drops the cookie on the IdP's redirect back). WS `Origin` check against `APP_URL`.
 - Headers: CSP `default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'` (no inline scripts; inline styles because xterm.js injects `<style>`), HSTS, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
 - Rate limits: per IP on every unauthenticated route, per user on sign.
+- Concurrent ssh processes (terminals + running task targets): 64 per user, 200 in total, under the container's `pids_limit` 256. Past either, a terminal closes with 1013 and a run gets 429.
 - Enroll tokens: single-use, 10 min, stored hashed.
 - Minimal dependencies, lockfile committed.
 
