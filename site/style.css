@@ -35,6 +35,7 @@ pre {
     border-radius: 8px;
     padding: 14px 16px;
     overflow-x: auto;
+    tab-size: 4;
 }
 :not(pre) > code {
     overflow-wrap: anywhere;
@@ -214,4 +215,66 @@ footer {
     .docs aside {
         display: none;
     }
+}
+
+.lead {
+    color: var(--muted);
+}
+.form {
+    display: grid;
+    gap: 16px;
+    max-width: 640px;
+}
+.form fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+}
+.form legend {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.form label:not(fieldset label, .check, [hidden]) {
+    display: grid;
+    gap: 6px;
+    font-weight: 600;
+}
+.form input:not([type]) {
+    font: inherit;
+    font-weight: 400;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+.file {
+    margin-bottom: 20px;
+}
+.file-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+}
+.file-head span {
+    margin-right: auto;
+}
+.file-head button {
+    font: inherit;
+    font-size: 0.85rem;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+.file pre {
+    margin: 0;
 }

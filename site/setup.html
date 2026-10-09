@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>CertShell Setup</title>
+        <link rel="icon" href="favicon.svg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <header>
+            <div class="wrap">
+                <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28" />CertShell</a>
+                <nav>
+                    <a href="setup.html">Setup</a>
+                    <a href="docs.html">Docs</a>
+                    <a href="https://github.com/maca134/certshell">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="wrap">
+            <section>
+                <h1>Setup generator</h1>
+                <p class="lead">Pick your options. Everything is generated in your browser; nothing is sent anywhere.</p>
+
+                <form id="form" class="form card">
+                    <fieldset>
+                        <legend>Reverse proxy</legend>
+                        <label><input type="radio" name="proxy" value="caddy" checked /> Caddy</label>
+                        <label><input type="radio" name="proxy" value="traefik" /> Traefik</label>
+                        <label><input type="radio" name="proxy" value="none" /> I have my own</label>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Identity provider</legend>
+                        <label><input type="radio" name="idp" value="pocket-id" checked /> Pocket ID (included)</label>
+                        <label><input type="radio" name="idp" value="external" /> Existing OIDC provider</label>
+                    </fieldset>
+                    <label>CertShell domain <input name="sshDomain" placeholder="ssh.example.com" /></label>
+                    <label data-show="pocket-id">Pocket ID domain <input name="idDomain" placeholder="id.example.com" /></label>
+                    <label data-show="external">OIDC issuer URL <input name="issuer" placeholder="https://auth.example.com" /></label>
+                    <label data-show="none"><span>Proxy IP as seen by the container (<code>TRUSTED_PROXIES</code>)</span> <input name="trustedProxies" placeholder="172.31.0.1" /></label>
+                    <label class="check"><input type="checkbox" name="caPassword" checked /> Encrypt the CA key at rest (recommended)</label>
+                </form>
+            </section>
+
+            <section>
+                <h2>Install</h2>
+                <div id="out"></div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="wrap">CertShell · MIT License · <a href="https://github.com/maca134/certshell">GitHub</a></div>
+        </footer>
+
+        <script type="module">
+            import { generate } from "./generate.js";
+
+            const form = document.getElementById("form");
+            const out = document.getElementById("out");
+            const key = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+
+            function block(name, text) {
+                const div = document.createElement("div");
+                div.className = "file";
+                div.innerHTML = `<div class="file-head"><span></span><button type="button">Copy</button>${name === "steps" ? "" : `<button type="button">Download</button>`}</div><pre></pre>`;
+                div.querySelector("span").textContent = name === "steps" ? "Shell" : name;
+                div.querySelector("pre").textContent = text;
+                const [copy, dl] = div.querySelectorAll("button");
+                copy.onclick = () => navigator.clipboard.writeText(text).then(() => (copy.textContent = "Copied"));
+                if (dl)
+                    dl.onclick = () => {
+                        const a = document.createElement("a");
+                        a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+                        a.download = name;
+                        a.click();
+                    };
+                return div;
+            }
+
+            function render() {
+                const f = new FormData(form);
+                const val = (n) => f.get(n)?.trim() || form.elements[n].placeholder;
+                const opts = {
+                    proxy: f.get("proxy"),
+                    idp: f.get("idp"),
+                    sshDomain: val("sshDomain"),
+                    idDomain: val("idDomain"),
+                    issuer: val("issuer"),
+                    trustedProxies: val("trustedProxies"),
+                    caPassword: f.has("caPassword"),
+                    encryptionKey: key,
+                };
+                for (const el of form.querySelectorAll("[data-show]")) el.hidden = el.dataset.show !== opts.idp && el.dataset.show !== opts.proxy;
+                const { files, steps } = generate(opts);
+                out.replaceChildren(block("steps", steps), ...Object.entries(files).map(([n, t]) => block(n, t)));
+            }
+
+            form.addEventListener("input", render);
+            render();
+        </script>
+    </body>
+</html>

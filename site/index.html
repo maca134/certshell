@@ -15,6 +15,7 @@
             <div class="wrap">
                 <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28" />CertShell</a>
                 <nav>
+                    <a href="setup.html">Setup</a>
                     <a href="docs.html">Docs</a>
                     <a href="https://github.com/maca134/certshell">GitHub</a>
                 </nav>
@@ -26,7 +27,7 @@
                 <img src="favicon.svg" alt="" width="88" height="88" />
                 <h1>SSH from your browser.<br />No keys to manage.</h1>
                 <p>Log in with your identity provider. CertShell signs a 15-minute SSH certificate for each session, valid for one host and one login.</p>
-                <a class="btn primary" href="docs.html#quick-start-pocket-id">Get started</a>
+                <a class="btn primary" href="setup.html">Get started</a>
                 <a class="btn" href="https://github.com/maca134/certshell">View on GitHub</a>
             </div>
 
@@ -75,7 +76,7 @@ root@web1:~#</pre>
 <pre>cp -r examples/caddy certshell && cd certshell
 cp .env.example .env     # set SSH_DOMAIN, ID_DOMAIN, OIDC_* ...
 docker compose up -d</pre>
-                <p>Full walkthrough, configuration and security notes in the <a href="docs.html">docs</a>.</p>
+                <p>Generate your own config with the <a href="setup.html">setup generator</a>. Full walkthrough in the <a href="docs.html">docs</a>.</p>
             </section>
         </main>
 
