@@ -220,7 +220,9 @@ test("sessions: lists open terminals, ends one at a time", async ({
     ]);
 });
 
-test("users: End sessions asks, then DELETEs by sub", async ({ page }) => {
+test("users: Sign out & end sessions asks, then DELETEs by sub", async ({
+    page,
+}) => {
     await page.route("/api/me", (r) =>
         r.fulfill({
             json: { sub: "s", groups: [], admin: true, version: "1" },
@@ -245,11 +247,11 @@ test("users: End sessions asks, then DELETEs by sub", async ({ page }) => {
         asked = d.message();
         d.dismiss();
     });
-    await page.getByRole("button", { name: "End sessions" }).click();
-    await expect.poll(() => asked).toContain("signs them out");
+    await page.getByRole("button", { name: "Sign out & end sessions" }).click();
+    await expect.poll(() => asked).toContain("closes their terminals");
     expect(deletes).toEqual([]);
     page.once("dialog", (d) => d.accept());
-    await page.getByRole("button", { name: "End sessions" }).click();
+    await page.getByRole("button", { name: "Sign out & end sessions" }).click();
     await expect
         .poll(() => deletes)
         .toEqual(["DELETE /api/admin/sessions?sub=u%201"]);

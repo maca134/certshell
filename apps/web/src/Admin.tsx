@@ -141,7 +141,7 @@ function Users({ users }: { users: SeenUser[] }) {
     const endAll = async (u: SeenUser) => {
         if (
             !confirm(
-                `End all sessions for ${u.email ?? u.sub}? This closes their terminals, stops their running tasks and signs them out.`,
+                `Sign out ${u.email ?? u.sub}? This also closes their terminals and stops their running tasks.`,
             )
         )
             return;
@@ -215,7 +215,7 @@ function Users({ users }: { users: SeenUser[] }) {
                                         size="sm"
                                         onClick={() => endAll(u)}
                                     >
-                                        End sessions
+                                        Sign out &amp; end sessions
                                     </Button>
                                 </TableCell>
                             </TableRow>
