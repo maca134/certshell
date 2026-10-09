@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generate } from "../site/generate.js";
+import { highlight } from "../site/highlight.js";
 
 const root = `${import.meta.dir}/..`;
 const read = (p: string) => Bun.file(`${root}/${p}`).text();
@@ -46,5 +47,25 @@ describe("site config generator", () => {
         const { files, steps } = generate({ caPassword: false });
         expect(files["compose.yaml"]).not.toContain("secret");
         expect(steps).not.toContain("ca_password");
+    });
+});
+
+describe("site highlighter", () => {
+    test("tokenizes yaml, env and shell", () => {
+        expect(highlight(`  image: "a<b" # x`, "yaml")).toBe(
+            `  <span class="tok-k">image</span>: <span class="tok-s">"a&lt;b"</span> <span class="tok-c"># x</span>`,
+        );
+        expect(highlight("      - ./Caddyfile:/etc/caddy", "yaml")).toBe(
+            "      - ./Caddyfile:/etc/caddy",
+        );
+        expect(highlight(`SSH_DOMAIN=\${X}`, "env")).toBe(
+            `<span class="tok-k">SSH_DOMAIN</span>=<span class="tok-v">\${X}</span>`,
+        );
+        expect(highlight("docker compose up", "sh")).toBe(
+            `<span class="tok-cmd">docker</span> compose up`,
+        );
+        expect(highlight("docker compose up", "yaml")).toBe(
+            "docker compose up",
+        );
     });
 });

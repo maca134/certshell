@@ -21,35 +21,78 @@
             </div>
         </header>
 
-        <main class="wrap">
-            <section>
-                <h1>Setup generator</h1>
-                <p class="lead">Pick your options. Everything is generated in your browser; nothing is sent anywhere.</p>
+        <main class="wrap setup">
+            <div class="setup-head">
+                <h1 class="setup-title">Setup generator</h1>
+                <p class="lead">Pick your stack and get a ready-to-run <code>compose.yaml</code>. Generated in your browser, nothing is sent anywhere.</p>
+            </div>
 
-                <form id="form" class="form card">
-                    <fieldset>
-                        <legend>Reverse proxy</legend>
-                        <label><input type="radio" name="proxy" value="caddy" checked /> Caddy</label>
-                        <label><input type="radio" name="proxy" value="traefik" /> Traefik</label>
-                        <label><input type="radio" name="proxy" value="none" /> I have my own</label>
-                    </fieldset>
-                    <fieldset>
-                        <legend>Identity provider</legend>
-                        <label><input type="radio" name="idp" value="pocket-id" checked /> Pocket ID (included)</label>
-                        <label><input type="radio" name="idp" value="external" /> Existing OIDC provider</label>
-                    </fieldset>
-                    <label>CertShell domain <input name="sshDomain" placeholder="ssh.example.com" /></label>
-                    <label data-show="pocket-id">Pocket ID domain <input name="idDomain" placeholder="id.example.com" /></label>
-                    <label data-show="external">OIDC issuer URL <input name="issuer" placeholder="https://auth.example.com" /></label>
-                    <label data-show="none"><span>Proxy IP as seen by the container (<code>TRUSTED_PROXIES</code>)</span> <input name="trustedProxies" placeholder="172.31.0.1" /></label>
-                    <label class="check"><input type="checkbox" name="caPassword" checked /> Encrypt the CA key at rest (recommended)</label>
+            <div class="setup-grid">
+                <form id="form" class="panel">
+                    <div class="field">
+                        <span class="field-label">Reverse proxy</span>
+                        <div class="seg">
+                            <label><input type="radio" name="proxy" value="caddy" checked /><span>Caddy</span></label>
+                            <label><input type="radio" name="proxy" value="traefik" /><span>Traefik</span></label>
+                            <label><input type="radio" name="proxy" value="none" /><span>My own</span></label>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <span class="field-label">Identity provider</span>
+                        <div class="seg">
+                            <label><input type="radio" name="idp" value="pocket-id" checked /><span>Pocket ID</span></label>
+                            <label><input type="radio" name="idp" value="external" /><span>Existing OIDC</span></label>
+                        </div>
+                    </div>
+
+                    <label class="field">
+                        <span class="field-label">CertShell domain</span>
+                        <input name="sshDomain" placeholder="ssh.example.com" autocomplete="off" spellcheck="false" />
+                    </label>
+
+                    <label class="field" data-show="pocket-id">
+                        <span class="field-label">Pocket ID domain</span>
+                        <input name="idDomain" placeholder="id.example.com" autocomplete="off" spellcheck="false" />
+                    </label>
+
+                    <label class="field" data-show="external">
+                        <span class="field-label">OIDC issuer URL</span>
+                        <input name="issuer" placeholder="https://auth.example.com" autocomplete="off" spellcheck="false" />
+                        <span class="hint">Must send a <code>groups</code> claim users can't change.</span>
+                    </label>
+
+                    <label class="field" data-show="none">
+                        <span class="field-label">Trusted proxy IP</span>
+                        <input name="trustedProxies" placeholder="172.31.0.1" autocomplete="off" spellcheck="false" />
+                        <span class="hint">Source IP CertShell sees from your proxy. Default is the Docker gateway, for a proxy on the host.</span>
+                    </label>
+
+                    <label class="switch">
+                        <input type="checkbox" name="caPassword" checked />
+                        <span><strong>Encrypt CA key at rest</strong><span class="hint">Recommended. Adds a <code>ca_password</code> secret.</span></span>
+                    </label>
                 </form>
-            </section>
 
-            <section>
-                <h2>Install</h2>
-                <div id="out"></div>
-            </section>
+                <div class="output">
+                    <div class="window">
+                        <div class="window-bar">
+                            <span class="window-title">Install</span>
+                            <button type="button" class="icon-btn" data-copy="steps" aria-label="Copy install steps"></button>
+                        </div>
+                        <pre id="steps"></pre>
+                    </div>
+
+                    <div class="window">
+                        <div class="window-bar">
+                            <div class="tabs" id="tabs" role="tablist"></div>
+                            <button type="button" class="icon-btn" data-copy="file" aria-label="Copy file"></button>
+                            <button type="button" class="icon-btn" id="download" aria-label="Download file"></button>
+                        </div>
+                        <pre id="file"></pre>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <footer>
@@ -58,27 +101,42 @@
 
         <script type="module">
             import { generate } from "./generate.js";
+            import { highlight } from "./highlight.js";
+
+            const ICON = {
+                copy: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+                check: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+                download: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`,
+            };
+            const LANG = { "compose.yaml": "yaml", "routes.yml": "yaml", ".env": "env" };
 
             const form = document.getElementById("form");
-            const out = document.getElementById("out");
+            const tabs = document.getElementById("tabs");
             const key = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+            let current = { files: {}, steps: "" };
+            let active = "compose.yaml";
 
-            function block(name, text) {
-                const div = document.createElement("div");
-                div.className = "file";
-                div.innerHTML = `<div class="file-head"><span></span><button type="button">Copy</button>${name === "steps" ? "" : `<button type="button">Download</button>`}</div><pre></pre>`;
-                div.querySelector("span").textContent = name === "steps" ? "Shell" : name;
-                div.querySelector("pre").textContent = text;
-                const [copy, dl] = div.querySelectorAll("button");
-                copy.onclick = () => navigator.clipboard.writeText(text).then(() => (copy.textContent = "Copied"));
-                if (dl)
-                    dl.onclick = () => {
-                        const a = document.createElement("a");
-                        a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-                        a.download = name;
-                        a.click();
-                    };
-                return div;
+            for (const b of document.querySelectorAll("[data-copy]")) {
+                b.innerHTML = `${ICON.copy}<span>Copy</span>`;
+                b.onclick = async () => {
+                    await navigator.clipboard.writeText(b.dataset.copy === "steps" ? current.steps : current.files[active]);
+                    b.innerHTML = `${ICON.check}<span>Copied</span>`;
+                    setTimeout(() => (b.innerHTML = `${ICON.copy}<span>Copy</span>`), 1500);
+                };
+            }
+            const dl = document.getElementById("download");
+            dl.innerHTML = `${ICON.download}<span>Download</span>`;
+            dl.onclick = () => {
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(new Blob([current.files[active]], { type: "text/plain" }));
+                a.download = active;
+                a.click();
+            };
+
+            function show(name) {
+                active = name;
+                for (const t of tabs.children) t.setAttribute("aria-selected", t.textContent === name);
+                document.getElementById("file").innerHTML = highlight(current.files[name], LANG[name]);
             }
 
             function render() {
@@ -95,8 +153,19 @@
                     encryptionKey: key,
                 };
                 for (const el of form.querySelectorAll("[data-show]")) el.hidden = el.dataset.show !== opts.idp && el.dataset.show !== opts.proxy;
-                const { files, steps } = generate(opts);
-                out.replaceChildren(block("steps", steps), ...Object.entries(files).map(([n, t]) => block(n, t)));
+                current = generate(opts);
+                document.getElementById("steps").innerHTML = highlight(current.steps, "sh");
+                tabs.replaceChildren(
+                    ...Object.keys(current.files).map((name) => {
+                        const t = document.createElement("button");
+                        t.type = "button";
+                        t.role = "tab";
+                        t.textContent = name;
+                        t.onclick = () => show(name);
+                        return t;
+                    }),
+                );
+                show(active in current.files ? active : "compose.yaml");
             }
 
             form.addEventListener("input", render);
