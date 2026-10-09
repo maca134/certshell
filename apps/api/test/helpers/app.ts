@@ -21,6 +21,8 @@ export async function startApp(
     const root = await mkdtemp(`${tmpdir()}/app-`);
     if (!terminal.caKey) await ensureCa(`${root}/ca`, "test-ca", "pw");
     const db = openDb(":memory:");
+    const live: TerminalDeps["live"] = new Map();
+    const tasks: TerminalDeps["tasks"] = new Map();
     const app = createApp({
         config: loadConfig({
             APP_URL,
@@ -40,7 +42,8 @@ export async function startApp(
             taskMs: 60_000,
             maxSessions: 64,
             maxSessionsTotal: 200,
-            live: new Map(),
+            live,
+            tasks,
             ...terminal,
         },
         latestVersion,
@@ -128,6 +131,8 @@ export async function startApp(
         db,
         server,
         cookie,
+        live,
+        tasks,
         addHost,
         connect,
         stop: async () => {

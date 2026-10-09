@@ -105,7 +105,7 @@ export function createApp({
     app.get("/healthz", (c) => c.body(null, 200));
     const caPubPath = `${terminal.caKey}.pub`;
     app.route("/", enrollRoute({ config, db, caPubPath }));
-    app.route("/api/admin", adminRoutes({ config, db, live: terminal.live }));
+    app.route("/api/admin", adminRoutes({ config, db, terminal }));
     app.route("/", authRoutes({ config, db, getOidc }));
     app.route(
         "/api/tasks",

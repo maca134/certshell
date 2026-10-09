@@ -26,6 +26,7 @@ test("/healthz returns 200 with no body", async () => {
             maxSessions: 0,
             maxSessionsTotal: 0,
             live: new Map(),
+            tasks: new Map(),
         },
     });
     const res = await app.request("/healthz");

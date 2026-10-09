@@ -22,6 +22,8 @@ export type TerminalDeps = {
     maxSessionsTotal: number;
     /** Open terminals by session ID, for admins to list and end. */
     live: Map<string, LiveTerminal>;
+    /** Running task targets by `runId/hostId/login`. */
+    tasks: Map<string, { sub: string; kill: () => void }>;
     /** `remote`: a task's command; absent for a terminal. */
     command?: (args: {
         key: string;

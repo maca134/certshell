@@ -54,10 +54,18 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
                     { stdin: "ignore", stdout: "pipe", stderr: "pipe" },
                 );
                 let timedOut = false;
+                let ended = false;
                 const timer = setTimeout(() => {
                     timedOut = true;
                     proc.kill();
                 }, terminal.taskMs);
+                terminal.tasks.set(key, {
+                    sub: user.sub,
+                    kill: () => {
+                        ended = true;
+                        proc.kill();
+                    },
+                });
                 const pump = async (stream: ReadableStream<Uint8Array>) => {
                     const decoder = new TextDecoder();
                     for await (const chunk of stream)
@@ -66,7 +74,9 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
                 await Promise.all([pump(proc.stdout), pump(proc.stderr)]);
                 const exit = await proc.exited;
                 clearTimeout(timer);
+                terminal.tasks.delete(key);
                 if (timedOut) append("\n[timed out]");
+                else if (ended) append("\n[ended by admin]");
                 else code = exit;
             } finally {
                 await rm(s.dir, { recursive: true, force: true });

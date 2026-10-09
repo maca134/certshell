@@ -256,22 +256,35 @@ test("terminal: oversized frame closes the socket", async () => {
     expect(code).toBe(1006);
 });
 
-test("admin: lists open terminals, ends one, then all for a user", async () => {
-    ctx = await startApp(fakeSsh, ["certshell-admins"]);
+test("admin: lists open terminals, ends one, then all of a user's", async () => {
+    ctx = await startApp(
+        {
+            command: (args) =>
+                args.remote === undefined
+                    ? fakeSsh.command(args)
+                    : ["sh", "-c", args.remote],
+        },
+        ["certshell-admins"],
+    );
     ctx.addHost("h1", "h1.test", "ssh-ed25519 AAAA", {
         root: "certshell-admins",
     });
-    const call = (method: string, path: string) =>
-        ctx.app.request(`${APP_URL}/api/admin${path}`, {
+    const call = (method: string, path: string, body?: unknown) =>
+        ctx.app.request(`${APP_URL}/api${path}`, {
             method,
-            headers: { cookie: ctx.cookie, origin: APP_URL },
+            headers: {
+                cookie: ctx.cookie,
+                origin: APP_URL,
+                "content-type": "application/json",
+            },
+            body: body === undefined ? undefined : JSON.stringify(body),
         });
     const a = ctx.connect("host=h1&login=root");
     const b = ctx.connect("host=h1&login=root");
     const c = ctx.connect("host=h1&login=root");
     await Promise.all([a, b, c].map((t) => t.waitFor("login=root")));
 
-    const list = (await (await call("GET", "/sessions")).json()) as {
+    const list = (await (await call("GET", "/admin/sessions")).json()) as {
         id: string;
     }[];
     expect(list).toHaveLength(3);
@@ -283,23 +296,52 @@ test("admin: lists open terminals, ends one, then all for a user", async () => {
         login: "root",
     });
 
-    expect((await call("DELETE", "/sessions/nope")).status).toBe(404);
-    expect((await call("DELETE", "/sessions")).status).toBe(400);
-    expect((await call("DELETE", `/sessions/${list[0]?.id}`)).status).toBe(204);
+    expect((await call("DELETE", "/admin/sessions/nope")).status).toBe(404);
+    expect((await call("DELETE", "/admin/sessions")).status).toBe(400);
+    expect(
+        (await call("DELETE", `/admin/sessions/${list[0]?.id}`)).status,
+    ).toBe(204);
     const ended = await Promise.race([a.closed, b.closed, c.closed]);
     expect([ended.code, ended.reason]).toEqual([1000, "ended by admin"]);
-    expect(await (await call("GET", "/sessions")).json()).toHaveLength(2);
+    expect(await (await call("GET", "/admin/sessions")).json()).toHaveLength(2);
 
-    expect((await call("DELETE", "/sessions?sub=user-1")).status).toBe(204);
+    const task = (await (
+        await call("POST", "/tasks", {
+            name: "t",
+            script: "echo started; exec sleep 30",
+            targets: [{ host: "h1", login: "root" }],
+        })
+    ).json()) as { id: number };
+    const run = (await (
+        await call("POST", `/tasks/${task.id}/run`)
+    ).json()) as { id: string };
+    await Bun.sleep(300);
+
+    expect((await call("DELETE", "/admin/sessions?sub=user-1")).status).toBe(
+        204,
+    );
     await Promise.all([a.closed, b.closed, c.closed]);
-    expect(await (await call("GET", "/sessions")).json()).toEqual([]);
+    expect(ctx.live.size).toBe(0);
+    expect((await call("GET", "/admin/sessions")).status).toBe(401);
+    const runHost = () =>
+        ctx.db
+            .query("SELECT status, output FROM run_hosts WHERE run_id = ?")
+            .get(run.id);
+    for (let i = 0; i < 50 && ctx.tasks.size; i++) await Bun.sleep(50);
+    await Bun.sleep(100);
+    expect(ctx.tasks.size).toBe(0);
+    expect(runHost()).toEqual({
+        status: "failed",
+        output: "started\n\n[ended by admin]",
+    });
     expect(
         ctx.db
-            .query(
-                "SELECT count(*) AS n FROM audit WHERE event = 'session_kill'",
+            .query<{ event: string }, []>(
+                "SELECT event FROM audit WHERE event IN ('session_kill', 'user_signout')",
             )
-            .get(),
-    ).toEqual({ n: 3 });
+            .all()
+            .map((r) => r.event),
+    ).toEqual(["session_kill", "session_kill", "session_kill", "user_signout"]);
 });
 
 test("admin sessions: members get 403", async () => {

@@ -29,11 +29,11 @@ const newHostId = () =>
 export function adminRoutes({
     config,
     db,
-    live,
+    terminal: { live, tasks },
 }: {
     config: Config;
     db: Database;
-    live: TerminalDeps["live"];
+    terminal: TerminalDeps;
 }) {
     const app = new Hono<AppEnv>();
     app.use(...writeGuards(config));
@@ -240,6 +240,17 @@ export function adminRoutes({
             c.var.user,
             [...live.values()].filter((s) => s.sub === sub),
         );
+        // Also stop them opening new ones until they sign in again.
+        const ended = [...tasks.values()].filter((t) => t.sub === sub);
+        for (const t of ended) t.kill();
+        db.run("DELETE FROM sessions WHERE sub = ?", [sub]);
+        audit(db, {
+            event: "user_signout",
+            sub: c.var.user.sub,
+            email: c.var.user.email,
+            user: sub,
+            tasks: ended.length,
+        });
         return c.body(null, 204);
     });
 

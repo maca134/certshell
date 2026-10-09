@@ -36,6 +36,7 @@ beforeEach(() => {
             maxSessions: 0,
             maxSessionsTotal: 0,
             live: new Map(),
+            tasks: new Map(),
         },
     });
     app.get("/api/admin/ping", (c) => c.text("pong"));
@@ -248,6 +249,7 @@ test("IdP down → 503, then retries discovery", async () => {
             maxSessions: 0,
             maxSessionsTotal: 0,
             live: new Map(),
+            tasks: new Map(),
         },
     });
     expect((await get("/auth/login")).status).toBe(503);
