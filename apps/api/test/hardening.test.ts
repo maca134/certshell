@@ -21,6 +21,12 @@ test("clientIp: XFF only trusted from trusted proxies, right to left", () => {
     ).toBe("198.51.100.7");
     expect(clientIp("172.30.0.2", "100.64.0.2", trusted)).toBe("172.30.0.2");
     expect(clientIp(undefined, "1.1.1.1", trusted)).toBe("unknown");
+    expect(clientIp("::ffff:172.30.0.2", "198.51.100.7", trusted)).toBe(
+        "198.51.100.7",
+    );
+    expect(clientIp("::ffff:203.0.113.5", undefined, trusted)).toBe(
+        "203.0.113.5",
+    );
 });
 
 test("rateLimiter: limit per key per window", async () => {

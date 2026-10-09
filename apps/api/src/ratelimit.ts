@@ -23,6 +23,8 @@ export function clientIp(
     xff: string | undefined,
     trusted: Set<string>,
 ) {
+    // Bun reports IPv4 peers on a dual-stack socket as ::ffff:a.b.c.d.
+    peer = peer?.replace(/^::ffff:(?=\d+\.)/, "");
     if (!peer || !trusted.has(peer) || !xff) return peer ?? "unknown";
     const hops = xff.split(",").map((h) => h.trim());
     for (let i = hops.length - 1; i >= 0; i--) {
