@@ -286,6 +286,10 @@ footer {
     padding: 6px 10px;
     text-align: left;
 }
+.docs img {
+    max-width: 100%;
+    height: auto;
+}
 .docs blockquote {
     margin: 0;
     padding: 4px 16px;
