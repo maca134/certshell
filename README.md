@@ -187,6 +187,19 @@ docker compose pull && docker compose up -d
 - The restart closes open terminals and marks running task targets failed. Detached task scripts still finish on the host.
 - Admins see a "… available" notice in the sidebar when a newer release exists (`UPDATE_CHECK`).
 
+## Troubleshooting
+
+`docker compose logs certshell` shows the reason behind most errors.
+
+- **"identity provider unavailable"**: the container can't reach `OIDC_ISSUER`. Check DNS from inside the container, or the `ID_DOMAIN` network alias the examples set for Pocket ID.
+- **"login failed"**: usually the callback URL doesn't match `https://ssh.example.com/auth/callback` exactly, or the client ID/secret is wrong. The log line after `login failed:` names the cause.
+- **The IdP says you're not allowed**: add your group to the OIDC client's allowed groups (Pocket ID: the client's **Access** tab).
+- **Logged in, but no hosts**: none of your groups is allowed on a host. Group names must match exactly (Pocket ID: the **name**, not the friendly name). Groups are read at sign-in, so sign out and back in after changing them.
+- **No Admin section**: you're not in `OIDC_ADMIN_GROUP`, or haven't signed in again since being added.
+- **Enroll: "sshd_config does not Include sshd_config.d/*.conf"**: add `Include /etc/ssh/sshd_config.d/*.conf` near the top of `/etc/ssh/sshd_config`, then run a new snippet.
+- **Enroll: curl fails**: the host can't reach `https://ssh.example.com`, or the snippet is older than 10 minutes or already used. Generate a new one.
+- **Host shows offline**: port 22 on the host's address isn't reachable from the CertShell container. Check the address and firewalls.
+
 ## Development
 
 Bun workspaces: `apps/api` (Hono), `apps/web` (React + xterm.js), `packages/shared`.
