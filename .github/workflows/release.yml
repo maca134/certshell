@@ -36,6 +36,18 @@ jobs:
             type=semver,pattern={{major}}
       - uses: docker/build-push-action@v7
         with:
+          load: true
+          tags: certshell:scan
+          cache-from: type=gha
+      # SHA-pinned: trivy-action tags were hijacked in 2026.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: certshell:scan
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - uses: docker/build-push-action@v7
+        with:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.ref_type == 'tag' }}
           tags: ${{ steps.meta.outputs.tags }}
