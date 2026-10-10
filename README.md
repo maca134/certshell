@@ -53,41 +53,9 @@ Then in Pocket ID (`https://id.example.com`):
 docker compose up -d
 ```
 
-Open `https://ssh.example.com` and log in. More detail, plus adding users and recovery: [Pocket ID walkthrough](#pocket-id-walkthrough).
+Open `https://ssh.example.com` and log in. More detail, plus adding users and recovery: [Pocket ID walkthrough](docs/pocket-id.md).
 
 Already have a reverse proxy? Drop the `caddy`/`traefik` service, publish `certshell` on `127.0.0.1:3000`, and set `TRUSTED_PROXIES` to your proxy's address. Already have an IdP? Drop `pocket-id`. Any OIDC provider works if it sends a `groups` claim that users can't change themselves.
-
-## Pocket ID walkthrough
-
-Labels follow Pocket ID v2 and may differ slightly between versions.
-
-**First account.** Open `https://id.example.com/setup`, enter a username, email and name, then add a passkey. This page only works until the first account exists, so do it straight after `docker compose up`.
-
-**Groups.** **Administration → User Groups → Add group**:
-
-- `certshell-admins` (or whatever `OIDC_ADMIN_GROUP` says): may enroll hosts and edit the access map. Add yourself.
-- One group per kind of access, e.g. `ops`, `web-deploy`. You **Allow** these on hosts in CertShell.
-
-CertShell matches the group's **name**, not its friendly name.
-
-**OIDC client.** **Administration → OIDC Clients → Add OIDC Client**:
-
-- Name: `certshell`. Client type: **confidential** (not public).
-- Callback URL: `https://ssh.example.com/auth/callback`.
-- **Create**, then copy the client ID and secret into `.env`. The secret is shown only once; if you lose it, add a new one under **Credentials**.
-- **Access**: pick the groups that may use CertShell at all. A new client lets nobody in until you set this.
-
-**Adding a user.** **Administration → Users → Add user**, then add them to groups. To let them register a passkey, open the user's **⋯** menu → **Login Code** and send them the link.
-
-**Changing access.** Group changes apply at the user's next CertShell login (sessions last up to 1h). To cut someone off now: disable them in Pocket ID, then **Admin → Users → Sign out & end sessions** in CertShell.
-
-**Lost passkey.** An admin sends a new **Login Code** as above. Locked out yourself:
-
-```sh
-docker compose exec pocket-id /app/pocket-id one-time-access-token <username or email>
-```
-
-It prints a sign-in link valid for 1 hour; add a new passkey from your account page.
 
 ## Adding a host
 
