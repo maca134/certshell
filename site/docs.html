@@ -61,7 +61,9 @@
                     const toc = document.getElementById("toc");
                     for (const h of doc.querySelectorAll("h2")) {
                         h.id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-                        toc.insertAdjacentHTML("beforeend", `<a href="#${h.id}">${h.textContent}</a>`);
+                        const a = toc.appendChild(document.createElement("a"));
+                        a.href = `#${h.id}`;
+                        a.textContent = h.textContent;
                     }
                     if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
                 });
