@@ -144,6 +144,18 @@ Full threat model: [SPEC.md §3.3](SPEC.md#33-accepted-risk).
 - `secrets/ca_password`, **stored separately**. Without it the CA key in the backup is useless; without a password the backup *is* your CA, so protect it.
 - Pocket ID: volume `pocket-id-data` and `POCKET_ID_ENCRYPTION_KEY`.
 
+## Upgrading
+
+The examples use `ghcr.io/maca134/certshell:1`, which follows every 1.x release. Pin `1.4` or `1.4.1` instead if you'd rather upgrade by hand.
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+- Back up `certshell-data` first. Database migrations run at startup.
+- The restart closes open terminals and marks running task targets failed. Detached task scripts still finish on the host.
+- Admins see a "… available" notice in the sidebar when a newer release exists (`UPDATE_CHECK`).
+
 ## Development
 
 Bun workspaces: `apps/api` (Hono), `apps/web` (React + xterm.js), `packages/shared`.
