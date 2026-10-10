@@ -6,8 +6,6 @@ A browser SSH terminal for your servers. You log in with your identity provider 
 
 **Website & setup generator: [certshell.dev](https://certshell.dev)**
 
-> **Pre-release.** No image published yet. Build your own with `docker build -t ghcr.io/maca134/certshell:1 .`
-
 ## How it works
 
 - You log in through OIDC (e.g. [Pocket ID](https://pocket-id.org)). Your IdP groups decide what you can reach.
