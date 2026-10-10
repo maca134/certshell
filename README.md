@@ -24,8 +24,11 @@ You need a server with Docker, ports 80/443 open, and two DNS names pointing at 
 - [`examples/caddy`](examples/caddy): Caddy.
 - [`examples/traefik`](examples/traefik): Traefik with Let's Encrypt. Routes live in `routes.yml`, so Traefik needs no `docker.sock`.
 
+Or skip the clone: the [setup generator](https://certshell.dev/setup) writes these files for you, or installs them with one command.
+
 ```sh
-cp -r examples/caddy certshell && cd certshell      # or examples/traefik
+git clone --depth 1 https://github.com/maca134/certshell.git certshell-src
+cp -r certshell-src/examples/caddy certshell && cd certshell      # or examples/traefik
 cp .env.example .env            # set SSH_DOMAIN, ID_DOMAIN, POCKET_ID_ENCRYPTION_KEY
 
 # Optional but recommended: encrypts the CA key at rest. The container runs as uid 1000.

@@ -124,7 +124,8 @@
 
             <section>
                 <h2>Quick start</h2>
-<pre data-lang="sh">cp -r examples/caddy certshell && cd certshell
+<pre data-lang="sh">git clone --depth 1 https://github.com/maca134/certshell.git certshell-src
+cp -r certshell-src/examples/caddy certshell && cd certshell
 cp .env.example .env     # set SSH_DOMAIN, ID_DOMAIN, OIDC_* ...
 docker compose up -d</pre>
                 <p>Generate your own config with the <a href="/setup">setup generator</a>. Full walkthrough in the <a href="/docs">docs</a>.</p>
