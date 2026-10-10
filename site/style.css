@@ -126,6 +126,15 @@ header nav {
 .term .r {
     color: #f87171;
 }
+.demo {
+    display: block;
+    width: 100%;
+    max-width: 960px;
+    height: auto;
+    margin: 32px auto 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
 
 section {
     padding: 48px 0;
