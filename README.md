@@ -99,6 +99,35 @@ Host requirements: Linux, OpenSSH ≥ 7, `curl`, an `sshd_config` that includes 
 
 The script writes the CA public key, adds `/etc/ssh/sshd_config.d/50-certshell.conf`, checks sshd loads it, records the host key with the app, and reloads sshd. The app pins that host key, so a different machine at the same address is refused.
 
+## Using CertShell
+
+### Terminals
+
+- **Hosts** lists every host + login the access map gives you. A dot shows whether the host's port 22 is reachable from the app. Click a login to open a terminal.
+- **Search the scrollback** with the search button or Ctrl+Shift+F. Enter finds the next match, Shift+Enter the previous one, Esc closes.
+- **Multi-line pastes** ask before running, unless the shell has bracketed paste on (then nothing runs until you press Enter).
+- **On touch devices** a key bar adds Esc, Tab, Ctrl, Alt, arrows, Home/End and PgUp/PgDn. Ctrl and Alt apply to the next key.
+- Terminals close after 30 minutes idle, and always after 8 hours.
+
+### Tasks
+
+A task is a saved script plus the host logins it runs on, e.g. `apt-get upgrade -y` on every web server.
+
+- **Tasks → New task**: a name, the script, then tick hosts and pick a login on each. Only host logins the access map gives you are offered, and that is checked again on every run.
+- **Run** starts every host at once. Each host shows ok or failed, its exit code and its output (the last 256 KB). **Run again** repeats it.
+- The script runs in the login's shell without a terminal, so prompts get no input: use `-y` and similar. Runs are killed after 30 minutes.
+- **Keep running if the connection drops**: turn on for scripts that can cut their own connection (VPN, sshd, firewall or network changes). The script then finishes even if the app loses the connection, and its output also goes to a log file in `/tmp` on the host.
+- Tasks and runs are private to the user who made them. Limits: 100 tasks, 50 hosts per task, 16 KB per script. A run keeps its own copy of the script, so editing a task doesn't change past runs.
+
+### Admin
+
+Members of `OIDC_ADMIN_GROUP` get an **Admin** section:
+
+- **Hosts**: add, enroll, edit and delete hosts, and edit the access map ([Adding a host](#adding-a-host)).
+- **Users**: everyone who has signed in, with their groups as of their last sign-in. **Sign out & end sessions** closes their terminals, stops their running tasks and signs them out of CertShell. Disable them at the IdP too, or they can sign straight back in.
+- **Sessions**: open terminals right now. End any one of them.
+- **Audit**: logins, every cert signed, terminal start/end, task runs, host and access map changes, enrollments. The same events go to stdout.
+
 ## Configuration
 
 | Variable | Required | Default |
