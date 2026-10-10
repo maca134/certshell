@@ -51,7 +51,7 @@
                     const at = readme.indexOf("\n## ", readme.indexOf("(docs/pocket-id.md)"));
                     const md = `${readme.slice(0, at)}\n\n${pocketId.replace(/^# /, "## ")}${readme.slice(at)}`;
                     const doc = document.getElementById("doc");
-                    doc.innerHTML = marked.parse(md.replace(/^<img[^>]*>\s*/, ""));
+                    doc.innerHTML = marked.parse(md.replace(/^<img[^>]*>\s*/, "").replace(/^\[!\[.*\n/m, ""));
                     for (const a of doc.querySelectorAll("a[href]")) {
                         const href = a.getAttribute("href").replace(/^(\.\.\/)?README\.md#/, "#").replace("docs/pocket-id.md", "#pocket-id-walkthrough");
                         if (!/^(https?:|#|mailto:)/.test(href)) a.href = repo + href;
