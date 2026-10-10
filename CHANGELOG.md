@@ -2,7 +2,7 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
-## Unreleased
+## 1.4.2 - 2026-10-10
 
 ### Security
 - Host IDs are generated without modulo bias.
@@ -14,6 +14,7 @@ Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell
 ### Docs
 - README: Using CertShell, Upgrading, Troubleshooting and removing a host.
 - Pocket ID walkthrough moved to [docs/pocket-id.md](docs/pocket-id.md).
+- [CONTRIBUTING.md](CONTRIBUTING.md) and this changelog.
 
 ## 1.4.1 - 2026-10-09
 - Release workflow logs in to Docker Hub to avoid the anonymous pull rate limit. No app changes.
