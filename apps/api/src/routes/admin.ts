@@ -21,10 +21,10 @@ import {
 import type { LiveTerminal, TerminalDeps } from "../ssh/terminal";
 import { issueSnippet } from "./enroll";
 
-const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+const ID_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 
 const newHostId = () =>
-    `h${[...crypto.getRandomValues(new Uint8Array(7))].map((b) => ID_ALPHABET[b % 36]).join("")}`;
+    `h${[...crypto.getRandomValues(new Uint8Array(7))].map((b) => ID_ALPHABET[b % 32]).join("")}`;
 
 export function adminRoutes({
     config,
