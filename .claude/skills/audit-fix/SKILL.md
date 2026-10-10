@@ -28,7 +28,7 @@ Security wins. Skip a ponytail cut that would:
 
 - remove a check, validation, rate limit, header, audit event or test the
   security audit relies on;
-- contradict `SPEC.md` (§3, §5, §6), or re-propose anything in §11.
+- contradict `SPEC.md` (§3, §5, §6), or re-propose anything in §9.
 
 ## 3. Ask
 

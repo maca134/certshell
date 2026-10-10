@@ -1,6 +1,6 @@
 # SPEC — CertShell (short-lived certs)
 
-Status: build steps 1–6 (§9) implemented; step 7 (release) in progress: workflow, examples, README, MIT license done, no release tag yet.
+Status: released (versions = git tags).
 Scope: **browser SSH terminal and tasks** (a saved script run on many hosts, §3.4). No native `ssh`/`scp`/`sftp`, no RDP/VNC/DB/K8s.
 
 ---
@@ -103,7 +103,6 @@ ssh.exited.finally(() => rm(dir, { recursive: true }));
   - Hardened, non-root container (§6).
   - Audit trail outside the app's reach: stdout + target sshd logs (§5).
   - Break-glass keys stay offline, unsigned by this CA, with no dependency on this app.
-  - Optional: hardware-backed CA key (YubiKey PIV / TPM via PKCS#11, `ssh-keygen -D`) — usable in place, not exfiltratable. Documented, not default.
 
 ### 3.4 Tasks
 
@@ -188,7 +187,7 @@ echo "enrolled: $(hostname)"
 ## 5. App implementation notes
 
 - Stack: Bun + Hono + React (house standard), xterm.js front end, WebSocket transport.
-- OIDC client: `openid-client` (panva). **Verify it and PTY spawning run under Bun early** — fall back to Node for the app process if not.
+- OIDC client: `openid-client` (panva).
 - SSH client: spawn system `ssh` in a PTY (§3.2). Gets certs, ProxyJump and modern ciphers for free. `openssh-client` is in the image.
 - App `known_hosts`: generated from host keys recorded at enrollment → verifies targets, no TOFU.
 - DB schema: append-only list of SQL steps in `db.ts`, `PRAGMA user_version` = steps applied. Pending steps run at boot, one transaction each. Never edit a released step; add a new one.
@@ -206,6 +205,7 @@ echo "enrolled: $(hostname)"
 | `TRUSTED_PROXIES` | no | none → `X-Forwarded-For` ignored |
 | `AUDIT_DAYS` | no | none → audit log kept forever |
 | `RUN_DAYS` | no | none → task runs + output kept forever |
+| `UPDATE_CHECK` | no | on; `false` disables the GitHub release check (§7) |
 | `/run/secrets/ca_password` | no | none → CA key stored unencrypted, warning logged |
 
 - Scheme and origin come from `APP_URL` only, never from `X-Forwarded-Proto`. Cookies are always `Secure`.
@@ -236,29 +236,7 @@ echo "enrolled: $(hostname)"
 
 Published as `ghcr.io/maca134/certshell` for `linux/amd64` and `linux/arm64` by `.github/workflows/release.yml` on a `vX.Y.Z` tag (tags `X.Y.Z`, `X.Y`, `X`, `latest`; a manual run builds without pushing). Accepted risk in §3.3.
 
-```dockerfile
-# Bun stages run on the build host (output is arch-independent); arm64 only emulates apt-get.
-FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:… AS web
-# bun install --frozen-lockfile --filter web; vite build → apps/web/dist
-
-FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:… AS api
-# bun install --frozen-lockfile --production --filter api
-
-FROM oven/bun:1-debian@sha256:…
-RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && \
-    rm -rf /var/lib/apt/lists/* && install -d -o 1000 -g 1000 /data
-WORKDIR /app
-COPY --from=api /app ./
-COPY packages/shared packages/shared
-COPY apps/api/src apps/api/src
-COPY --from=web /app/apps/web/dist apps/web/dist
-USER 1000:1000
-VOLUME /data
-EXPOSE 3000
-ENTRYPOINT ["bun", "run", "apps/api/src/main.ts"]
-```
-
-Base image pinned by digest; see `Dockerfile` for the full file.
+- `Dockerfile`: Bun build stages on the build host, runtime `oven/bun:1-debian` + `openssh-client`, pinned by digest, runs as uid 1000.
 
 `/data` layout:
 
@@ -316,21 +294,9 @@ Public examples, each a full stack with Pocket ID as the IdP: `examples/caddy` (
 | OIDC client registration | IdP, out of band |
 | DNS, reverse proxy / TLS | ❌ out of band |
 
-### 6.6 Bootstrap (operator steps)
+### 6.6 Bootstrap
 
-Full steps: README → Quick start. In short:
-
-```sh
-cp .env.example .env    # SSH_DOMAIN, ID_DOMAIN, POCKET_ID_ENCRYPTION_KEY
-mkdir secrets && openssl rand -base64 32 > secrets/ca_password   # optional, encrypts the CA key
-chown 1000:1000 secrets/ca_password && chmod 600 secrets/ca_password   # app runs as uid 1000; unreadable = crash at boot
-docker compose up -d caddy pocket-id   # or traefik
-# https://id.example.com/setup → admin account + passkeys
-# Pocket ID: create group certshell-admins, add yourself
-#   create OIDC client certshell: callback https://ssh.example.com/auth/callback
-#   → OIDC_CLIENT_ID/OIDC_CLIENT_SECRET into .env
-docker compose up -d
-```
+Operator steps: README → Quick start.
 
 ---
 
@@ -344,42 +310,15 @@ docker compose up -d
 
 ---
 
-## 8. Decisions
-
-- ~~Auth~~ — **OIDC only**; no built-in auth (§3.1).
-- ~~Access mapping~~ — **app-side map**, hosts accept `ws:<hostId>:<login>` (§3.2, §4).
-- ~~Host address~~ — **admin enters it** at snippet generation; editable in the UI (§4.1).
-- ~~Exposure~~ — **internet exposure supported, hardening only** (§5); risk accepted in §3.3.
-- ~~Session timeouts~~ — **30 min idle, 8h max** (§3.2).
-- ~~CA key protection~~ — **encrypted file by default; hardware (PKCS#11) optional** (§3.3).
-- ~~Deploy shape~~ — **single container** (§6).
-- ~~SSH client~~ — **spawned system `ssh`** (§5).
-- ~~Host certs~~ — **none**; app pins enrolled host keys (§4).
-- ~~CA~~ — **app signs with `ssh-keygen -s`**; no step-ca.
-- ~~Native SSH~~ — **out of scope**.
-- Deferred past v1: **CA rotation** (hosts' `TrustedUserCAKeys` accepts multiple keys, so an overlap rotation via re-running the snippet is possible later).
-
-## 9. Build order
-
-1. Skeleton container: Bun app, `/healthz` green, first boot writes `/data/ca`. Verify under the hardened compose (non-root, read-only rootfs): `openid-client`, PTY spawning, and `ssh` with a read-only home.
-2. OIDC login against Pocket ID; `groups` claim → session; admin gate. Confirm Pocket ID image tag and setup path.
-3. Spike: sign a `ws:<hostId>:root` cert (signing via `SSH_ASKPASS` confirmed in step 1) → `ssh` into one hand-configured target using `AuthorizedPrincipalsCommand`.
-4. Web terminal: login → access check → sign → connect → xterm.js; idle/max timeouts.
-5. Enroll endpoint + snippet generator + host inventory + access map UI.
-6. Audit log, rate limits, security headers.
-7. Release: multi-arch GHCR image, public compose, README.
-8. Optional hardware CA key (PKCS#11), documented.
-
-## 10. Assumptions
+## 8. Assumptions
 
 - Small trusted group; access managed as IdP groups + the app's access map.
 - An OIDC provider that emits a `groups` claim, where users cannot change their own group membership.
 - Targets are Linux, OpenSSH ≥ 7.x, with `curl`, an `sshd_config` that Includes `sshd_config.d/*.conf`, reachable on `:22` from the app.
 - May be internet-exposed behind an HTTPS reverse proxy; §3.3 is accepted on that basis.
 - Break-glass SSH stays offline, **not** signed by this CA, with no dependency on this app.
-- `openid-client` and a PTY library work under Bun. Verify in step 1.
 
-## 11. Rejected alternatives
+## 9. Rejected alternatives
 
 Don't re-propose these without new information.
 
@@ -392,6 +331,7 @@ Don't re-propose these without new information.
 - **Separate signer service** (signs only against a fresh IdP token) — would stop a web RCE minting certs; owner chose hardening only (§3.3).
 - **`source-address` on certs** — certs never leave the app, so stealing one already implies a compromise that can mint new ones.
 
-## 12. Parked (later, not v1 blockers)
+## 10. Parked
 
-- CA rotation (§8).
+- CA rotation: hosts' `TrustedUserCAKeys` accepts multiple keys, so an overlap rotation via re-running the snippet is possible.
+- Hardware-backed CA key (YubiKey PIV / TPM via PKCS#11, `ssh-keygen -D`): usable in place, not exfiltratable.

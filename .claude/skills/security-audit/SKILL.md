@@ -19,7 +19,7 @@ on any enrolled host. Audit accordingly.
 - `SPEC.md`: §3 auth, §4 hosts/enrollment, §5 hardening + audit, §6 deployment.
 - The checklist in `.claude/agents/security-reviewer.md`. Work through every
   item against the whole tree, not just recent changes.
-- Never flag: §3.3 accepted risks, §11 rejected alternatives, §12 parked
+- Never flag: §3.3 accepted risks, §9 rejected alternatives, §10 parked
   items, the dev-only `./data` bind mount, `docker.sock` on the dev `ingress`.
 
 ## Tags
