@@ -6,6 +6,8 @@
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
+![CertShell demo: open a terminal, run a task on several hosts, manage host access](docs/media/demo.gif)
+
 **Website & setup generator: [certshell.dev](https://certshell.dev)**
 
 ## How it works
