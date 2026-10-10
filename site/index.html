@@ -112,6 +112,17 @@
             </section>
 
             <section>
+                <h2>Tasks</h2>
+                <p>Save a script and the hosts it runs on, then run it in one click. Each host gets its own short-lived cert with no terminal, the same access map applies, and you see every host's exit code and output. Detached tasks keep running even if the connection drops mid-run, e.g. during an sshd or VPN upgrade.</p>
+                <div class="term">
+<pre><span class="tok-c"># task: apt upgrade · 3 hosts · run by alice</span>
+<span class="g">✓</span> web1:root   ok       exit 0     41s
+<span class="g">✓</span> web2:root   ok       exit 0     38s
+<span class="r">✗</span> db1:root    failed   exit 100   12s</pre>
+                </div>
+            </section>
+
+            <section>
                 <h2>Quick start</h2>
 <pre data-lang="sh">cp -r examples/caddy certshell && cd certshell
 cp .env.example .env     # set SSH_DOMAIN, ID_DOMAIN, OIDC_* ...

@@ -123,6 +123,9 @@ header nav {
 .term .g {
     color: #5fd38d;
 }
+.term .r {
+    color: #f87171;
+}
 
 section {
     padding: 48px 0;
