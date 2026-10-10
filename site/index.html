@@ -124,6 +124,40 @@
                 </div>
             </section>
 
+            <section class="compare">
+                <h2>Compared to Teleport and Warpgate</h2>
+                <p>Both do much more than CertShell. How they differ for SSH, as of October 2026:</p>
+                <table>
+                    <thead>
+                        <tr><th></th><th>CertShell</th><th>Teleport Community Edition</th><th>Warpgate</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><th>License</th><td>MIT</td><td>Source AGPL-3.0. Binaries under a commercial license, free for companies under 100 employees and $10M revenue</td><td>Apache-2.0</td></tr>
+                        <tr><th>SSO</th><td>Any OIDC provider</td><td>GitHub only (OIDC and SAML need Enterprise)</td><td>OIDC, plus built-in TOTP</td></tr>
+                        <tr><th>How hosts let you in</th><td>A fresh cert per session: 15 minutes, one host, one login</td><td>Short-lived certs, via the Teleport agent or agentless OpenSSH</td><td>Warpgate's own SSH key in <code>authorized_keys</code>, or a stored password</td></tr>
+                        <tr><th>Browser terminal</th><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+                        <tr><th>Native <code>ssh</code> client</th><td>No</td><td>Yes (<code>tsh</code>)</td><td>Yes</td></tr>
+                        <tr><th>Session recording</th><td>No. Audit log of logins, certs and sessions</td><td>Yes</td><td>Yes</td></tr>
+                        <tr><th>Other protocols</th><td>None</td><td>Kubernetes, databases, desktops, apps</td><td>HTTPS, Kubernetes, MySQL, PostgreSQL, RDP, VNC</td></tr>
+                    </tbody>
+                </table>
+                <div class="grid">
+                    <div class="card">
+                        <h3>Pick Teleport</h3>
+                        <p>If you need more than SSH, session recording or native <code>ssh</code>, and you fit the Community license or will pay for Enterprise (which OIDC needs).</p>
+                    </div>
+                    <div class="card">
+                        <h3>Pick Warpgate</h3>
+                        <p>If you want native SSH clients and the browser behind one bastion, with session recording and more protocols.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Pick CertShell</h3>
+                        <p>If you want browser-only SSH behind any OIDC provider, a fresh cert per session instead of a standing key on every host, and saved scripts across hosts.</p>
+                    </div>
+                </div>
+                <p class="sources">Sources: Teleport <a href="https://goteleport.com/docs/feature-matrix/">feature matrix</a> and <a href="https://goteleport.com/blog/teleport-community-license/">license</a>, Warpgate <a href="https://github.com/warp-tech/warpgate">README</a> and <a href="https://github.com/warp-tech/warpgate/wiki/Adding-an-SSH-target">SSH targets</a>. Spot a mistake? <a href="https://github.com/maca134/certshell/issues">Open an issue</a>.</p>
+            </section>
+
             <section>
                 <h2>Quick start</h2>
 <pre data-lang="sh">git clone --depth 1 https://github.com/maca134/certshell.git certshell-src

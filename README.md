@@ -21,6 +21,26 @@ A browser SSH terminal for your servers. You log in with your identity provider 
 
 Scope: browser terminal and tasks. No native `ssh`/`scp`/`sftp` and no port forwarding.
 
+## Compared to Teleport and Warpgate
+
+Both do much more than CertShell. How they differ for SSH, as of October 2026 (spot a mistake? open an issue):
+
+| | CertShell | Teleport Community Edition | Warpgate |
+|---|---|---|---|
+| License | MIT | Source AGPL-3.0. Binaries under a commercial license, free for companies under 100 employees and $10M revenue | Apache-2.0 |
+| SSO | Any OIDC provider | GitHub only (OIDC and SAML need Enterprise) | OIDC, plus built-in TOTP |
+| How hosts let you in | A fresh cert per session: 15 minutes, one host, one login | Short-lived certs, via the Teleport agent or agentless OpenSSH | Warpgate's own SSH key in `authorized_keys`, or a stored password |
+| Browser terminal | Yes | Yes | Yes |
+| Native `ssh` client | No | Yes (`tsh`) | Yes |
+| Session recording | No. Audit log of logins, certs and sessions | Yes | Yes |
+| Other protocols | None | Kubernetes, databases, desktops, apps | HTTPS, Kubernetes, MySQL, PostgreSQL, RDP, VNC |
+
+- **Pick Teleport** if you need more than SSH, session recording or native `ssh`, and you fit the Community license or will pay for Enterprise (which OIDC needs).
+- **Pick Warpgate** if you want native SSH clients and the browser behind one bastion, with session recording and more protocols.
+- **Pick CertShell** if you want browser-only SSH behind any OIDC provider, a fresh cert per session instead of a standing key on every host, and saved scripts across hosts.
+
+Sources: Teleport [feature matrix](https://goteleport.com/docs/feature-matrix/) and [license](https://goteleport.com/blog/teleport-community-license/), Warpgate [README](https://github.com/warp-tech/warpgate) and [SSH targets](https://github.com/warp-tech/warpgate/wiki/Adding-an-SSH-target).
+
 ## Quick start (Pocket ID)
 
 You need a server with Docker, ports 80/443 open, and two DNS names pointing at it (e.g. `ssh.example.com`, `id.example.com`). Pick a reverse proxy; both get HTTPS certificates automatically:

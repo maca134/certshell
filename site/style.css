@@ -274,17 +274,32 @@ footer {
     padding-top: 16px;
     border-top: 1px solid var(--border);
 }
-.docs table {
+.docs table,
+.compare table {
     border-collapse: collapse;
     width: 100%;
     display: block;
     overflow-x: auto;
 }
 .docs th,
-.docs td {
+.docs td,
+.compare th,
+.compare td {
     border: 1px solid var(--border);
     padding: 6px 10px;
     text-align: left;
+}
+.compare table {
+    margin-bottom: 24px;
+    font-size: 0.95rem;
+}
+.compare tbody th {
+    color: var(--muted);
+    font-weight: 500;
+}
+.compare .sources {
+    color: var(--muted);
+    font-size: 0.85rem;
 }
 .docs img {
     max-width: 100%;
