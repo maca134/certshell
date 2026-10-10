@@ -99,6 +99,8 @@ Host requirements: Linux, OpenSSH ≥ 7, `curl`, an `sshd_config` that includes 
 
 The script writes the CA public key, adds `/etc/ssh/sshd_config.d/50-certshell.conf`, checks sshd loads it, records the host key with the app, and reloads sshd. The app pins that host key, so a different machine at the same address is refused.
 
+**Removing a host.** **Remove** on the host's panel. CertShell stops signing certs for it straight away. The host still trusts the CA until you run the command the dialog shows, as root on the host. It deletes `/etc/ssh/sshd_config.d/50-certshell.conf` and `/etc/ssh/certshell_user_ca.pub`, then reloads sshd. Open terminals to the host stay open until they close or you end them under **Admin → Sessions**.
+
 ## Using CertShell
 
 ### Terminals
