@@ -1,4 +1,4 @@
-# No-OIDC mode (proposal, not built)
+# No-OIDC mode (parked proposal, not built)
 
 A single-user mode that signs in with passkeys stored by CertShell itself, so no external IdP is needed. Reverses SPEC.md §9 "Built-in passkeys / accounts" for this mode only. OIDC mode is unchanged.
 
