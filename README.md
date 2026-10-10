@@ -2,7 +2,7 @@
 
 # CertShell
 
-[![CI](https://github.com/maca134/certshell/actions/workflows/ci.yml/badge.svg)](https://github.com/maca134/certshell/actions/workflows/ci.yml) [![CodeQL](https://github.com/maca134/certshell/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/maca134/certshell/security/code-scanning) [![Release](https://img.shields.io/github/v/tag/maca134/certshell?sort=semver&label=release)](https://github.com/maca134/certshell/pkgs/container/certshell) [![License](https://img.shields.io/github/license/maca134/certshell)](LICENSE) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/maca134/certshell/badge)](https://scorecard.dev/viewer/?uri=github.com/maca134/certshell)
+[![CI](https://github.com/maca134/certshell/actions/workflows/ci.yml/badge.svg)](https://github.com/maca134/certshell/actions/workflows/ci.yml) [![CodeQL](https://github.com/maca134/certshell/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/maca134/certshell/security/code-scanning) [![Release](https://img.shields.io/github/v/tag/maca134/certshell?sort=semver&label=release)](https://github.com/maca134/certshell/pkgs/container/certshell) [![License](https://img.shields.io/github/license/maca134/certshell)](LICENSE) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/maca134/certshell/badge)](https://scorecard.dev/viewer/?uri=github.com/maca134/certshell) [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15358/badge)](https://www.bestpractices.dev/projects/15358)
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
