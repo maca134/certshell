@@ -4,7 +4,7 @@ name: site
 on:
   push:
     branches: [main]
-    paths: ["site/**", "README.md", "apps/web/public/favicon.svg", "wrangler.jsonc", ".github/workflows/site.yml"]
+    paths: ["site/**", "README.md", "docs/pocket-id.md", "apps/web/public/favicon.svg", "wrangler.jsonc", ".github/workflows/site.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - run: bun test ./test/site.test.ts
-      - run: cp README.md apps/web/public/favicon.svg site/
+      - run: cp README.md docs/pocket-id.md apps/web/public/favicon.svg site/
       - run: bunx wrangler@4 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

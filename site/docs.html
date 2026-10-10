@@ -43,16 +43,19 @@
         <script type="module">
             import { highlight } from "./highlight.js";
 
-            // README.md is copied next to this page by .github/workflows/site.yml
+            // README.md and pocket-id.md are copied next to this page by .github/workflows/site.yml
             const repo = "https://github.com/maca134/certshell/blob/main/";
-            fetch("README.md")
-                .then((r) => r.text())
-                .then((md) => {
+            Promise.all(["README.md", "pocket-id.md"].map((f) => fetch(f).then((r) => r.text())))
+                .then(([readme, pocketId]) => {
+                    // The walkthrough goes in as a section right after the part of README that links to it.
+                    const at = readme.indexOf("\n## ", readme.indexOf("(docs/pocket-id.md)"));
+                    const md = `${readme.slice(0, at)}\n\n${pocketId.replace(/^# /, "## ")}${readme.slice(at)}`;
                     const doc = document.getElementById("doc");
                     doc.innerHTML = marked.parse(md.replace(/^<img[^>]*>\s*/, ""));
                     for (const a of doc.querySelectorAll("a[href]")) {
-                        const href = a.getAttribute("href");
+                        const href = a.getAttribute("href").replace(/^(\.\.\/)?README\.md#/, "#").replace("docs/pocket-id.md", "#pocket-id-walkthrough");
                         if (!/^(https?:|#|mailto:)/.test(href)) a.href = repo + href;
+                        else a.setAttribute("href", href);
                     }
                     for (const code of doc.querySelectorAll("pre code")) code.innerHTML = highlight(code.textContent, code.className.replace("language-", ""));
                     const toc = document.getElementById("toc");
