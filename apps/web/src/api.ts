@@ -19,5 +19,7 @@ export async function api<T = void>(
             | undefined;
         throw new Error(err?.error ?? `${res.status} ${res.statusText}`);
     }
-    return (res.status === 204 ? undefined : await res.json()) as T;
+    // 204, and 202 from refresh-all, have no body.
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
 }
