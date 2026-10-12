@@ -100,6 +100,20 @@ export const MIGRATIONS: string[][] = [
         "ALTER TABLE sessions ADD COLUMN max_expires_at INTEGER NOT NULL DEFAULT 0",
         "UPDATE sessions SET max_expires_at = expires_at",
     ],
+    // 6: alert channels. `url`: "plain:<url>", or "v1:<base64 iv + AES-GCM ciphertext>" keyed from ca_password.
+    [
+        `CREATE TABLE alert_channels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            service TEXT NOT NULL,
+            events TEXT NOT NULL,
+            tags TEXT NOT NULL,
+            logins TEXT NOT NULL,
+            last_sent_at INTEGER,
+            last_error TEXT
+        )`,
+    ],
 ];
 
 export function migrate(db: Database, migrations = MIGRATIONS) {

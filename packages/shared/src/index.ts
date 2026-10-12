@@ -78,6 +78,50 @@ export type AdminHost = {
 
 export type EnrollSnippet = { snippet: string; expiresAt: number };
 
+export const ALERT_EVENTS = {
+    task_failed: {
+        label: "Task failed",
+        description: "A task run finished with at least one failed host.",
+    },
+    host_down: {
+        label: "Host offline",
+        description:
+            "A host's port 22 stopped answering (2 checks a minute apart), or answers again.",
+    },
+    security: {
+        label: "Security",
+        description:
+            "Hosts, access, enrollment and alert channels changed; an admin ended sessions; a host key didn't match.",
+    },
+    terminal: {
+        label: "Terminal opened",
+        description: "Someone opened a terminal.",
+    },
+} as const;
+
+export type AlertEvent = keyof typeof ALERT_EVENTS;
+
+/**
+ * A shoutrrr URL and the events sent to it. The URL is write-only: the API returns its scheme (`service`), never the URL.
+ * `tags`/`logins`: the `terminal` event fires for hosts with any of these tags or logins in this list; both empty, for every terminal.
+ */
+export type AlertChannel = {
+    id: number;
+    name: string;
+    service: string;
+    events: AlertEvent[];
+    tags: string[];
+    logins: string[];
+    lastSentAt: number | null;
+    lastError: string | null;
+};
+
+/** `url`: required on create; on update, omitted keeps the stored one. */
+export type AlertInput = Pick<
+    AlertChannel,
+    "name" | "events" | "tags" | "logins"
+> & { url?: string };
+
 /**
  * Someone who has logged in at least once; groups as of their last login.
  * `certs.inUse`: open terminals + running task targets. `certs.unexpired`: certs signed within the cert TTL.

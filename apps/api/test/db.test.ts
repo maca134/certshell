@@ -37,6 +37,7 @@ test("new DB: every step applied", () => {
     expect(version(db)).toBe(MIGRATIONS.length);
     expect(tables(db)).toEqual([
         "access",
+        "alert_channels",
         "audit",
         "enroll_tokens",
         "hosts",

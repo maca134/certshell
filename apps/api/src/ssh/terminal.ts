@@ -80,6 +80,10 @@ const sshCommand: NonNullable<TerminalDeps["command"]> = ({
     ...(remote === undefined ? [] : [remote]),
 ];
 
+/** True when ssh refused the host because its key isn't the one pinned at enrollment. */
+export const hostKeyRejected = (code: number | null, output: string) =>
+    code === 255 && output.includes("Host key verification failed.");
+
 export const sshArgv = (
     deps: TerminalDeps,
     args: Parameters<typeof sshCommand>[0],
@@ -163,6 +167,9 @@ export async function openTerminal(
         login,
         ip,
     );
+    // ssh's own errors come before any shell output; enough to spot a host key mismatch.
+    let head = "";
+    const decoder = new TextDecoder();
     let proc: Bun.Subprocess;
     try {
         proc = Bun.spawn(sshArgv(deps, { key, knownHosts, login, host }), {
@@ -171,7 +178,11 @@ export async function openTerminal(
             terminal: {
                 cols: handlers.cols,
                 rows: handlers.rows,
-                data: (_t, data) => handlers.onData(data),
+                data: (_t, data) => {
+                    if (head.length < 8192)
+                        head += decoder.decode(data, { stream: true });
+                    handlers.onData(data);
+                },
             },
         });
     } catch (err) {
@@ -221,6 +232,15 @@ export async function openTerminal(
             reason,
             code,
         });
+        if (hostKeyRejected(code, head))
+            audit(deps.db, {
+                event: "host_key_mismatch",
+                sub: user.sub,
+                email: user.email,
+                host: host.id,
+                name: host.name,
+                login,
+            });
         handlers.onExit(reason);
     });
 

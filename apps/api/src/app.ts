@@ -4,11 +4,13 @@ import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { getCookie } from "hono/cookie";
 import type { Config } from "./config";
+import type { Alerter } from "./lib/alerts";
 import { accessibleHosts, reachable } from "./lib/hosts";
 import type { GetOidc } from "./lib/oidc";
 import { clientIp, concurrencyLimit, rateLimiter } from "./lib/ratelimit";
 import { type AppEnv, getSession } from "./lib/sessions";
 import { adminRoutes } from "./routes/admin";
+import { alertRoutes } from "./routes/alerts";
 import { authRoutes, SESSION_COOKIE } from "./routes/auth";
 import { enrollRoute } from "./routes/enroll";
 import { taskRoutes } from "./routes/tasks";
@@ -41,6 +43,7 @@ export type Deps = {
     db: Database;
     getOidc: GetOidc;
     terminal: TerminalDeps;
+    alerts: Alerter;
     latestVersion?: () => string | undefined;
 };
 
@@ -49,6 +52,7 @@ export function createApp({
     db,
     getOidc,
     terminal,
+    alerts,
     latestVersion,
 }: Deps) {
     const app = new Hono<AppEnv>();
@@ -105,6 +109,7 @@ export function createApp({
     app.get("/healthz", (c) => c.body(null, 200));
     const caPubPath = `${terminal.caKey}.pub`;
     app.route("/", enrollRoute({ config, db, caPubPath }));
+    app.route("/api/admin/alerts", alertRoutes({ config, db, alerts }));
     app.route("/api/admin", adminRoutes({ config, db, terminal }));
     app.route("/", authRoutes({ config, db, getOidc }));
     app.route(

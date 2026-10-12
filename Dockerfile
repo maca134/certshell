@@ -26,6 +26,8 @@ COPY --from=api /app ./
 COPY packages/shared packages/shared
 COPY apps/api/src apps/api/src
 COPY --from=web /app/apps/web/dist apps/web/dist
+# Sends alerts. Static Go binary; Dependabot bumps the tag + digest.
+COPY --from=nickfedor/shoutrrr:0.21.2@sha256:e73ba91d1cc727aaf1588a6460919be4b70926ad59092cb83dbaf7db76a6876b /shoutrrr /usr/local/bin/shoutrrr
 ARG VERSION=dev
 ENV CERTSHELL_VERSION=$VERSION
 USER 1000:1000

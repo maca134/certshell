@@ -132,7 +132,12 @@ export function adminRoutes({
 
     app.delete("/hosts/:id", (c) => {
         const id = c.req.param("id");
-        if (!hostExists(id)) return c.json({ error: "not found" }, 404);
+        const host = db
+            .query<{ name: string }, [string]>(
+                "SELECT name FROM hosts WHERE id = ?",
+            )
+            .get(id);
+        if (!host) return c.json({ error: "not found" }, 404);
         db.transaction(() => {
             db.run("DELETE FROM access WHERE host_id = ?", [id]);
             db.run("DELETE FROM enroll_tokens WHERE host_id = ?", [id]);
@@ -143,6 +148,7 @@ export function adminRoutes({
             sub: c.var.user.sub,
             email: c.var.user.email,
             host: id,
+            name: host.name,
         });
         revoke(c.var.user, id, () => false);
         return c.body(null, 204);

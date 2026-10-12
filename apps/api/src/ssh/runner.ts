@@ -3,7 +3,12 @@ import { rm } from "node:fs/promises";
 import type { RunStatus, User } from "@repo/shared";
 import { audit } from "../lib/audit";
 import type { Host } from "../lib/hosts";
-import { signSession, sshArgv, type TerminalDeps } from "./terminal";
+import {
+    hostKeyRejected,
+    signSession,
+    sshArgv,
+    type TerminalDeps,
+} from "./terminal";
 
 const MAX_OUTPUT = 256 * 1024;
 const TRUNCATED = "[earlier output dropped]\n";
@@ -102,6 +107,16 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
             ],
         );
         live.delete(key);
+        if (hostKeyRejected(code, output))
+            audit(db, {
+                event: "host_key_mismatch",
+                sub: user.sub,
+                email: user.email,
+                host: host.id,
+                name: host.name,
+                login,
+                run: runId,
+            });
         audit(db, {
             event: "task_end",
             sub: user.sub,

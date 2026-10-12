@@ -3,6 +3,7 @@ import * as oidc from "openid-client";
 import { createApp } from "../src/app";
 import { loadConfig } from "../src/config";
 import { openDb } from "../src/db";
+import { alerter } from "../src/lib/alerts";
 import { lazyDiscovery } from "../src/lib/oidc";
 import { LOGIN_COOKIE, SESSION_COOKIE } from "../src/routes/auth";
 import { startMockIdp } from "./helpers/mock-idp";
@@ -39,6 +40,7 @@ beforeEach(() => {
             tasks: new Map(),
             endedAt: new Map(),
         },
+        alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
     });
     app.get("/api/admin/ping", (c) => c.text("pong"));
     idp.nextClaims = {
@@ -289,6 +291,7 @@ test("IdP down → 503, then retries discovery", async () => {
             tasks: new Map(),
             endedAt: new Map(),
         },
+        alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
     });
     expect((await get("/auth/login")).status).toBe(503);
     expect((await get("/auth/login")).status).toBe(302);
