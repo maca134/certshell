@@ -292,7 +292,7 @@ echo "enrolled: $(hostname)"
 
 Published as `ghcr.io/maca134/certshell` for `linux/amd64` and `linux/arm64` by `.github/workflows/release.yml` on a `vX.Y.Z` tag (tags `X.Y.Z`, `X.Y`, `X`, `latest`; a manual run builds without pushing). Accepted risk in §3.3.
 
-- `Dockerfile`: Bun build stages on the build host, runtime `oven/bun:1-debian` + `openssh-client` + the `shoutrrr` binary (from `nickfedor/shoutrrr`, for alerts, §3.5), all pinned by digest, runs as uid 1000.
+- `Dockerfile`: Bun build stages on the build host, runtime `oven/bun:1-debian` + `openssh-client` + the `shoutrrr` binary (for alerts, §3.5; built from source in a `golang` stage so its Go and `x/net` are patched), all pinned by digest, runs as uid 1000.
 
 `/data` layout:
 
