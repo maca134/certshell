@@ -266,6 +266,41 @@ test("sessions: lists open terminals, ends one at a time", async ({
     ]);
 });
 
+test("sessions: polls every 5s only while the tab is visible", async ({
+    page,
+    isMobile,
+}) => {
+    await page.clock.install();
+    await openAdmin(page);
+    let gets = 0;
+    await page.route("/api/admin/sessions", (r) => {
+        gets++;
+        return r.fulfill({ json: [] });
+    });
+    await (await sidebar(page, isMobile))
+        .getByRole("link", { name: "Sessions" })
+        .click();
+    await expect(page.getByText("No open terminals")).toBeVisible();
+    await page.clock.runFor(5000);
+    await expect.poll(() => gets).toBe(2);
+
+    const setHidden = (hidden: boolean) =>
+        page.evaluate((h) => {
+            Object.defineProperty(document, "hidden", {
+                value: h,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event("visibilitychange"));
+        }, hidden);
+    await setHidden(true);
+    await page.clock.runFor(20000);
+    expect(gets).toBe(2);
+    await setHidden(false);
+    await expect.poll(() => gets).toBe(3);
+    await page.clock.runFor(5000);
+    await expect.poll(() => gets).toBe(4);
+});
+
 test("users: Sign out & end sessions asks, then DELETEs by sub", async ({
     page,
 }) => {

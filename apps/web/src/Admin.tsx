@@ -271,8 +271,15 @@ function Sessions() {
     );
     useEffect(() => {
         reload();
-        const timer = setInterval(reload, 5000);
-        return () => clearInterval(timer);
+        const visibleReload = () => {
+            if (!document.hidden) reload();
+        };
+        const timer = setInterval(visibleReload, 5000);
+        document.addEventListener("visibilitychange", visibleReload);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener("visibilitychange", visibleReload);
+        };
     }, [reload]);
     const end = async (s: LiveSession) => {
         if (!confirm(`End ${s.email ?? s.sub} on ${s.hostName}?`)) return;
