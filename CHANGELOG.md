@@ -2,6 +2,11 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.7.0 - 2026-10-12
+- Host tags. Admins add them in Manage hosts → Edit, with suggestions from tags already in use. Each tag gets a colour from its name. Tags only organise hosts; they don't affect access.
+- Hosts page: filter by tags (a host must have every selected tag) and a "Group by tag" view.
+- Task editor: the host list has the same tag filter. Hosts hidden by the filter stay selected.
+
 ## 1.6.1 - 2026-10-12
 - Fixed: enrolling failed with "could not load … via an Include" on hosts whose OpenSSH prints `sshd -T` settings in mixed case (e.g. current OPNsense). The enroll script and sshd reload now read them in either case.
 
