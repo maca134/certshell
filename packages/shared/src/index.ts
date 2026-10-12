@@ -127,10 +127,12 @@ exit $rc`;
 /**
  * systemd only if actually running (containers often ship systemctl without it), else OpenRC, else FreeBSD rc, else SIGHUP.
  * systemd/FreeBSD reload only a running sshd: a stopped one (e.g. socket-activated in LXCs) reads the config when it starts.
+ * Socket-activated sshd is restarted, not reloaded: on SIGHUP it tries to bind the port the socket unit holds, and exits.
  */
 export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
   for u in ssh sshd; do
-    if systemctl is-active -q "$u"; then systemctl reload "$u"; break; fi
+    if systemctl is-active -q "$u.socket"; then systemctl try-restart "$u.service"; break; fi
+    if systemctl is-active -q "$u.service"; then systemctl reload "$u.service"; break; fi
   done
 elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
