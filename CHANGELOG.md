@@ -2,6 +2,12 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.5.0 - 2026-10-12
+- FreeBSD hosts can be enrolled. Install `curl` first (`pkg install curl`).
+- Enroll adds `Include /etc/ssh/sshd_config.d/*.conf` to `sshd_config` when it's missing, on any OS. It keeps a backup, and restores the file if sshd still doesn't load the drop-in.
+- Admin Users page shows each user's certs in use and unexpired.
+- Fixed: enrolling a host whose sshd wasn't running (socket-activated, common in LXCs) failed at the final reload, after the host was already enrolled.
+
 ## 1.4.2 - 2026-10-10
 
 ### Security
