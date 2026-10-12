@@ -24,7 +24,17 @@ export async function ensureCa(
     password: string | undefined,
 ) {
     const key = `${dir}/user_ca`;
-    if (existsSync(key)) return;
+    if (existsSync(key)) {
+        await run(
+            ["ssh-keygen", "-y", "-f", key, ...(password ? [] : ["-P", ""])],
+            password ? caPassphraseEnv(password) : undefined,
+        ).catch(() => {
+            throw new Error(
+                `can't open ${key}: ca_password secret missing or wrong`,
+            );
+        });
+        return;
+    }
     await mkdir(dir, { recursive: true, mode: 0o700 });
     const cmd = ["ssh-keygen", "-q", "-t", "ed25519", "-f", key, "-C", name];
     if (password) await run(cmd, caPassphraseEnv(password));
