@@ -167,7 +167,9 @@ printf 'Authorization: Bearer %s\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/e
   --data-binary @/etc/ssh/ssh_host_ed25519_key.pub
 
 if [ -d /run/systemd/system ]; then
-  systemctl reload ssh 2>/dev/null || systemctl reload sshd
+  for u in ssh sshd; do
+    if systemctl is-active -q "$u"; then systemctl reload "$u"; break; fi
+  done
 elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
 else
@@ -178,7 +180,7 @@ echo "enrolled: $(hostname)"
 
 - Admin-only (`OIDC_ADMIN_GROUP`).
 - `/api/enroll` validates the token and records the host public key against `HOST_ID`.
-- Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it), OpenRC (Alpine), else `SIGHUP` to `/run/sshd.pid` (init-less containers/LXCs). Fails loudly if the drop-in isn't loaded, instead of reporting success.
+- Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it; only an active unit, since a socket-activated sshd may be stopped and reads the config when it starts), OpenRC (Alpine), else `SIGHUP` to `/run/sshd.pid` (init-less containers/LXCs). Fails loudly if the drop-in isn't loaded, instead of reporting success.
 - Removing a host (UI): the app drops it (no more certs for `ws:<hostId>:*`) and shows a root snippet that deletes the drop-in + CA pubkey and reloads sshd. No token: it only takes trust away.
 - Homelab: bake into the Proxmox LXC golden template for zero-touch enrollment on clone.
 
