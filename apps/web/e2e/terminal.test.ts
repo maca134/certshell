@@ -46,6 +46,18 @@ test("host list → terminal: socket for that host/login carries keystrokes", as
     await expect.poll(() => typed.join("")).toBe("ls");
 });
 
+test("full screen button toggles browser full screen", async ({ page }) => {
+    await openTerminal(page);
+    await page.getByRole("button", { name: "Full screen" }).click();
+    await expect
+        .poll(() => page.evaluate(() => !!document.fullscreenElement))
+        .toBe(true);
+    await page.getByRole("button", { name: "Exit full screen" }).click();
+    await expect
+        .poll(() => page.evaluate(() => !!document.fullscreenElement))
+        .toBe(false);
+});
+
 test("closed session shows the reason and reconnects on demand", async ({
     page,
 }) => {
