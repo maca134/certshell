@@ -2,6 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.7.2 - 2026-10-12
+- Fixed: on short screens (e.g. a tablet in landscape) the sidebar menu scrolled with no visible scrollbar, so its last items looked missing. The scrollbar now shows.
+
 ## 1.7.1 - 2026-10-12
 - Fixed: on tablets (Firefox, and other browsers whose toolbar hides on scroll) the sidebar was shorter than the screen and cut off its last item (Audit).
 - Removed: the terminal key bar on touch devices (Esc, Tab, Ctrl, Alt, arrows). Use a keyboard app with those keys instead.
