@@ -27,6 +27,20 @@ test("generates an encrypted CA once, 0700 dir", async () => {
     expect(await Bun.file(`${dir}/user_ca.pub`).text()).toBe(pub);
 });
 
+test("existing CA: refuses to start without the password that opens it", async () => {
+    root = await mkdtemp(`${tmpdir()}/ca-`);
+    const dir = `${root}/ca`;
+    await ensureCa(dir, "test-ca", "s3cret");
+    for (const pw of [undefined, "wrong"])
+        await expect(ensureCa(dir, "test-ca", pw)).rejects.toThrow(
+            "ca_password secret missing or wrong",
+        );
+    await ensureCa(dir, "test-ca", "s3cret");
+
+    await ensureCa(`${root}/plain`, "test-ca", undefined);
+    await ensureCa(`${root}/plain`, "test-ca", undefined);
+});
+
 test("no password → unencrypted key", async () => {
     root = await mkdtemp(`${tmpdir()}/ca-`);
     await ensureCa(`${root}/ca`, "test-ca", undefined);
