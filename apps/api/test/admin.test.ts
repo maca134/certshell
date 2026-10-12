@@ -1,7 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
 import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { type AdminHost, RELOAD_SSHD, REMOVAL_SNIPPET } from "@repo/shared";
+import {
+    type AdminHost,
+    forAnyShell,
+    RELOAD_SSHD,
+    REMOVAL_SNIPPET,
+    SSH_DIR_SH,
+} from "@repo/shared";
 import { renderSnippet } from "../src/routes/enroll";
 import { run } from "../src/ssh/exec";
 import { APP_URL, startApp } from "./helpers/app";
@@ -179,7 +185,7 @@ test("snippet reloads sshd via systemd only when systemd is running", () => {
         token: "t",
     });
     expect(snippet).toContain("if [ -d /run/systemd/system ]; then");
-    expect(snippet).toContain('kill -HUP "$(cat /run/sshd.pid)"');
+    expect(snippet).toContain('kill -HUP "$(cat "$PIDFILE")"');
 });
 
 // Runs `script` under `set -eu` with fake commands first on PATH. Fakes log to $LOG.
@@ -261,10 +267,9 @@ esac`;
     const reload = (running: string, reloadRc = "0") =>
         withFakes(
             { uname: "echo FreeBSD", service },
-            RELOAD_SSHD.replace("[ -d /run/systemd/system ]", "false").replace(
-                "command -v rc-service >/dev/null 2>&1",
-                "false",
-            ),
+            RELOAD_SSHD.replace("[ -d /run/systemd/system ]", "false")
+                .replace("command -v rc-service >/dev/null 2>&1", "false")
+                .replace("[ -x /etc/rc.d/sshd ]", "true"),
             { RUNNING: running, RELOAD_RC: reloadRc },
         );
     expect(await reload("")).toEqual({ code: 0, out: "done", reloads: "" });
@@ -278,6 +283,35 @@ esac`;
         out: "",
         reloads: "onereload",
     });
+});
+
+test("SIGHUP reload: signals the pid in sshd's pidfile; no pidfile, no-op", async () => {
+    // No systemd/OpenRC/FreeBSD rc, e.g. OPNsense or an init-less container.
+    const script = RELOAD_SSHD.replace("[ -d /run/systemd/system ]", "false")
+        .replace("command -v rc-service >/dev/null 2>&1", "false")
+        .replace("[ -x /etc/rc.d/sshd ]", "false");
+    const dir = await mkdtemp(`${tmpdir()}/pid-`);
+    const sleeper = Bun.spawn(["sleep", "30"]);
+    try {
+        await Bun.write(`${dir}/sshd.pid`, `${sleeper.pid}\n`);
+        const sshd = `echo "pidfile $PIDFILE_AT"`;
+        expect(
+            await withFakes({ sshd }, script, {
+                PIDFILE_AT: `${dir}/missing.pid`,
+            }),
+        ).toEqual({ code: 0, out: "done", reloads: "" });
+        expect(sleeper.killed).toBe(false);
+        expect(
+            await withFakes({ sshd }, script, {
+                PIDFILE_AT: `${dir}/sshd.pid`,
+            }),
+        ).toEqual({ code: 0, out: "done", reloads: "" });
+        await sleeper.exited;
+        expect(sleeper.signalCode).toBe("SIGHUP");
+    } finally {
+        sleeper.kill();
+        await rm(dir, { recursive: true, force: true });
+    }
 });
 
 test("snippet: token reaches curl on stdin, not argv", () => {
@@ -482,10 +516,32 @@ test("removal snippet deletes exactly the files the enroll script writes", async
         token: "t",
     });
     const written = [
-        ...(snippet.match(/^CONF=(\S+)$/m)?.slice(1) ?? []),
-        ...(snippet.match(/> (\/etc\/ssh\/\S+)$/m)?.slice(1) ?? []),
+        snippet.match(/^CONF=(\S+)$/m)?.[1],
+        snippet.match(/^CA_FILE=(\S+)$/m)?.[1],
     ];
-    expect(written).toHaveLength(2);
-    expect(REMOVAL_SNIPPET.split("\n")[0]).toBe(`rm -f ${written.join(" ")}`);
-    expect(await run(["sh", "-n", "-c", REMOVAL_SNIPPET])).toBe("");
+    expect(written).toEqual([
+        "$SSH_DIR/sshd_config.d/50-certshell.conf",
+        "$SSH_DIR/certshell_user_ca.pub",
+    ]);
+    // What the snippet feeds to sh.
+    const script = await run([
+        "sh",
+        "-c",
+        REMOVAL_SNIPPET.replace(/\| sh$/, "| cat"),
+    ]);
+    expect(snippet).toContain(SSH_DIR_SH);
+    expect(script).toContain(SSH_DIR_SH);
+    expect(script).toContain(`rm -f ${written.map((f) => `"${f}"`).join(" ")}`);
+    expect(script).toContain(RELOAD_SSHD);
+    expect(await run(["sh", "-n", "-c", script])).toBe("");
+});
+
+test("forAnyShell: passes the script to sh line for line; refuses ' and !", async () => {
+    const script = 'set -eu\nx="a b"\n  echo "$x" $((1 + 1))';
+    expect(
+        await run(["sh", "-c", forAnyShell(script).replace(/\| sh$/, "| cat")]),
+    ).toBe(`${script}\n`);
+    expect(await run(["sh", "-c", forAnyShell(script)])).toBe("a b 2\n");
+    expect(() => forAnyShell("echo 'x'")).toThrow();
+    expect(() => forAnyShell("[ ! -f x ]")).toThrow();
 });

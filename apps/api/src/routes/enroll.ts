@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { type EnrollSnippet, RELOAD_SSHD, sq } from "@repo/shared";
+import { type EnrollSnippet, RELOAD_SSHD, SSH_DIR_SH, sq } from "@repo/shared";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Config } from "../config";
@@ -23,32 +23,40 @@ APP_URL=${sq(opts.appUrl)}
 HOST_ID=${sq(opts.hostId)}
 CA_PUB=${sq(opts.caPub)}
 TOKEN=${sq(opts.token)}
-CONF=/etc/ssh/sshd_config.d/50-certshell.conf
-MAIN=/etc/ssh/sshd_config
+${SSH_DIR_SH}
+CONF=$SSH_DIR/sshd_config.d/50-certshell.conf
+CA_FILE=$SSH_DIR/certshell_user_ca.pub
+MAIN=$SSH_DIR/sshd_config
 
-mkdir -p /etc/ssh/sshd_config.d
-printf '%s\\n' "$CA_PUB" > /etc/ssh/certshell_user_ca.pub
+# A failed first enroll leaves nothing behind; a failed re-enroll keeps the working config.
+[ -e "$CONF" ] || trap 'rm -f "$CONF" "$CA_FILE"' EXIT
+mkdir -p "$SSH_DIR/sshd_config.d"
+printf '%s\\n' "$CA_PUB" > "$CA_FILE"
 cat > "$CONF" <<EOF
-TrustedUserCAKeys /etc/ssh/certshell_user_ca.pub
+TrustedUserCAKeys $CA_FILE
 AuthorizedPrincipalsCommand /bin/echo ws:$HOST_ID:%u
 AuthorizedPrincipalsCommandUser nobody
 EOF
 
-loaded() { sshd -T | grep -qx 'trustedusercakeys /etc/ssh/certshell_user_ca.pub'; }
+loaded() { sshd -T | grep -qx "trustedusercakeys $CA_FILE"; }
 sshd -t
 if ! loaded; then
   cp -p "$MAIN" "$MAIN.certshell.bak"
-  { echo 'Include /etc/ssh/sshd_config.d/*.conf'; cat "$MAIN.certshell.bak"; } > "$MAIN"
+  { printf 'Include %s/sshd_config.d/*.conf\\n' "$SSH_DIR"; cat "$MAIN.certshell.bak"; } > "$MAIN"
   if ! { sshd -t && loaded; }; then
-    cat "$MAIN.certshell.bak" > "$MAIN"; rm "$CONF"
+    cat "$MAIN.certshell.bak" > "$MAIN"
     echo "could not load $CONF via an Include in $MAIN; $MAIN restored" >&2; exit 1
   fi
-  echo "added Include /etc/ssh/sshd_config.d/*.conf to $MAIN (backup: $MAIN.certshell.bak)"
+  echo "added Include $SSH_DIR/sshd_config.d/*.conf to $MAIN (backup: $MAIN.certshell.bak)"
 fi
+
+HOST_KEY=$(sshd -T | awk '$1 == "hostkey" { n = split($2, p, "/"); if (p[n] == "ssh_host_ed25519_key") print $2 }')
+[ -f "$HOST_KEY.pub" ] || { echo "sshd has no ssh_host_ed25519_key HostKey" >&2; exit 1; }
 
 printf 'Authorization: Bearer %s\\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \\
   -H @- \\
-  --data-binary @/etc/ssh/ssh_host_ed25519_key.pub
+  --data-binary "@$HOST_KEY.pub"
+trap - EXIT
 
 ${RELOAD_SSHD}
 echo "enrolled: $(hostname)"
