@@ -22,7 +22,7 @@ CertShell matches the group's **name**, not its friendly name.
 
 **Adding a user.** **Administration → Users → Add user**, then add them to groups. To let them register a passkey, open the user's **⋯** menu → **Login Code** and send them the link.
 
-**Changing access.** Group changes apply at the user's next CertShell login (sessions last up to 1h). To cut someone off now: disable them in Pocket ID, then **Admin → Users → Sign out & end sessions** in CertShell.
+**Changing access.** Group changes apply at the user's next CertShell login (sessions last up to 8h). To cut someone off now: disable them in Pocket ID, then **Admin → Users → Sign out & end sessions** in CertShell.
 
 **Lost passkey.** An admin sends a new **Login Code** as above. Locked out yourself:
 
