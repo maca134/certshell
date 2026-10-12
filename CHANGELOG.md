@@ -2,6 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.6.1 - 2026-10-12
+- Fixed: enrolling failed with "could not load … via an Include" on hosts whose OpenSSH prints `sshd -T` settings in mixed case (e.g. current OPNsense). The enroll script and sshd reload now read them in either case.
+
 ## 1.6.0 - 2026-10-12
 - OPNsense hosts can be enrolled. The enroll script takes its paths from the installed sshd (`/usr/local/etc/ssh` on OPNsense) and reads the host key location from sshd. See README → Adding a host for OPNsense's SSH settings.
 - A failed first enroll removes the files it wrote; a failed re-enroll keeps the working setup.
