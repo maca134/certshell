@@ -7,6 +7,7 @@ const host = {
     enrolled: true,
     tags: ["prod"],
     access: [{ login: "root", group: "ops" }],
+    factsLogin: null,
 };
 
 async function openAdmin(page: Page) {
@@ -117,6 +118,28 @@ test("edit dialog PATCHes details; re-enroll shows a fresh snippet", async ({
         path: "/api/admin/hosts/h1/snippet",
         body: null,
     });
+});
+
+test("edit dialog: facts login is sent only when changed", async ({ page }) => {
+    const calls = await openAdmin(page);
+    await page.getByRole("button", { name: "Edit web1" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByLabel("Facts login")).toHaveValue("");
+    await dialog.getByLabel("Facts login").fill("root");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
+    expect(calls.filter((c) => c.method !== "GET")).toEqual([
+        {
+            method: "PATCH",
+            path: "/api/admin/hosts/h1",
+            body: {
+                name: "web1",
+                address: "10.0.0.1",
+                tags: ["prod"],
+                factsLogin: "root",
+            },
+        },
+    ]);
 });
 
 test("tags: pick an existing tag or create one from the textbox, then PATCH", async ({

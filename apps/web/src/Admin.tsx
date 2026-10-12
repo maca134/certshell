@@ -63,9 +63,17 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "./components/ui/tooltip";
+import { Fleet } from "./Fleet";
 import { cleanTag } from "./tags";
 
-const VIEWS = ["hosts", "users", "sessions", "alerts", "audit"] as const;
+const VIEWS = [
+    "hosts",
+    "fleet",
+    "users",
+    "sessions",
+    "alerts",
+    "audit",
+] as const;
 
 export const noFill = { autoComplete: "off", "data-lpignore": "true" };
 
@@ -117,6 +125,7 @@ export function Admin() {
     if (view === "users") return <Users users={users} reload={reloadUsers} />;
     if (view === "sessions") return <Sessions />;
     if (view === "alerts") return <Alerts />;
+    if (view === "fleet") return <Fleet />;
     return <Audit />;
 }
 
@@ -871,6 +880,7 @@ function EditHost({
     const [address, setAddress] = useState(host.address);
     const [tags, setTags] = useState(host.tags);
     const [rules, setRules] = useState(host.access);
+    const [factsLogin, setFactsLogin] = useState(host.factsLogin ?? "");
     const [error, setError] = useState("");
     const url = `/api/admin/hosts/${host.id}`;
     const formId = `edit-${host.id}`;
@@ -881,21 +891,25 @@ function EditHost({
         setAddress(host.address);
         setTags(host.tags);
         setRules(host.access);
+        setFactsLogin(host.factsLogin ?? "");
         setError("");
     };
     const save = async (e: FormEvent) => {
         e.preventDefault();
         setError("");
         try {
+            const facts = factsLogin.trim() || null;
             if (
                 name.trim() !== host.name ||
                 address.trim() !== host.address ||
-                JSON.stringify(tags) !== JSON.stringify(host.tags)
+                JSON.stringify(tags) !== JSON.stringify(host.tags) ||
+                facts !== host.factsLogin
             )
                 await api(url, "PATCH", {
                     name: name.trim(),
                     address: address.trim(),
                     tags,
+                    ...(facts !== host.factsLogin && { factsLogin: facts }),
                 });
             if (JSON.stringify(rules) !== JSON.stringify(host.access))
                 await api(`${url}/access`, "PUT", rules);
@@ -962,6 +976,30 @@ function EditHost({
                 <div className="flex flex-col gap-2">
                     <Label>Access</Label>
                     <Access rules={rules} onChange={setRules} />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label htmlFor={`facts-${host.id}`}>Facts login</Label>
+                    <Input
+                        {...noFill}
+                        id={`facts-${host.id}`}
+                        form={formId}
+                        className="font-mono"
+                        placeholder="Off"
+                        list={`facts-logins-${host.id}`}
+                        value={factsLogin}
+                        onChange={(e) => setFactsLogin(e.target.value)}
+                    />
+                    <datalist id={`facts-logins-${host.id}`}>
+                        {[...new Set(rules.map((r) => r.login))].map((l) => (
+                            <option key={l} value={l} />
+                        ))}
+                    </datalist>
+                    <p className="text-xs text-muted-foreground">
+                        CertShell logs in as this every 6 hours to read the OS,
+                        uptime, pending updates (from the host's package cache),
+                        reboot flag and disk use for Fleet. It needs no access
+                        rule. Blank: off.
+                    </p>
                 </div>
                 <DialogFooter>
                     <DialogClose asChild>

@@ -3,6 +3,7 @@ import {
     Bell,
     ChevronRight,
     CircleArrowUp,
+    Gauge,
     Globe,
     ListTodo,
     LogOut,
@@ -185,6 +186,7 @@ function GitHubIcon() {
 
 const ADMIN_NAV = [
     { href: "/admin/hosts", label: "Hosts", icon: Server },
+    { href: "/admin/fleet", label: "Fleet", icon: Gauge },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/sessions", label: "Sessions", icon: MonitorDot },
     { href: "/admin/alerts", label: "Alerts", icon: Bell },
