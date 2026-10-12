@@ -1184,42 +1184,44 @@ function TagInput({
                     ))}
                 </div>
             )}
-            <Input
-                {...noFill}
-                id={id}
-                placeholder={full ? "20 tags max" : "Add a tag…"}
-                disabled={full}
-                value={text}
-                onChange={(e) => {
-                    setText(e.target.value);
-                    setActive(0);
-                }}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                onKeyDown={onKeyDown}
-            />
-            {focused && options.length > 0 && (
-                <ul className="flex max-h-48 flex-col overflow-y-auto rounded-lg border p-1">
-                    {options.map((t, i) => (
-                        <li key={t}>
-                            <button
-                                type="button"
-                                tabIndex={-1}
-                                className={cn(
-                                    "flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm",
-                                    i === active && "bg-accent",
-                                )}
-                                onMouseDown={(e) => e.preventDefault()}
-                                onMouseEnter={() => setActive(i)}
-                                onClick={() => add(t)}
-                            >
-                                {!allTags.includes(t) && "Create"}
-                                <Tag name={t} />
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            <div className="relative">
+                <Input
+                    {...noFill}
+                    id={id}
+                    placeholder={full ? "20 tags max" : "Add a tag…"}
+                    disabled={full}
+                    value={text}
+                    onChange={(e) => {
+                        setText(e.target.value);
+                        setActive(0);
+                    }}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    onKeyDown={onKeyDown}
+                />
+                {focused && options.length > 0 && (
+                    <ul className="absolute top-full z-50 mt-1 flex max-h-48 w-full flex-col overflow-y-auto rounded-lg border bg-popover p-1 shadow-md">
+                        {options.map((t, i) => (
+                            <li key={t}>
+                                <button
+                                    type="button"
+                                    tabIndex={-1}
+                                    className={cn(
+                                        "flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm",
+                                        i === active && "bg-accent",
+                                    )}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onMouseEnter={() => setActive(i)}
+                                    onClick={() => add(t)}
+                                >
+                                    {!allTags.includes(t) && "Create"}
+                                    <Tag name={t} />
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
         </div>
     );
 }
