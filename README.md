@@ -122,6 +122,7 @@ Members of `OIDC_ADMIN_GROUP` get an **Admin** section:
 - **Hosts**: add, enroll, edit and delete hosts, and edit the access map ([Adding a host](#adding-a-host)).
 - **Users**: everyone who has signed in, with their groups as of their last sign-in. **Sign out & end sessions** closes their terminals, stops their running tasks and signs them out of CertShell. Disable them at the IdP too, or they can sign straight back in.
 - **Sessions**: open terminals right now. End any one of them.
+- **Alerts**: send notifications through [shoutrrr](https://github.com/nicholas-fedor/shoutrrr/blob/main/docs/services/overview.md) (ntfy, Gotify, Discord, Slack, Telegram, email, webhooks, …). Add a channel with its shoutrrr URL and pick events: a task run with a failed host, a host offline or back online (port 22 checked every minute), security changes (hosts, access, enrollment, alert channels, sessions ended by an admin, a host key mismatch), or a terminal opened (optionally only on hosts with certain tags, or for certain logins). The URL is never shown again after saving, and is stored encrypted when `ca_password` is set. **Send test** checks a channel.
 - **Audit**: logins, every cert signed, terminal start/end, task runs, host and access map changes, enrollments. The same events go to stdout.
 
 ## Configuration
