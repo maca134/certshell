@@ -1,6 +1,7 @@
 import { createApp } from "./app";
 import { loadConfig } from "./config";
 import { openDb, prune } from "./db";
+import { alerter } from "./lib/alerts";
 import { lazyDiscovery } from "./lib/oidc";
 import { updateChecker } from "./lib/version";
 import { websocket } from "./routes/terminal";
@@ -23,6 +24,9 @@ if (config.updateCheck && config.version !== "dev") {
     latestVersion = updates.latest;
 }
 
+const alerts = alerter({ db, appUrl: config.appUrl, caPassword });
+setInterval(alerts.checkHosts, 60_000);
+
 const app = createApp({
     config,
     db,
@@ -40,6 +44,7 @@ const app = createApp({
         tasks: new Map(),
         endedAt: new Map(),
     },
+    alerts,
     latestVersion,
 });
 

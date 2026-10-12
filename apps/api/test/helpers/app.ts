@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { createApp } from "../../src/app";
 import { loadConfig } from "../../src/config";
 import { openDb } from "../../src/db";
+import { alerter } from "../../src/lib/alerts";
 import { createSession } from "../../src/lib/sessions";
 import { SESSION_COOKIE } from "../../src/routes/auth";
 import { websocket } from "../../src/routes/terminal";
@@ -17,6 +18,7 @@ export async function startApp(
     groups = ["admins"],
     env: Record<string, string> = {},
     latestVersion?: () => string | undefined,
+    alerts: Partial<Parameters<typeof alerter>[0]> = {},
 ) {
     const root = await mkdtemp(`${tmpdir()}/app-`);
     if (!terminal.caKey) await ensureCa(`${root}/ca`, "test-ca", "pw");
@@ -24,14 +26,22 @@ export async function startApp(
     const live: TerminalDeps["live"] = new Map();
     const tasks: TerminalDeps["tasks"] = new Map();
     const endedAt: TerminalDeps["endedAt"] = new Map();
+    const config = loadConfig({
+        APP_URL,
+        OIDC_ISSUER: "https://id.test",
+        OIDC_CLIENT_ID: "x",
+        OIDC_CLIENT_SECRET: "y",
+        ...env,
+    });
+    const alert = alerter({
+        db,
+        appUrl: config.appUrl,
+        caPassword: "pw",
+        shoutrrr: ["false"],
+        ...alerts,
+    });
     const app = createApp({
-        config: loadConfig({
-            APP_URL,
-            OIDC_ISSUER: "https://id.test",
-            OIDC_CLIENT_ID: "x",
-            OIDC_CLIENT_SECRET: "y",
-            ...env,
-        }),
+        config,
         db,
         getOidc: () => Promise.reject(new Error("unused")),
         terminal: {
@@ -48,6 +58,7 @@ export async function startApp(
             endedAt,
             ...terminal,
         },
+        alerts: alert,
         latestVersion,
     });
     const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
@@ -131,6 +142,7 @@ export async function startApp(
     return {
         app,
         db,
+        alerts: alert,
         server,
         cookie,
         live,

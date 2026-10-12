@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { createApp } from "../src/app";
 import { loadConfig } from "../src/config";
 import { openDb } from "../src/db";
+import { alerter } from "../src/lib/alerts";
 
 test("/healthz returns 200 with no body", async () => {
     const config = loadConfig({
@@ -29,6 +30,7 @@ test("/healthz returns 200 with no body", async () => {
             tasks: new Map(),
             endedAt: new Map(),
         },
+        alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
     });
     const res = await app.request("/healthz");
     expect(res.status).toBe(200);

@@ -47,3 +47,10 @@ export function parseHostKey(text: string): string | undefined {
         return undefined;
     return `ssh-ed25519 ${b64}`;
 }
+
+// A shoutrrr service URL. Only reaches shoutrrr through its environment, never argv.
+export const validAlertUrl = (s: unknown): s is string =>
+    typeof s === "string" &&
+    s.length <= 2048 &&
+    /^[a-z][a-z0-9+.-]*:\/\/\S*$/.test(s) &&
+    TEXT.test(s);
