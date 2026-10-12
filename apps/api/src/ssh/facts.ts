@@ -33,10 +33,9 @@ fi
 echo "os=$os"
 echo "kernel=$(uname -r)"
 echo "arch=$(uname -m)"
-if [ -r /proc/uptime ]; then echo "uptime=$(cut -d. -f1 /proc/uptime)"
-else
-  b=$(sysctl -n kern.boottime 2>/dev/null | sed -n 's/.*sec = \\([0-9]*\\).*/\\1/p')
-  [ -n "$b" ] && echo "uptime=$(( $(date +%s) - b ))"
+b=$(sysctl -n kern.boottime 2>/dev/null | sed -n 's/^{ sec = \\([0-9]*\\),.*/\\1/p')
+if [ -n "$b" ]; then echo "uptime=$(( $(date +%s) - b ))"
+elif [ -r /proc/uptime ]; then echo "uptime=$(cut -d. -f1 /proc/uptime)"
 fi
 if [ -e /var/run/reboot-required ]; then echo reboot=1
 elif command -v needs-restarting >/dev/null 2>&1; then

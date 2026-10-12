@@ -1,4 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
+import { chmod, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import type { HostFactsRow } from "@repo/shared";
 import { parseFacts } from "../src/ssh/facts";
 import type { TerminalDeps } from "../src/ssh/terminal";
@@ -110,6 +112,34 @@ test("refresh runs the real script via sh -s as the system user, with a no-PTY c
         ["facts", "system"],
     ]);
     expect(JSON.parse(audits[0]?.data ?? "{}").principal).toBe("ws:h1:facts");
+});
+
+test("BSD uptime: from kern.boottime's sec, not its usec", async () => {
+    const dir = await mkdtemp(`${tmpdir()}/sysctl-`);
+    const boot = Math.floor(Date.now() / 1000) - 3600;
+    // FreeBSD / OPNsense format.
+    await Bun.write(
+        `${dir}/sysctl`,
+        `#!/bin/sh\necho '{ sec = ${boot}, usec = 123456 } Mon Oct 12 10:00:00 2026'\n`,
+    );
+    await chmod(`${dir}/sysctl`, 0o755);
+    try {
+        await setup({
+            command: () => [
+                "env",
+                `PATH=${dir}:${process.env.PATH}`,
+                "sh",
+                "-s",
+            ],
+        });
+        await setLogin("h1", "root");
+        await call("POST", "/facts/h1/refresh");
+        const uptime = (await list())[0]?.facts?.uptime ?? 0;
+        expect(uptime).toBeGreaterThanOrEqual(3600);
+        expect(uptime).toBeLessThan(3660);
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
 });
 
 test("cert: no permit-pty", async () => {
