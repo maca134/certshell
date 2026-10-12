@@ -109,6 +109,8 @@ test("fleet: refresh one host or all", async ({ page }) => {
     await expect
         .poll(() => posts)
         .toEqual(["/api/admin/facts/web1/refresh", "/api/admin/facts/refresh"]);
+    // Refresh all answers 202 with no body: no JSON error.
+    await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Refresh db1" })).toHaveCount(
         0,
     );
