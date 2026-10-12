@@ -8,6 +8,7 @@
         "typecheck": "tsc -b",
         "test": "bun test ./test",
         "e2e": "playwright test",
+        "media": "bun media/record.ts",
         "preview": "vite preview"
     },
     "dependencies": {
