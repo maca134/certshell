@@ -317,6 +317,23 @@ test("admin: lists open terminals, ends one, then all of a user's", async () => 
     ).json()) as { id: string };
     await Bun.sleep(300);
 
+    ctx.db.run(
+        "INSERT INTO users (iss, sub, email, groups, last_login) VALUES ('https://id.test', 'user-1', 'a@b.c', '[]', 1)",
+    );
+    ctx.db.run(
+        "INSERT INTO signs (created_at, sub, principal, host_id, session_id) VALUES (?, 'user-1', 'ws:h1:root', 'h1', 'old')",
+        [Math.floor(Date.now() / 1000) - 15 * 60 - 1],
+    );
+    const users = (await (await call("GET", "/admin/users")).json()) as {
+        sub: string;
+        certs: unknown;
+    }[];
+    // 2 open terminals + 1 task target; 4 signs in the last 15 min (3 terminals + task), the old one excluded.
+    expect(users.find((u) => u.sub === "user-1")?.certs).toEqual({
+        inUse: 3,
+        unexpired: 4,
+    });
+
     expect((await call("DELETE", "/admin/sessions?sub=user-1")).status).toBe(
         204,
     );

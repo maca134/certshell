@@ -3,6 +3,8 @@ import { run } from "./exec";
 
 const PRINCIPAL = /^ws:[a-z0-9]+:[a-z_][a-z0-9_-]*$/;
 
+export const CERT_TTL_SECONDS = 15 * 60;
+
 type MintOptions = {
     caKey: string;
     caPassword: string | undefined;
@@ -32,7 +34,7 @@ export async function mintUserCert(opts: MintOptions) {
             "-n",
             opts.principal,
             "-V",
-            opts.validity ?? "+15m",
+            opts.validity ?? `+${CERT_TTL_SECONDS / 60}m`,
             "-z",
             String(opts.serial),
             "-O",
