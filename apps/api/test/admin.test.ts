@@ -155,6 +155,7 @@ test("create host → pending host + curl | sh one-liner", async () => {
             enrolled: false,
             tags: [],
             access: [],
+            factsLogin: null,
         },
     ]);
 });

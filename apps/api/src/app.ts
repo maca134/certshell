@@ -13,8 +13,10 @@ import { adminRoutes } from "./routes/admin";
 import { alertRoutes } from "./routes/alerts";
 import { authRoutes, SESSION_COOKIE } from "./routes/auth";
 import { enrollRoute } from "./routes/enroll";
+import { factsRoutes } from "./routes/facts";
 import { taskRoutes } from "./routes/tasks";
 import { terminalRoute } from "./routes/terminal";
+import type { FactsCollector } from "./ssh/facts";
 import type { TerminalDeps } from "./ssh/terminal";
 
 const WEB_DIST = `${import.meta.dir}/../../web/dist`;
@@ -44,6 +46,7 @@ export type Deps = {
     getOidc: GetOidc;
     terminal: TerminalDeps;
     alerts: Alerter;
+    facts: FactsCollector;
     latestVersion?: () => string | undefined;
 };
 
@@ -53,6 +56,7 @@ export function createApp({
     getOidc,
     terminal,
     alerts,
+    facts,
     latestVersion,
 }: Deps) {
     const app = new Hono<AppEnv>();
@@ -110,6 +114,7 @@ export function createApp({
     const caPubPath = `${terminal.caKey}.pub`;
     app.route("/", enrollRoute({ config, db, caPubPath }));
     app.route("/api/admin/alerts", alertRoutes({ config, db, alerts }));
+    app.route("/api/admin/facts", factsRoutes({ config, db, facts }));
     app.route("/api/admin", adminRoutes({ config, db, terminal }));
     app.route("/", authRoutes({ config, db, getOidc }));
     app.route(

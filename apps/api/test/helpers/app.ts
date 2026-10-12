@@ -8,6 +8,7 @@ import { createSession } from "../../src/lib/sessions";
 import { SESSION_COOKIE } from "../../src/routes/auth";
 import { websocket } from "../../src/routes/terminal";
 import { ensureCa } from "../../src/ssh/ca";
+import { factsCollector } from "../../src/ssh/facts";
 import type { TerminalDeps } from "../../src/ssh/terminal";
 
 export const APP_URL = "https://ssh.test";
@@ -40,25 +41,28 @@ export async function startApp(
         shoutrrr: ["false"],
         ...alerts,
     });
+    const terminalDeps: TerminalDeps = {
+        db,
+        caKey: `${root}/ca/user_ca`,
+        caPassword: "pw",
+        idleMs: 60_000,
+        maxMs: 60_000,
+        taskMs: 60_000,
+        maxSessions: 64,
+        maxSessionsTotal: 200,
+        live,
+        tasks,
+        endedAt,
+        ...terminal,
+    };
+    const facts = factsCollector(db, terminalDeps);
     const app = createApp({
         config,
         db,
         getOidc: () => Promise.reject(new Error("unused")),
-        terminal: {
-            db,
-            caKey: `${root}/ca/user_ca`,
-            caPassword: "pw",
-            idleMs: 60_000,
-            maxMs: 60_000,
-            taskMs: 60_000,
-            maxSessions: 64,
-            maxSessionsTotal: 200,
-            live,
-            tasks,
-            endedAt,
-            ...terminal,
-        },
+        terminal: terminalDeps,
         alerts: alert,
+        facts,
         latestVersion,
     });
     const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
@@ -143,6 +147,7 @@ export async function startApp(
         app,
         db,
         alerts: alert,
+        facts,
         server,
         cookie,
         live,

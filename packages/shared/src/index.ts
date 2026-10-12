@@ -67,6 +67,7 @@ export type RunDetail = {
 
 export type AccessRule = { login: string; group: string };
 
+/** `factsLogin`: the login host facts are collected as; null = not collected. */
 export type AdminHost = {
     id: string;
     name: string;
@@ -74,6 +75,35 @@ export type AdminHost = {
     enrolled: boolean;
     tags: string[];
     access: AccessRule[];
+    factsLogin: string | null;
+};
+
+/**
+ * What the facts script found; a key is missing when the host couldn't tell (e.g. no known package manager).
+ * `uptime`: seconds. `disk`: % used on /. `updates`/`security`: pending package updates, from the host's package cache.
+ */
+export type HostFacts = {
+    os?: string;
+    kernel?: string;
+    arch?: string;
+    uptime?: number;
+    reboot?: boolean;
+    updates?: number;
+    security?: number;
+    disk?: number;
+    openssh?: string;
+};
+
+/** One enrolled host's facts. `facts`: the last good collection, kept when a later one fails (`error`). */
+export type HostFactsRow = {
+    hostId: string;
+    hostName: string;
+    tags: string[];
+    login: string | null;
+    collectedAt: number | null;
+    facts: HostFacts | null;
+    error: string | null;
+    collecting: boolean;
 };
 
 export type EnrollSnippet = { snippet: string; expiresAt: number };

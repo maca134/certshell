@@ -114,6 +114,17 @@ export const MIGRATIONS: string[][] = [
             last_error TEXT
         )`,
     ],
+    // 7: host facts. `facts_login` NULL = not collected.
+    [
+        "ALTER TABLE hosts ADD COLUMN facts_login TEXT",
+        `CREATE TABLE host_facts (
+            host_id TEXT PRIMARY KEY REFERENCES hosts(id),
+            login TEXT NOT NULL,
+            collected_at INTEGER NOT NULL,
+            facts TEXT,
+            error TEXT
+        )`,
+    ],
 ];
 
 export function migrate(db: Database, migrations = MIGRATIONS) {
