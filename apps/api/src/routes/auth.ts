@@ -122,6 +122,8 @@ export function authRoutes({
     });
 
     app.post("/auth/logout", (c) => {
+        if (c.req.header("origin") !== config.appUrl.origin)
+            return c.text("bad origin", 403);
         const user = deleteSession(db, getCookie(c, SESSION_COOKIE));
         deleteCookie(c, SESSION_COOKIE, cookieOpts);
         if (user)

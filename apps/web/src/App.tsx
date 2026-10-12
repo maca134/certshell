@@ -456,16 +456,21 @@ function AppSidebar({ me }: { me?: Me }) {
                         </SidebarMenuItem>
                     )}
                     <SidebarMenuItem>
-                        <form method="post" action="/auth/logout">
-                            <SidebarMenuButton
-                                type="submit"
-                                tooltip="Sign out"
-                                className="text-muted-foreground"
-                            >
-                                <LogOut />
-                                <span>Sign out</span>
-                            </SidebarMenuButton>
-                        </form>
+                        {/* fetch, not a form: under Referrer-Policy no-referrer a form POST sends Origin: null. */}
+                        <SidebarMenuButton
+                            tooltip="Sign out"
+                            className="text-muted-foreground"
+                            onClick={() =>
+                                fetch("/auth/logout", {
+                                    method: "POST",
+                                }).finally(() => {
+                                    location.href = "/auth/logout";
+                                })
+                            }
+                        >
+                            <LogOut />
+                            <span>Sign out</span>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
                 {me && (

@@ -347,8 +347,12 @@ test("users: Sign out & end sessions asks, then DELETEs by sub", async ({
         .toEqual(["DELETE /api/admin/sessions?sub=u%201"]);
 });
 
-test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {
+test("sign out POSTs to /auth/logout with our Origin, then shows it", async ({
+    page,
+    isMobile,
+}) => {
     await openAdmin(page);
+    const origin = new URL(page.url()).origin;
     const posted = page.waitForRequest(
         (r) => r.method() === "POST" && r.url().endsWith("/auth/logout"),
     );
@@ -356,7 +360,8 @@ test("sign out POSTs to /auth/logout", async ({ page, isMobile }) => {
     await (await sidebar(page, isMobile))
         .getByRole("button", { name: "Sign out" })
         .click();
-    await posted;
+    expect((await posted).headers().origin).toBe(origin);
+    await expect(page).toHaveURL("/auth/logout");
 });
 
 test("top bar links to the website and GitHub", async ({ page }) => {

@@ -225,7 +225,7 @@ test("logout ends the session, audits, and shows the signed-out page", async () 
     const cookie = await loggedIn();
     const res = await app.request("https://ssh.test/auth/logout", {
         method: "POST",
-        headers: { cookie },
+        headers: { cookie, origin: "https://ssh.test" },
     });
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/auth/logout");
@@ -250,8 +250,21 @@ test("logout ends the session, audits, and shows the signed-out page", async () 
 test("logout without a session still redirects", async () => {
     const res = await app.request("https://ssh.test/auth/logout", {
         method: "POST",
+        headers: { origin: "https://ssh.test" },
     });
     expect(res.status).toBe(303);
+});
+
+test("logout from another origin → 403, session kept", async () => {
+    const cookie = await loggedIn();
+    for (const origin of ["https://evil.ssh.test", "null", undefined]) {
+        const res = await app.request("https://ssh.test/auth/logout", {
+            method: "POST",
+            headers: origin ? { cookie, origin } : { cookie },
+        });
+        expect(res.status).toBe(403);
+    }
+    expect((await get("/api/me", cookie)).status).toBe(200);
 });
 
 test("IdP down → 503, then retries discovery", async () => {
