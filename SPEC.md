@@ -57,7 +57,7 @@ OIDC provider (Pocket ID, …) ◄── discovery, code exchange ── app
 - Groups come from the ID token's `groups` claim, compared as exact strings.
   - Members of `OIDC_ADMIN_GROUP` (default `certshell-admins`) may enroll hosts, edit the access map, read the audit log, and list or end open terminals. Ending all of a user's also stops their running tasks and signs them out of CertShell (the IdP may sign them straight back in; disable them there to lock them out). Deleting a host, or changing its access, ends the terminals and running task targets it no longer allows.
   - Restrict who can log in at all at the IdP (Pocket ID: client → Allowed User Groups).
-- App session: absolute 1h, then back through the IdP (silent while the IdP session lives). Groups are re-read on every login, so IdP changes (disable user, remove from group) apply to new connections within 1h.
+- App session: 30 min idle (each request slides it), 8h absolute, then back through the IdP (silent while the IdP session lives). Groups are re-read on every login, so IdP changes (disable user, remove from group) apply to new connections within 8h.
 - OIDC discovery is fetched lazily and retried. The app boots and serves `/healthz` even if the IdP is down.
 
 ### 3.2 User certs

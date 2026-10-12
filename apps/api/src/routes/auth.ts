@@ -9,7 +9,7 @@ import {
     type AppEnv,
     createSession,
     deleteSession,
-    SESSION_TTL_SECONDS,
+    SESSION_MAX_SECONDS,
 } from "../lib/sessions";
 
 export const LOGIN_COOKIE = "__Host-certshell_login";
@@ -103,7 +103,7 @@ export function authRoutes({
         });
         setCookie(c, SESSION_COOKIE, token, {
             ...cookieOpts,
-            maxAge: SESSION_TTL_SECONDS,
+            maxAge: SESSION_MAX_SECONDS,
         });
         db.run(
             `INSERT INTO users (iss, sub, email, groups, last_login) VALUES (?, ?, ?, ?, ?)
