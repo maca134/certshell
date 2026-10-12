@@ -6,7 +6,7 @@
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
-![CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, tag a host](docs/media/demo.gif)
+![CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, list hosts that need a reboot, tag a host](docs/media/demo.gif)
 
 **Website & setup generator: [certshell.dev](https://certshell.dev)**
 
@@ -17,8 +17,10 @@ A browser SSH terminal for your servers. You log in with your identity provider 
 - Hosts trust the CA through a one-line enroll script. Existing `authorized_keys` keep working, so enrolling can't lock you out.
 - Admins map **IdP group → host → login** in the web UI. No edits on the host after enrollment.
 - Every login, cert and session goes to an audit log (in the app and on stdout). The host's sshd logs each cert's ID and serial too.
-- **Tasks**: save a script and the hosts it runs on (e.g. `apt-get upgrade -y` on every web server), run it in one click, and see each host's exit code and output.
+- **Tasks**: save a script and the hosts it runs on (e.g. `apt-get upgrade -y` on every web server), run it in one click, and see each host's exit code and output. Hosts with the same output are grouped; the rest show a diff.
 - **Tags**: admins tag hosts. Filter or group the host list by tag, and pick task hosts the same way. Tags only organise; they don't change access.
+- **Fleet**: OS, uptime, pending updates, reboot flag and disk use for every host, collected every 6 hours with a no-terminal cert.
+- **Alerts**: failed tasks, offline hosts, reboots, security changes or terminals on chosen hosts go to ntfy, Discord, Slack, Telegram, email and more, through shoutrrr.
 
 Scope: browser terminal and tasks. No native `ssh`/`scp`/`sftp` and no port forwarding.
 
