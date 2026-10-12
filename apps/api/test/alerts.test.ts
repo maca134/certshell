@@ -354,6 +354,29 @@ test("task_failed: one alert when the last host finishes, only if one failed", a
     );
 });
 
+test("reboot: alerted when host facts first show the flag, not again until it clears", async () => {
+    let reboot = "1";
+    await setup({ command: () => ["sh", "-c", `echo reboot=${reboot}`] });
+    await create({ events: ["reboot"] });
+    ctx.db.run("UPDATE hosts SET facts_login = 'root' WHERE id = 'h1'");
+    await ctx.facts.collect("h1");
+    await ctx.facts.collect("h1");
+    reboot = "0";
+    await ctx.facts.collect("h1");
+    reboot = "1";
+    await ctx.facts.collect("h1");
+    const s = await sent(2);
+    await Bun.sleep(100);
+    expect((await readSent()).length).toBe(2);
+    expect(titles(s)).toEqual([
+        "CertShell: h1 needs a reboot",
+        "CertShell: h1 needs a reboot",
+    ]);
+    expect(s[0]?.body).toBe(
+        "Host facts found the reboot flag set.\nhttps://ssh.test/admin/fleet",
+    );
+});
+
 test("host monitor: first check silent, offline after 2 failed checks, back online after 1", async () => {
     let up = true;
     await setup({}, async () => up);

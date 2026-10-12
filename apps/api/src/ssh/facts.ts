@@ -163,6 +163,11 @@ export function factsCollector(db: Database, terminal: TerminalDeps) {
         } finally {
             collecting.delete(hostId);
         }
+        const before = db
+            .query<{ facts: string | null }, [string, string]>(
+                "SELECT facts FROM host_facts WHERE host_id = ? AND login = ?",
+            )
+            .get(hostId, login)?.facts;
         db.run(
             `INSERT INTO host_facts (host_id, login, collected_at, facts, error) VALUES (?, ?, ?, ?, ?)
              ON CONFLICT (host_id) DO UPDATE SET login = excluded.login, collected_at = excluded.collected_at,
@@ -176,6 +181,13 @@ export function factsCollector(db: Database, terminal: TerminalDeps) {
             login,
             error: error ?? undefined,
         });
+        if (facts?.reboot && !(before && JSON.parse(before).reboot))
+            audit(db, {
+                event: "host_reboot_required",
+                sub: SYSTEM_USER.sub,
+                host: hostId,
+                name: host.name,
+            });
         return true;
     }
 
