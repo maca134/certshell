@@ -125,8 +125,8 @@ kill $tail_pid 2>/dev/null
 exit $rc`;
 
 /**
- * systemd only if actually running (containers often ship systemctl without it), else OpenRC, else SIGHUP.
- * Under systemd, reload only an active unit: a socket-activated sshd (LXCs) is often stopped and reads the config when it starts.
+ * systemd only if actually running (containers often ship systemctl without it), else OpenRC, else FreeBSD rc, else SIGHUP.
+ * systemd/FreeBSD reload only a running sshd: a stopped one (e.g. socket-activated in LXCs) reads the config when it starts.
  */
 export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
   for u in ssh sshd; do
@@ -134,6 +134,8 @@ export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
   done
 elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
+elif [ "$(uname)" = FreeBSD ]; then
+  if service sshd onestatus >/dev/null 2>&1; then service sshd onereload; fi
 else
   kill -HUP "$(cat /run/sshd.pid)"
 fi`;
