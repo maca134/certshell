@@ -148,7 +148,14 @@ test("create host → pending host + curl | sh one-liner", async () => {
     expect(token.length).toBeGreaterThan(40);
     expect(expiresAt - Date.now() / 1000).toBeGreaterThan(590);
     expect(await hosts()).toEqual([
-        { id, name: "web1", address: "web1.lan", enrolled: false, access: [] },
+        {
+            id,
+            name: "web1",
+            address: "web1.lan",
+            enrolled: false,
+            tags: [],
+            access: [],
+        },
     ]);
 });
 
@@ -471,6 +478,40 @@ test("edit host: name and address validated, id immutable", async () => {
     ]);
 });
 
+test("host tags: validated, deduped and sorted, shown to users", async () => {
+    await admin();
+    const { id, token } = await createHost();
+    const patch = (body: unknown) =>
+        call("PATCH", `/api/admin/hosts/${id}`, body);
+    for (const tags of [
+        "prod",
+        ["Prod"],
+        ["a b"],
+        [""],
+        ["x".repeat(33)],
+        [1],
+        Array.from({ length: 21 }, (_, i) => `t${i}`),
+    ])
+        expect((await patch({ tags })).status).toBe(400);
+
+    expect((await patch({ tags: ["prod", "docker-1", "prod"] })).status).toBe(
+        204,
+    );
+    expect((await patch({ name: "renamed" })).status).toBe(204);
+    expect((await hosts())[0]?.tags).toEqual(["docker-1", "prod"]);
+
+    await call("PUT", `/api/admin/hosts/${id}/access`, [
+        { login: "root", group: "certshell-admins" },
+    ]);
+    expect((await enroll(token, await hostKey())).status).toBe(204);
+    expect(await (await call("GET", "/api/hosts")).json()).toEqual([
+        { id, name: "renamed", tags: ["docker-1", "prod"], logins: ["root"] },
+    ]);
+
+    expect((await patch({ tags: [] })).status).toBe(204);
+    expect((await hosts())[0]?.tags).toEqual([]);
+});
+
 test("access map: validated, replaces rules, only enrolled hosts reach users", async () => {
     await admin();
     const { id, token } = await createHost();
@@ -503,7 +544,7 @@ test("access map: validated, replaces rules, only enrolled hosts reach users", a
 
     expect((await enroll(token, await hostKey())).status).toBe(204);
     expect(await (await call("GET", "/api/hosts")).json()).toEqual([
-        { id, name: "web1", logins: ["deploy", "root"] },
+        { id, name: "web1", tags: [], logins: ["deploy", "root"] },
     ]);
 
     expect(

@@ -4,6 +4,7 @@ const LABEL = "[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?";
 const HOSTNAME = new RegExp(`^(?=.{1,253}$)${LABEL}(?:\\.${LABEL})*$`);
 const IPV6 = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
 const TEXT = /^[^\p{Cc}]+$/u;
+const TAG = /^[a-z0-9-]{1,32}$/;
 
 export const validAddress = (s: unknown): s is string =>
     typeof s === "string" &&
@@ -14,6 +15,11 @@ export const validName = (s: unknown): s is string =>
 
 export const validGroup = (s: unknown): s is string =>
     typeof s === "string" && s.length <= 128 && TEXT.test(s);
+
+export const validTags = (a: unknown): a is string[] =>
+    Array.isArray(a) &&
+    a.length <= 20 &&
+    a.every((t) => typeof t === "string" && TAG.test(t));
 
 export const validLogin = (s: unknown): s is string =>
     typeof s === "string" && LOGIN.test(s);
