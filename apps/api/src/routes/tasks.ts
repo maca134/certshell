@@ -92,7 +92,8 @@ export function taskRoutes({
             )
             .get(Number(id), sub);
 
-    const summaries = (sub: string) =>
+    /** `latest`: each task's last run, however old; otherwise the user's 50 newest runs. */
+    const summaries = (sub: string, latest = false) =>
         db
             .query<
                 {
@@ -109,8 +110,8 @@ export function taskRoutes({
                 `SELECT r.id, r.task_id, r.name, r.created_at,
                    sum(h.status = 'running') AS running, sum(h.status = 'ok') AS ok, sum(h.status = 'failed') AS failed
                  FROM runs r JOIN run_hosts h ON h.run_id = r.id
-                 WHERE r.sub = ?
-                 GROUP BY r.id ORDER BY r.created_at DESC LIMIT 50`,
+                 WHERE r.sub = ?1${latest ? " AND r.id IN (SELECT id FROM (SELECT id, max(created_at) FROM runs WHERE sub = ?1 GROUP BY task_id))" : ""}
+                 GROUP BY r.id ORDER BY r.created_at DESC${latest ? "" : " LIMIT 50"}`,
             )
             .all(sub)
             .map(
@@ -126,8 +127,7 @@ export function taskRoutes({
     app.get("/", (c) => {
         const sub = c.var.user.sub;
         const last = new Map<number, RunSummary>();
-        for (const r of summaries(sub))
-            if (!last.has(r.taskId)) last.set(r.taskId, r);
+        for (const r of summaries(sub, true)) last.set(r.taskId, r);
         return c.json<Task[]>(
             db
                 .query<TaskRow, [string]>(

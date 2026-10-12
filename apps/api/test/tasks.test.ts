@@ -339,6 +339,26 @@ test("run: refused past maxSessionsTotal, across users", async () => {
     ).toBe(201);
 });
 
+test("tasks: last run shown even with 50+ newer runs of other tasks", async () => {
+    await setup();
+    const a = await createTask("true", h1root, "a");
+    const b = await createTask("true", h1root, "b");
+    const insert = ctx.db.prepare(
+        "INSERT INTO runs (id, task_id, sub, email, name, script, created_at) VALUES (?, ?, 'user-1', null, 'x', 'true', ?)",
+    );
+    const host = ctx.db.prepare(
+        "INSERT INTO run_hosts (run_id, host_id, host_name, login, status) VALUES (?, 'h1', 'h1', 'root', 'ok')",
+    );
+    for (let i = 0; i <= 51; i++) {
+        insert.run(`r${i}`, i ? b : a, i);
+        host.run(`r${i}`);
+    }
+    const tasks = (await (await call("GET", "")).json()) as Task[];
+    expect(tasks.map((t) => t.lastRun?.id)).toEqual(["r0", "r51"]);
+    const runs = (await (await call("GET", "/runs")).json()) as RunSummary[];
+    expect(runs).toHaveLength(50);
+});
+
 test("targets still running at startup are marked failed", async () => {
     await setup();
     ctx.db.run(
