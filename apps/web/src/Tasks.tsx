@@ -18,7 +18,7 @@ import {
     Trash2,
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
-import { Link, Route, Switch, useLocation } from "wouter";
+import { Link, Route, Switch, useLocation, useSearch } from "wouter";
 import { AMBER, GREEN, When } from "./Admin";
 import { api } from "./api";
 import { EmptyState, Page, TagFilter } from "./components/layout";
@@ -202,10 +202,16 @@ function Counts({ counts }: { counts: Record<RunStatus, number> }) {
 
 function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
     const [, navigate] = useLocation();
+    const search = useSearch();
     const [name, setName] = useState("");
     const [script, setScript] = useState("");
     const [detach, setDetach] = useState(false);
-    const [checked, setChecked] = useState<string[]>([]);
+    // `?hosts=h1,h2` (from Fleet) preselects hosts on a new task.
+    const [checked, setChecked] = useState<string[]>(() =>
+        id === undefined
+            ? (new URLSearchParams(search).get("hosts")?.split(",") ?? [])
+            : [],
+    );
     // hostId → login picked in that host's dropdown; unset means its first login.
     const [picked, setPicked] = useState<Record<string, string>>({});
     const [error, setError] = useState<string>();

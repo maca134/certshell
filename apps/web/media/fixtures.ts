@@ -30,6 +30,7 @@ const adminHosts: AdminHost[] = [
         name: "web1",
         address: "10.0.1.11",
         enrolled: true,
+        factsLogin: null,
         tags: ["edge", "prod", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -41,6 +42,7 @@ const adminHosts: AdminHost[] = [
         name: "web2",
         address: "10.0.1.12",
         enrolled: true,
+        factsLogin: null,
         tags: ["prod", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -52,6 +54,7 @@ const adminHosts: AdminHost[] = [
         name: "db1",
         address: "10.0.2.21",
         enrolled: true,
+        factsLogin: null,
         tags: ["db", "prod"],
         access: [
             { login: "postgres", group: "dba" },
@@ -63,6 +66,7 @@ const adminHosts: AdminHost[] = [
         name: "staging1",
         address: "10.0.3.11",
         enrolled: true,
+        factsLogin: null,
         tags: ["docker", "staging", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -74,6 +78,7 @@ const adminHosts: AdminHost[] = [
         name: "ci-runner",
         address: "10.0.3.40",
         enrolled: true,
+        factsLogin: null,
         tags: ["dev", "docker"],
         access: [{ login: "ci", group: "ops" }],
     },
@@ -82,6 +87,7 @@ const adminHosts: AdminHost[] = [
         name: "backup1",
         address: "10.0.3.31",
         enrolled: true,
+        factsLogin: null,
         tags: ["backup"],
         access: [{ login: "root", group: "ops" }],
     },
@@ -90,6 +96,7 @@ const adminHosts: AdminHost[] = [
         name: "monitor1",
         address: "10.0.3.50",
         enrolled: false,
+        factsLogin: null,
         tags: [],
         access: [],
     },
