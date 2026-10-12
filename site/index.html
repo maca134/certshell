@@ -55,7 +55,7 @@
 <span class="tok-k">root@web1:~#</span></pre>
             </div>
 
-            <video class="demo" src="docs/media/demo.mp4" width="1280" height="760" autoplay muted loop playsinline aria-label="CertShell demo: open a terminal, run a task on several hosts, manage host access"></video>
+            <video class="demo" src="docs/media/demo.mp4" width="1280" height="760" autoplay muted loop playsinline aria-label="CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, tag a host"></video>
 
             <section>
                 <h2>How it works</h2>
@@ -110,6 +110,21 @@
                         <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg></span>
                         <h3>Hardened container</h3>
                         <p>Non-root, read-only root filesystem, all capabilities dropped. Strict headers and rate limits.</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r="1.5" /></svg></span>
+                        <h3>Host tags</h3>
+                        <p>Tag hosts from the admin page. Filter or group the host list by tag, and pick task hosts the same way. Tags don't change access.</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="m7 11 2-2-2-2M11 13h4" /></svg></span>
+                        <h3>A proper terminal</h3>
+                        <p>Scrollback search, full screen, and a confirm before a paste that would run commands.</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg></span>
+                        <h3>Host status at a glance</h3>
+                        <p>An online dot next to every host, from a port 22 check, so you know it's down before you open it.</p>
                     </div>
                 </div>
             </section>
