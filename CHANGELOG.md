@@ -2,6 +2,11 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.5.1 - 2026-10-12
+- Admin Hosts: each row has Enroll, Edit and Remove buttons that open dialogs. Edit covers name, address and access rules, and sends nothing until Save.
+- Fixed: the enroll snippet overflowed the host panel.
+- Fixed: enrolling or removing a host with socket-activated sshd (Debian 13 LXCs) failed at the reload with "Cannot bind any address". sshd is now restarted there instead of reloaded; open sessions stay up.
+
 ## 1.5.0 - 2026-10-12
 - FreeBSD hosts can be enrolled. Install `curl` first (`pkg install curl`).
 - Enroll adds `Include /etc/ssh/sshd_config.d/*.conf` to `sshd_config` when it's missing, on any OS. It keeps a backup, and restores the file if sshd still doesn't load the drop-in.
