@@ -55,7 +55,7 @@
 <span class="tok-k">root@web1:~#</span></pre>
             </div>
 
-            <video class="demo" src="docs/media/demo.mp4" width="1280" height="760" autoplay muted loop playsinline aria-label="CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, tag a host"></video>
+            <video class="demo" src="docs/media/demo.mp4" width="1280" height="760" autoplay muted loop playsinline aria-label="CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, list hosts that need a reboot, tag a host"></video>
 
             <section>
                 <h2>How it works</h2>
@@ -126,12 +126,27 @@
                         <h3>Host status at a glance</h3>
                         <p>An online dot next to every host, from a port 22 check, so you know it's down before you open it.</p>
                     </div>
+                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4M3.34 19a10 10 0 1 1 17.32 0" /></svg></span>
+                        <h3>Fleet overview</h3>
+                        <p>OS, uptime, pending security updates, reboot flag and disk use for every host. Pick the ones that need a reboot and start a task on them.</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33" /></svg></span>
+                        <h3>Alerts anywhere</h3>
+                        <p>ntfy, Discord, Slack, Telegram, email and more, through shoutrrr: failed tasks, offline hosts, reboots, security changes, a root terminal on prod.</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v14M5 10h14M5 21h14" /></svg></span>
+                        <h3>Spot the odd host out</h3>
+                        <p>Task results group hosts with the same output. The ones that differ show a diff against the rest.</p>
+                    </div>
                 </div>
             </section>
 
             <section>
                 <h2>Tasks</h2>
-                <p>Save a script and the hosts it runs on, then run it in one click. Each host gets its own short-lived cert with no terminal, the same access map applies, and you see every host's exit code and output. Detached tasks keep running even if the connection drops mid-run, e.g. during an sshd or VPN upgrade.</p>
+                <p>Save a script and the hosts it runs on, then run it in one click. Each host gets its own short-lived cert with no terminal, the same access map applies, and you see every host's exit code and output, with identical outputs grouped and the rest shown as a diff. Detached tasks keep running even if the connection drops mid-run, e.g. during an sshd or VPN upgrade.</p>
                 <div class="term">
 <pre><span class="tok-c"># task: apt upgrade · 3 hosts · run by alice</span>
 <span class="g">✓</span> web1:root   ok       exit 0     41s
