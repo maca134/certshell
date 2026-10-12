@@ -15,9 +15,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
-import { KEYS, type Key, keyBytes, type Mods, withMods } from "./keys";
-
-const NO_MODS: Mods = { ctrl: false, alt: false };
 
 const FONT = '"Geist Mono Variable", ui-monospace, Menlo, monospace';
 
@@ -59,9 +56,6 @@ export function TerminalView({
     const ref = useRef<HTMLDivElement>(null);
     const [status, setStatus] = useState<Status>({ state: "connecting" });
     const [attempt, setAttempt] = useState(0);
-    const [mods, setMods] = useState(NO_MODS);
-    const modsRef = useRef(NO_MODS);
-    const pressRef = useRef<(key: Key) => void>(() => {});
     const termRef = useRef<Terminal>(undefined);
     const searchRef = useRef<SearchAddon>(undefined);
     const [searching, setSearching] = useState(false);
@@ -159,32 +153,7 @@ export function TerminalView({
                 if (ws.readyState === WebSocket.OPEN)
                     ws.send(JSON.stringify(msg));
             };
-            // CTRL/ALT on the key bar are one-shot: they apply to the next key, typed or tapped.
-            const takeMods = () => {
-                const m = modsRef.current;
-                modsRef.current = NO_MODS;
-                setMods(NO_MODS);
-                return m;
-            };
-            term.onData((d) => send({ t: "in", d: withMods(d, takeMods()) }));
-            pressRef.current = (key) => {
-                if (key === "CTRL" || key === "ALT") {
-                    const k = key === "CTRL" ? "ctrl" : "alt";
-                    modsRef.current = {
-                        ...modsRef.current,
-                        [k]: !modsRef.current[k],
-                    };
-                    setMods(modsRef.current);
-                } else
-                    send({
-                        t: "in",
-                        d: keyBytes(
-                            key,
-                            takeMods(),
-                            term.modes.applicationCursorKeysMode,
-                        ),
-                    });
-            };
+            term.onData((d) => send({ t: "in", d }));
             term.onResize(({ cols, rows }) =>
                 send({ t: "resize", cols, rows }),
             );
@@ -315,27 +284,6 @@ export function TerminalView({
                 </div>
             )}
             <div ref={ref} className="min-h-0 flex-1 py-2 pl-3" />
-            <div className="hidden grid-cols-7 gap-1.5 border-t bg-sidebar p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] pointer-coarse:grid">
-                {KEYS.map((key) => (
-                    <button
-                        type="button"
-                        key={key}
-                        className={cn(
-                            "touch-manipulation rounded-md bg-white/7 py-2.5 text-xs font-medium text-foreground/80 shadow-[inset_0_1px_0_oklch(1_0_0/6%)] select-none active:bg-white/15",
-                            ((key === "CTRL" && mods.ctrl) ||
-                                (key === "ALT" && mods.alt)) &&
-                                "bg-primary text-primary-foreground active:bg-primary",
-                        )}
-                        // pointerdown + preventDefault keeps focus (and the soft keyboard) on the terminal.
-                        onPointerDown={(e) => {
-                            e.preventDefault();
-                            pressRef.current(key);
-                        }}
-                    >
-                        {key}
-                    </button>
-                ))}
-            </div>
         </div>
     );
 }

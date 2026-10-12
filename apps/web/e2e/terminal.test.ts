@@ -46,27 +46,6 @@ test("host list → terminal: socket for that host/login carries keystrokes", as
     await expect.poll(() => typed.join("")).toBe("ls");
 });
 
-test("key bar: hidden without a touch screen", async ({ page, isMobile }) => {
-    test.skip(isMobile);
-    await openTerminal(page);
-    await expect(page.getByRole("button", { name: "ESC" })).toBeHidden();
-});
-
-test("key bar: CTRL applies to the next key only; ESC and arrows send escapes", async ({
-    page,
-    isMobile,
-}) => {
-    test.skip(!isMobile);
-    const { typed } = await openTerminal(page);
-    const key = (name: string) =>
-        page.getByRole("button", { name, exact: true }).tap();
-    await key("CTRL");
-    await page.keyboard.type("cc");
-    await key("ESC");
-    await key("↑");
-    await expect.poll(() => typed).toEqual(["\x03", "c", "\x1b", "\x1b[A"]);
-});
-
 test("closed session shows the reason and reconnects on demand", async ({
     page,
 }) => {
