@@ -25,7 +25,10 @@ test("cert: single principal, pty only, key id, serial, 15m", async () => {
         ...(await setup()),
         principal: "ws:h7f3k2ab:root",
     });
-    const info = await run(["ssh-keygen", "-L", "-f", `${key}-cert.pub`]);
+    // bun test runs JS in UTC without setting TZ, so ssh-keygen would print host-local times.
+    const info = await run(["ssh-keygen", "-L", "-f", `${key}-cert.pub`], {
+        TZ: "UTC",
+    });
     expect(info).toContain(
         "Type: ssh-ed25519-cert-v01@openssh.com user certificate",
     );
@@ -35,7 +38,7 @@ test("cert: single principal, pty only, key id, serial, 15m", async () => {
     expect(info).toMatch(/Extensions: \n\s+permit-pty\n?$/);
 
     const to = info.match(/Valid: from \S+ to (\S+)/)?.[1] ?? "";
-    const minutesLeft = (Date.parse(to) - Date.now()) / 60000;
+    const minutesLeft = (Date.parse(`${to}Z`) - Date.now()) / 60000;
     expect(minutesLeft).toBeGreaterThan(14);
     expect(minutesLeft).toBeLessThanOrEqual(15);
 });
