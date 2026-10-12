@@ -2,6 +2,10 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.11.1 - 2026-10-12
+- Fixed: Fleet's **Refresh all** showed "JSON.parse: unexpected end of data".
+- Fixed: Fleet showed an uptime of about 56 years on FreeBSD and OPNsense hosts. Hosts collected before this fix show the right uptime after their next collection, or straight away with **Refresh**.
+
 ## 1.11.0 - 2026-10-12
 - Tasks: a run's results can be grouped by output. Hosts with the same exit code and output are grouped, biggest group first, and each other group shows a diff against it. **By host** lists each host as before.
 - Alerts (Admin → Alerts): notifications through [shoutrrr](https://github.com/nicholas-fedor/shoutrrr) (ntfy, Gotify, Discord, Slack, Telegram, email, webhooks, …). Each channel picks its events: a task run with a failed host, a host offline or back online, a host newly needing a reboot, security changes, or a terminal opened (optionally only on some tags or logins). URLs can't be read back after saving, and are stored encrypted when `ca_password` is set. The image now includes the `shoutrrr` binary.
