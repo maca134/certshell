@@ -300,6 +300,12 @@ export function alerter({
                         ? `Port 22 on ${e.address} hasn't answered for ${DOWN_AFTER} checks in a row.`
                         : `Port 22 on ${e.address} answers again.`,
             };
+        } else if (e.event === "host_reboot_required") {
+            event = "reboot";
+            msg = {
+                title: `CertShell: ${e.name} needs a reboot`,
+                body: `Host facts found the reboot flag set.\n${new URL("/admin/fleet", appUrl).href}`,
+            };
         } else if (e.event === "session_start") {
             event = "terminal";
             const [, hostId = "", login = ""] = String(e.principal).split(":");

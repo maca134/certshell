@@ -118,6 +118,11 @@ export const ALERT_EVENTS = {
         description:
             "A host's port 22 stopped answering (2 checks a minute apart), or answers again.",
     },
+    reboot: {
+        label: "Reboot needed",
+        description:
+            "Host facts (Fleet) show a host needs a reboot that it didn't before.",
+    },
     security: {
         label: "Security",
         description:
