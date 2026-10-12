@@ -46,7 +46,8 @@
 
             <div class="term">
 <pre><span class="tok-c"># enroll a host (one-time snippet from the admin UI)</span>
-<span class="tok-k">root@web1:~#</span> curl -fsS https://ssh.example.com/enroll/… | sh
+<span class="tok-k">root@web1:~#</span> echo 'Authorization: Bearer …' \
+  | curl -fsS -H @- 'https://ssh.example.com/api/enroll' | sh
 <span class="g">✓</span> CA trusted, sshd reloaded, host key pinned
 
 <span class="tok-c"># later, from the browser, as alice (group: ops)</span>
@@ -88,7 +89,7 @@
                     <div class="card">
                         <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6M12 19h8" /></svg></span>
                         <h3>One-line enrollment</h3>
-                        <p>Run a one-time snippet as root. Existing <code>authorized_keys</code> keep working, so you can't lock yourself out.</p>
+                        <p>Run a one-time snippet as root on Linux or FreeBSD. Existing <code>authorized_keys</code> keep working, so you can't lock yourself out.</p>
                     </div>
                     <div class="card">
                         <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" /><circle cx="12" cy="18" r="3" /><path d="M6 9v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9M12 12v3" /></svg></span>
