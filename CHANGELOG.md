@@ -2,6 +2,12 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.6.0 - 2026-10-12
+- OPNsense hosts can be enrolled. The enroll script takes its paths from the installed sshd (`/usr/local/etc/ssh` on OPNsense) and reads the host key location from sshd. See README → Adding a host for OPNsense's SSH settings.
+- A failed first enroll removes the files it wrote; a failed re-enroll keeps the working setup.
+- The host removal command also works pasted into csh/tcsh (root's shell on FreeBSD and OPNsense).
+- Fixed: reloading sshd on hosts without systemd, OpenRC or FreeBSD rc used a fixed `/run/sshd.pid`; it now uses sshd's own pidfile and skips the reload if sshd isn't running.
+
 ## 1.5.1 - 2026-10-12
 - Admin Hosts: each row has Enroll, Edit and Remove buttons that open dialogs. Edit covers name, address and access rules, and sends nothing until Save.
 - Fixed: the enroll snippet overflowed the host panel.
