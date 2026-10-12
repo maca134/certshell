@@ -135,6 +135,7 @@ esac`;
  * systemd/FreeBSD reload only a running sshd: a stopped one (e.g. socket-activated in LXCs) reads the config when it starts.
  * Socket-activated sshd is restarted, not reloaded: on SIGHUP it tries to bind the port the socket unit holds, and exits.
  * SIGHUP uses the pidfile sshd reports (FreeBSD/OPNsense: /var/run, Linux: /run); no pidfile means sshd isn't running.
+ * `sshd -T` keywords are lowercase in older OpenSSH, mixed case (PidFile) in newer: match them case-insensitively.
  */
 export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
   for u in ssh sshd; do
@@ -146,7 +147,7 @@ elif command -v rc-service >/dev/null 2>&1; then
 elif [ -x /etc/rc.d/sshd ] && [ "$(uname)" = FreeBSD ]; then
   if service sshd onestatus >/dev/null 2>&1; then service sshd onereload; fi
 else
-  PIDFILE=$(sshd -T | sed -n "s/^pidfile //p")
+  PIDFILE=$(sshd -T | grep -i "^pidfile " | cut -d " " -f 2)
   if [ -f "$PIDFILE" ]; then kill -HUP "$(cat "$PIDFILE")"; fi
 fi`;
 

@@ -294,15 +294,18 @@ test("SIGHUP reload: signals the pid in sshd's pidfile; no pidfile, no-op", asyn
     const sleeper = Bun.spawn(["sleep", "30"]);
     try {
         await Bun.write(`${dir}/sshd.pid`, `${sleeper.pid}\n`);
-        const sshd = `echo "pidfile $PIDFILE_AT"`;
+        const sshd = `echo "$KEYWORD $PIDFILE_AT"`;
         expect(
             await withFakes({ sshd }, script, {
+                KEYWORD: "pidfile",
                 PIDFILE_AT: `${dir}/missing.pid`,
             }),
         ).toEqual({ code: 0, out: "done", reloads: "" });
         expect(sleeper.killed).toBe(false);
+        // Newer OpenSSH prints keywords mixed case.
         expect(
             await withFakes({ sshd }, script, {
+                KEYWORD: "PidFile",
                 PIDFILE_AT: `${dir}/sshd.pid`,
             }),
         ).toEqual({ code: 0, out: "done", reloads: "" });
@@ -312,6 +315,38 @@ test("SIGHUP reload: signals the pid in sshd's pidfile; no pidfile, no-op", asyn
         sleeper.kill();
         await rm(dir, { recursive: true, force: true });
     }
+});
+
+test("snippet reads sshd -T keywords in either case (OpenSSH changed them to mixed case)", async () => {
+    const snippet = renderSnippet({
+        appUrl: "https://x",
+        hostId: "h1",
+        caPub: "k",
+        token: "t",
+    });
+    const lines = ["loaded() {", "HOST_KEY="].map(
+        (start) => snippet.split("\n").find((l) => l.startsWith(start)) ?? "",
+    );
+    const script = `CA_FILE=/etc/ssh/certshell_user_ca.pub
+${lines.join("\n")}
+if loaded; then echo "loaded $HOST_KEY"; else echo "not loaded $HOST_KEY"; fi`;
+    for (const [ca, hk] of [
+        ["trustedusercakeys", "hostkey"],
+        ["TrustedUserCAKeys", "HostKey"],
+    ])
+        expect(
+            await withFakes(
+                {
+                    sshd: `printf "%s\\n" "$HK /etc/ssh/ssh_host_mldsa44_ed25519_key" "$HK /etc/ssh/ssh_host_ed25519_key" "$CA /etc/ssh/certshell_user_ca.pub"`,
+                },
+                script,
+                { CA: ca ?? "", HK: hk ?? "" },
+            ),
+        ).toEqual({
+            code: 0,
+            out: "loaded /etc/ssh/ssh_host_ed25519_key\ndone",
+            reloads: "",
+        });
 });
 
 test("snippet: token reaches curl on stdin, not argv", () => {

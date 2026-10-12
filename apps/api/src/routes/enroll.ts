@@ -38,7 +38,7 @@ AuthorizedPrincipalsCommand /bin/echo ws:$HOST_ID:%u
 AuthorizedPrincipalsCommandUser nobody
 EOF
 
-loaded() { sshd -T | grep -qx "trustedusercakeys $CA_FILE"; }
+loaded() { sshd -T | grep -qix "trustedusercakeys $CA_FILE"; }
 sshd -t
 if ! loaded; then
   cp -p "$MAIN" "$MAIN.certshell.bak"
@@ -50,7 +50,7 @@ if ! loaded; then
   echo "added Include $SSH_DIR/sshd_config.d/*.conf to $MAIN (backup: $MAIN.certshell.bak)"
 fi
 
-HOST_KEY=$(sshd -T | awk '$1 == "hostkey" { n = split($2, p, "/"); if (p[n] == "ssh_host_ed25519_key") print $2 }')
+HOST_KEY=$(sshd -T | awk 'tolower($1) == "hostkey" { n = split($2, p, "/"); if (p[n] == "ssh_host_ed25519_key") print $2 }')
 [ -f "$HOST_KEY.pub" ] || { echo "sshd has no ssh_host_ed25519_key HostKey" >&2; exit 1; }
 
 printf 'Authorization: Bearer %s\\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \\
