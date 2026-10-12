@@ -14,7 +14,8 @@
         "typecheck": "bun run --filter '*' typecheck",
         "build": "bun run --filter web build",
         "test": "bun run --filter api --filter web test && bun test ./test",
-        "e2e": "bun run --filter web e2e"
+        "e2e": "bun run --filter web e2e",
+        "media": "bun run --filter web media"
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.15",
