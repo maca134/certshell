@@ -102,7 +102,6 @@ The script writes the CA public key, adds `sshd_config.d/50-certshell.conf` (in 
 - **Hosts** lists every host + login the access map gives you. A dot shows whether the host's port 22 is reachable from the app. Click a login to open a terminal.
 - **Search the scrollback** with the search button or Ctrl+Shift+F. Enter finds the next match, Shift+Enter the previous one, Esc closes.
 - **Multi-line pastes** ask before running, unless the shell has bracketed paste on (then nothing runs until you press Enter).
-- **On touch devices** a key bar adds Esc, Tab, Ctrl, Alt, arrows, Home/End and PgUp/PgDn. Ctrl and Alt apply to the next key.
 - Terminals close after 30 minutes idle, and always after 8 hours.
 
 ### Tasks
