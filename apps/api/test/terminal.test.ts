@@ -404,6 +404,61 @@ test("admin: lists open terminals, ends one, then all of a user's", async () => 
     ).toEqual(["session_kill", "session_kill", "session_kill", "user_signout"]);
 });
 
+test("admin: access change ends what it no longer allows; host delete ends the rest", async () => {
+    ctx = await startApp(
+        {
+            command: (args) =>
+                args.remote === undefined
+                    ? fakeSsh.command(args)
+                    : ["sh", "-c", args.remote],
+        },
+        ["certshell-admins"],
+    );
+    ctx.addHost("h1", "h1.test", "ssh-ed25519 AAAA", {
+        root: "certshell-admins",
+        alice: "certshell-admins",
+    });
+    const call = (method: string, path: string, body?: unknown) =>
+        ctx.app.request(`${APP_URL}/api${path}`, {
+            method,
+            headers: {
+                cookie: ctx.cookie,
+                origin: APP_URL,
+                "content-type": "application/json",
+            },
+            body: body === undefined ? undefined : JSON.stringify(body),
+        });
+    const root = ctx.connect("host=h1&login=root");
+    const alice = ctx.connect("host=h1&login=alice");
+    await Promise.all([root, alice].map((t) => t.waitFor("login=")));
+    const task = (await (
+        await call("POST", "/tasks", {
+            name: "t",
+            script: "exec sleep 30",
+            targets: [{ host: "h1", login: "alice" }],
+        })
+    ).json()) as { id: number };
+    expect((await call("POST", `/tasks/${task.id}/run`)).status).toBe(201);
+    for (let i = 0; i < 50 && !ctx.tasks.size; i++) await Bun.sleep(50);
+    expect(ctx.tasks.size).toBe(1);
+
+    expect(
+        (
+            await call("PUT", "/admin/hosts/h1/access", [
+                { login: "root", group: "certshell-admins" },
+            ])
+        ).status,
+    ).toBe(204);
+    expect((await alice.closed).reason).toBe("ended by admin");
+    for (let i = 0; i < 50 && ctx.tasks.size; i++) await Bun.sleep(50);
+    expect(ctx.tasks.size).toBe(0);
+    expect([...ctx.live.values()].map((s) => s.login)).toEqual(["root"]);
+
+    expect((await call("DELETE", "/admin/hosts/h1")).status).toBe(204);
+    expect((await root.closed).reason).toBe("ended by admin");
+    expect(ctx.live.size).toBe(0);
+});
+
 test("admin sessions: members get 403", async () => {
     await setup();
     expect(

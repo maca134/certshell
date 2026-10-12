@@ -7,7 +7,10 @@ import { allowedHost, type Host } from "../lib/hosts";
 import { now } from "../lib/sessions";
 import { mintUserCert } from "./certs";
 
-export type LiveTerminal = LiveSession & { kill: (reason: string) => void };
+export type LiveTerminal = LiveSession & {
+    groups: string[];
+    kill: (reason: string) => void;
+};
 
 export type TerminalDeps = {
     db: Database;
@@ -23,7 +26,16 @@ export type TerminalDeps = {
     /** Open terminals by session ID, for admins to list and end. */
     live: Map<string, LiveTerminal>;
     /** Running task targets by `runId/hostId/login`. */
-    tasks: Map<string, { sub: string; kill: () => void }>;
+    tasks: Map<
+        string,
+        {
+            sub: string;
+            groups: string[];
+            hostId: string;
+            login: string;
+            kill: () => void;
+        }
+    >;
     /** When an admin last ended each user's sessions, by sub. A sign started before that is dropped. */
     endedAt: Map<string, number>;
     /** `remote`: a task's command; absent for a terminal. */
@@ -187,6 +199,7 @@ export async function openTerminal(
         hostName: host.name,
         login,
         startedAt: Date.now(),
+        groups: user.groups,
         kill,
     });
     let idle = setTimeout(() => kill("idle timeout"), deps.idleMs);
