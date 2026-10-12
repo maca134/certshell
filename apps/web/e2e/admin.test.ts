@@ -5,6 +5,7 @@ const host = {
     name: "web1",
     address: "10.0.0.1",
     enrolled: true,
+    tags: ["prod"],
     access: [{ login: "root", group: "ops" }],
 };
 
@@ -106,7 +107,7 @@ test("edit dialog PATCHes details; re-enroll shows a fresh snippet", async ({
         {
             method: "PATCH",
             path: "/api/admin/hosts/h1",
-            body: { name: "web2", address: "10.0.0.1" },
+            body: { name: "web2", address: "10.0.0.1", tags: ["prod"] },
         },
     ]);
     await page.getByRole("button", { name: "Re-enroll web1" }).click();
@@ -115,6 +116,36 @@ test("edit dialog PATCHes details; re-enroll shows a fresh snippet", async ({
         method: "POST",
         path: "/api/admin/hosts/h1/snippet",
         body: null,
+    });
+});
+
+test("tags: pick an existing tag or create one from the textbox, then PATCH", async ({
+    page,
+}) => {
+    const calls = await openAdmin(page);
+    await page.getByRole("button", { name: "Edit web1" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("remove tag prod").click();
+    const input = dialog.getByLabel("Tags");
+    await input.click();
+    await dialog.getByRole("button", { name: "prod", exact: true }).click();
+    await expect(dialog.getByLabel("remove tag prod")).toBeVisible();
+    await input.fill("Web Front");
+    await expect(
+        dialog.getByRole("button", { name: "Create web-front" }),
+    ).toBeVisible();
+    await input.press("Enter");
+    await expect(dialog.getByLabel("remove tag web-front")).toBeVisible();
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
+    expect(calls).toContainEqual({
+        method: "PATCH",
+        path: "/api/admin/hosts/h1",
+        body: {
+            name: "web1",
+            address: "10.0.0.1",
+            tags: ["prod", "web-front"],
+        },
     });
 });
 
