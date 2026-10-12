@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const hosts = [
-    { id: "h1", name: "web1", tags: [], logins: ["root"] },
+    { id: "h1", name: "web1", tags: ["prod"], logins: ["root"] },
     { id: "h2", name: "web2", tags: [], logins: ["root", "deploy"] },
 ];
 
@@ -121,6 +121,20 @@ test("new task: name, script and hosts picked on the tasks page", async ({
             },
         },
     ]);
+});
+
+test("task hosts: tag filter hides other hosts, keeps their selection", async ({
+    page,
+}) => {
+    await fakeApi(page);
+    await page.goto("/tasks/5/edit");
+    await expect(page.getByText("2 selected")).toBeVisible();
+    await page.getByRole("button", { name: "prod" }).click();
+    await expect(page.getByRole("checkbox", { name: "web1" })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "web2" })).toHaveCount(0);
+    await expect(page.getByText("2 selected")).toBeVisible();
+    await page.getByRole("button", { name: "All" }).click();
+    await expect(page.getByRole("checkbox", { name: "web2" })).toBeChecked();
 });
 
 test("run a task from the list → per-host results update live; run again", async ({

@@ -21,13 +21,14 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { AMBER, GREEN, When } from "./Admin";
 import { api } from "./api";
-import { EmptyState, Page } from "./components/layout";
+import { EmptyState, Page, TagFilter } from "./components/layout";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
+import { withTags } from "./tags";
 
 const MAX_TARGETS = 50;
 
@@ -203,6 +204,8 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
     const [picked, setPicked] = useState<Record<string, string>>({});
     const [error, setError] = useState<string>();
     const [busy, setBusy] = useState(false);
+    const [tagFilter, setTagFilter] = useState<string[]>([]);
+    const tags = [...new Set(hosts?.flatMap((h) => h.tags))].sort();
 
     useEffect(() => {
         if (id === undefined) return;
@@ -338,8 +341,21 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
                                 You don't have access to any hosts yet.
                             </p>
                         )}
-                        <ul className="divide-y rounded-lg border">
-                            {hosts?.map((host) => (
+                        {tags.length > 0 && (
+                            <TagFilter
+                                tags={tags}
+                                selected={tagFilter}
+                                onChange={setTagFilter}
+                            />
+                        )}
+                        {!!hosts?.length &&
+                            withTags(hosts, tagFilter).length === 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    No host has all the selected tags.
+                                </p>
+                            )}
+                        <ul className="divide-y rounded-lg border empty:hidden">
+                            {withTags(hosts ?? [], tagFilter).map((host) => (
                                 <li
                                     key={host.id}
                                     className="flex items-center gap-3 px-3 py-2"
