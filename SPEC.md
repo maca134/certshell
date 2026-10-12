@@ -116,6 +116,22 @@ A task = a saved script + the host logins it runs on, e.g. `apt-get upgrade -y` 
 - **Detach** (per task): if the connection drops (app restart, or the script cuts it, e.g. a NetBird/VPN or sshd upgrade), sshd closes the session's pipes and a plain script dies of SIGPIPE on its next write. A detached task's script runs under `nohup` in the login's shell, output into a `mktemp` file on the host that `tail -f` streams back, so it finishes regardless; the run still gets the exit code if the connection holds. Logs stay in `/tmp` for after an interrupted run. POSIX tools only.
 - A run keeps a copy of the task's name and script: editing or deleting the task doesn't change past runs. On restart, still-running targets are marked failed.
 
+### 3.5 Alerts
+
+Admins add alert channels (Admin → Alerts): a [shoutrrr](https://github.com/nicholas-fedor/shoutrrr) URL (ntfy, Gotify, Discord, Slack, Telegram, email, webhooks, …) and the events sent to it. Alerts are built from audit events (§5 Audit), so anything alerted is also in the audit log.
+
+| Event | Fires on |
+|---|---|
+| `task_failed` | the last target of a run finishes, and at least one failed. One alert per run. |
+| `host_down` | `host_down` / `host_up`: every 60 s the app TCP-checks port 22 on enrolled hosts. Offline after 2 failed checks in a row, back online after 1 success. A host's first check after startup only records its state, so restarts don't re-alert. |
+| `security` | host create/update/delete, access map change, enroll snippet, enroll, session ended or user signed out by an admin, alert channel create/update/delete, `host_key_mismatch` (ssh exit 255 with "Host key verification failed." on a terminal or task target). |
+| `terminal` | `session_start`, optionally only for hosts with any of the channel's tags or for its logins. |
+
+- The URL usually holds a token. It's **write-only**: the API returns its scheme (`service`), never the URL, and audit entries never include it.
+- Stored as `v1:` + AES-256-GCM (key: PBKDF2-SHA256 of `ca_password`, 200k rounds); `plain:` + URL when there's no `ca_password`. A `/data` backup without the secret doesn't leak the URLs. A wrong or missing `ca_password` fails the send with a clear error; re-entering the URL fixes it.
+- Sent by `shoutrrr send -t <title> -m -` with the URL in `SHOUTRRR_URL` (never argv: `ps` on the Docker host), the body on stdin, and an environment holding only that plus `*_proxy`, so shoutrrr never sees our secrets. One shoutrrr at a time per channel, 30 s timeout, at most 20 sends a minute per channel (excess dropped with a log line). Each channel keeps its last send time and error; "Send test" shows the error.
+- Admins can already shell into every host, so letting them point the app at any URL (`generic+http://internal-host/…`) adds no reach they don't have.
+
 ---
 
 ## 4. Target host configuration
@@ -265,14 +281,14 @@ echo "enrolled: $(hostname)"
 
 Published as `ghcr.io/maca134/certshell` for `linux/amd64` and `linux/arm64` by `.github/workflows/release.yml` on a `vX.Y.Z` tag (tags `X.Y.Z`, `X.Y`, `X`, `latest`; a manual run builds without pushing). Accepted risk in §3.3.
 
-- `Dockerfile`: Bun build stages on the build host, runtime `oven/bun:1-debian` + `openssh-client`, pinned by digest, runs as uid 1000.
+- `Dockerfile`: Bun build stages on the build host, runtime `oven/bun:1-debian` + `openssh-client` + the `shoutrrr` binary (from `nickfedor/shoutrrr`, for alerts, §3.5), all pinned by digest, runs as uid 1000.
 
 `/data` layout:
 
 ```
 /data
 ├── ca/user_ca{,.pub}  # SSH user CA; private key encrypted with ca_password if set
-└── app.sqlite         # hosts, access map, sessions, audit log
+└── app.sqlite         # hosts, access map, sessions, tasks, alert channels, audit log
 ```
 
 ### 6.2 First boot (idempotent, no manual CLI)
