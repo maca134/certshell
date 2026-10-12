@@ -4,6 +4,7 @@ Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell
 
 ## 1.7.1 - 2026-10-12
 - Fixed: on tablets (Firefox, and other browsers whose toolbar hides on scroll) the sidebar was shorter than the screen and cut off its last item (Audit).
+- Removed: the terminal key bar on touch devices (Esc, Tab, Ctrl, Alt, arrows). Use a keyboard app with those keys instead.
 
 ## 1.7.0 - 2026-10-12
 - Host tags. Admins add them in Manage hosts → Edit, with suggestions from tags already in use. Each tag gets a colour from its name. Tags only organise hosts; they don't affect access.
