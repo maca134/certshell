@@ -53,10 +53,11 @@ export function adminRoutes({
                     enrolled: number;
                     tags: string;
                     access: string;
+                    factsLogin: string | null;
                 },
                 []
             >(
-                `SELECT id, name, address, host_key IS NOT NULL AS enrolled, tags,
+                `SELECT id, name, address, host_key IS NOT NULL AS enrolled, tags, facts_login AS factsLogin,
                    (SELECT json_group_array(json_object('login', login, 'group', grp) ORDER BY login, grp)
                     FROM access WHERE host_id = h.id) AS access
                  FROM hosts h ORDER BY name`,
@@ -105,6 +106,12 @@ export function adminRoutes({
             return c.json({ error: "invalid address" }, 400);
         if (input?.tags !== undefined && !validTags(input.tags))
             return c.json({ error: "invalid tags" }, 400);
+        if (
+            input?.factsLogin !== undefined &&
+            input.factsLogin !== null &&
+            !validLogin(input.factsLogin)
+        )
+            return c.json({ error: "invalid facts login" }, 400);
         const tags =
             input?.tags === undefined
                 ? null
@@ -118,6 +125,11 @@ export function adminRoutes({
                 id,
             ],
         );
+        if (input?.factsLogin !== undefined)
+            db.run("UPDATE hosts SET facts_login = ? WHERE id = ?", [
+                input.factsLogin as string | null,
+                id,
+            ]);
         audit(db, {
             event: "host_update",
             sub: c.var.user.sub,
@@ -126,6 +138,7 @@ export function adminRoutes({
             name: input?.name,
             address: input?.address,
             tags: input?.tags,
+            facts_login: input?.factsLogin,
         });
         return c.body(null, 204);
     });
@@ -141,6 +154,7 @@ export function adminRoutes({
         db.transaction(() => {
             db.run("DELETE FROM access WHERE host_id = ?", [id]);
             db.run("DELETE FROM enroll_tokens WHERE host_id = ?", [id]);
+            db.run("DELETE FROM host_facts WHERE host_id = ?", [id]);
             db.run("DELETE FROM hosts WHERE id = ?", [id]);
         })();
         audit(db, {

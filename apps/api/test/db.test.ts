@@ -40,6 +40,7 @@ test("new DB: every step applied", () => {
         "alert_channels",
         "audit",
         "enroll_tokens",
+        "host_facts",
         "hosts",
         "run_hosts",
         "runs",

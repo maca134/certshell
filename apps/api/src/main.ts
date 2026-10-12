@@ -6,6 +6,8 @@ import { lazyDiscovery } from "./lib/oidc";
 import { updateChecker } from "./lib/version";
 import { websocket } from "./routes/terminal";
 import { ensureCa, readCaPassword } from "./ssh/ca";
+import { factsCollector } from "./ssh/facts";
+import type { TerminalDeps } from "./ssh/terminal";
 
 const config = loadConfig(process.env);
 
@@ -26,25 +28,30 @@ if (config.updateCheck && config.version !== "dev") {
 
 const alerts = alerter({ db, appUrl: config.appUrl, caPassword });
 setInterval(alerts.checkHosts, 60_000);
+const terminal: TerminalDeps = {
+    db,
+    caKey: "/data/ca/user_ca",
+    caPassword,
+    idleMs: 30 * 60_000,
+    maxMs: 8 * 60 * 60_000,
+    taskMs: 30 * 60_000,
+    maxSessions: 64,
+    maxSessionsTotal: 200,
+    live: new Map(),
+    tasks: new Map(),
+    endedAt: new Map(),
+};
+const facts = factsCollector(db, terminal);
+setTimeout(facts.collectDue, 60_000);
+setInterval(facts.collectDue, 10 * 60_000);
 
 const app = createApp({
     config,
     db,
     getOidc: lazyDiscovery(config),
-    terminal: {
-        db,
-        caKey: "/data/ca/user_ca",
-        caPassword,
-        idleMs: 30 * 60_000,
-        maxMs: 8 * 60 * 60_000,
-        taskMs: 30 * 60_000,
-        maxSessions: 64,
-        maxSessionsTotal: 200,
-        live: new Map(),
-        tasks: new Map(),
-        endedAt: new Map(),
-    },
+    terminal,
     alerts,
+    facts,
     latestVersion,
 });
 

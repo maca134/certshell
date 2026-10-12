@@ -89,14 +89,17 @@ export const sshArgv = (
     args: Parameters<typeof sshCommand>[0],
 ) => (deps.command ?? sshCommand)(args);
 
-/** Mints a cert for `ws:<host>:<login>` into a new temp dir. The caller removes `dir`. */
+/**
+ * Mints a cert for `ws:<host>:<login>` into a new temp dir. The caller removes `dir`.
+ * `system`: the app itself (host facts), on a login an admin picked; skips the user access checks.
+ */
 export async function signSession(
     deps: TerminalDeps,
     user: User,
     host: Host,
     login: string,
     ip: string,
-    opts: { pty?: boolean; run?: string } = {},
+    opts: { pty?: boolean; run?: string; system?: boolean } = {},
 ) {
     const started = Date.now();
     const sessionId = crypto.randomUUID();
@@ -135,10 +138,12 @@ export async function signSession(
             session: sessionId,
             run: opts.run,
         });
-        if ((deps.endedAt.get(user.sub) ?? -1) >= started)
-            throw new Error("ended by admin");
-        if (!allowedHost(deps.db, host.id, login, user.groups))
-            throw new Error("access revoked");
+        if (!opts.system) {
+            if ((deps.endedAt.get(user.sub) ?? -1) >= started)
+                throw new Error("ended by admin");
+            if (!allowedHost(deps.db, host.id, login, user.groups))
+                throw new Error("access revoked");
+        }
         return {
             sessionId,
             principal,

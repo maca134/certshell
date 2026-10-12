@@ -6,6 +6,8 @@ import { openDb } from "../src/db";
 import { alerter } from "../src/lib/alerts";
 import { lazyDiscovery } from "../src/lib/oidc";
 import { LOGIN_COOKIE, SESSION_COOKIE } from "../src/routes/auth";
+import { factsCollector } from "../src/ssh/facts";
+import type { TerminalDeps } from "../src/ssh/terminal";
 import { startMockIdp } from "./helpers/mock-idp";
 
 const idp = await startMockIdp("cid", "csecret");
@@ -41,6 +43,7 @@ beforeEach(() => {
             endedAt: new Map(),
         },
         alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
+        facts: factsCollector(db, {} as TerminalDeps),
     });
     app.get("/api/admin/ping", (c) => c.text("pong"));
     idp.nextClaims = {
@@ -292,6 +295,7 @@ test("IdP down → 503, then retries discovery", async () => {
             endedAt: new Map(),
         },
         alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
+        facts: factsCollector(db, {} as TerminalDeps),
     });
     expect((await get("/auth/login")).status).toBe(503);
     expect((await get("/auth/login")).status).toBe(302);
