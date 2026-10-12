@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import {
     type FormEvent,
+    type KeyboardEvent,
     type ReactNode,
     useCallback,
     useEffect,
@@ -31,7 +32,7 @@ import {
 } from "react";
 import { Redirect, useLocation } from "wouter";
 import { api } from "./api";
-import { Avatar, EmptyState, HostIcon, Page } from "./components/layout";
+import { Avatar, EmptyState, HostIcon, Page, Tag } from "./components/layout";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
@@ -61,6 +62,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "./components/ui/tooltip";
+import { cleanTag } from "./tags";
 
 const VIEWS = ["hosts", "users", "sessions", "audit"] as const;
 
@@ -478,6 +480,7 @@ function Hosts({ users }: { users: SeenUser[] }) {
             ...(hosts ?? []).flatMap((h) => h.access.map((a) => a.group)),
         ]),
     ].sort();
+    const tags = [...new Set(hosts?.flatMap((h) => h.tags))].sort();
 
     return (
         <Page
@@ -509,6 +512,9 @@ function Hosts({ users }: { users: SeenUser[] }) {
                 <Table>
                     <Head>
                         <TableHead>Host</TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                            Tags
+                        </TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="hidden sm:table-cell">
                             Access
@@ -517,7 +523,7 @@ function Hosts({ users }: { users: SeenUser[] }) {
                     </Head>
                     <TableBody className={tableBody}>
                         {hosts?.length === 0 && (
-                            <Empty cols={4}>
+                            <Empty cols={5}>
                                 <EmptyState icon={Server} title="No hosts yet">
                                     Add a host to get a one-time enroll snippet.
                                 </EmptyState>
@@ -527,6 +533,7 @@ function Hosts({ users }: { users: SeenUser[] }) {
                             <HostRow
                                 key={host.id}
                                 host={host}
+                                allTags={tags}
                                 onChanged={reload}
                                 onRemove={() =>
                                     act(() =>
@@ -686,10 +693,12 @@ function Status({ enrolled }: { enrolled: boolean }) {
 
 function HostRow({
     host,
+    allTags,
     onChanged,
     onRemove,
 }: {
     host: AdminHost;
+    allTags: string[];
     onChanged: () => Promise<void>;
     onRemove: () => void;
 }) {
@@ -705,6 +714,17 @@ function HostRow({
                         </div>
                     </div>
                 </div>
+            </TableCell>
+            <TableCell className="hidden whitespace-normal sm:table-cell">
+                {host.tags.length === 0 ? (
+                    <span className="text-muted-foreground">—</span>
+                ) : (
+                    <div className="flex flex-wrap gap-1">
+                        {host.tags.map((t) => (
+                            <Tag key={t} name={t} />
+                        ))}
+                    </div>
+                )}
             </TableCell>
             <TableCell>
                 <Status enrolled={host.enrolled} />
@@ -731,7 +751,11 @@ function HostRow({
             <TableCell>
                 <div className="flex justify-end gap-0.5">
                     <EnrollHost host={host} onClose={onChanged} />
-                    <EditHost host={host} onSaved={onChanged} />
+                    <EditHost
+                        host={host}
+                        allTags={allTags}
+                        onSaved={onChanged}
+                    />
                     <RemoveHost host={host} onDelete={onRemove} />
                 </div>
             </TableCell>
@@ -819,14 +843,17 @@ function EnrollHost({
 
 function EditHost({
     host,
+    allTags,
     onSaved,
 }: {
     host: AdminHost;
+    allTags: string[];
     onSaved: () => Promise<void>;
 }) {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState(host.name);
     const [address, setAddress] = useState(host.address);
+    const [tags, setTags] = useState(host.tags);
     const [rules, setRules] = useState(host.access);
     const [error, setError] = useState("");
     const url = `/api/admin/hosts/${host.id}`;
@@ -836,6 +863,7 @@ function EditHost({
         if (!o) return;
         setName(host.name);
         setAddress(host.address);
+        setTags(host.tags);
         setRules(host.access);
         setError("");
     };
@@ -843,10 +871,15 @@ function EditHost({
         e.preventDefault();
         setError("");
         try {
-            if (name.trim() !== host.name || address.trim() !== host.address)
+            if (
+                name.trim() !== host.name ||
+                address.trim() !== host.address ||
+                JSON.stringify(tags) !== JSON.stringify(host.tags)
+            )
                 await api(url, "PATCH", {
                     name: name.trim(),
                     address: address.trim(),
+                    tags,
                 });
             if (JSON.stringify(rules) !== JSON.stringify(host.access))
                 await api(`${url}/access`, "PUT", rules);
@@ -901,6 +934,15 @@ function EditHost({
                         />
                     </div>
                 </form>
+                <div className="flex flex-col gap-2">
+                    <Label htmlFor={`tags-${host.id}`}>Tags</Label>
+                    <TagInput
+                        id={`tags-${host.id}`}
+                        tags={tags}
+                        allTags={allTags}
+                        onChange={setTags}
+                    />
+                </div>
                 <div className="flex flex-col gap-2">
                     <Label>Access</Label>
                     <Access rules={rules} onChange={setRules} />
@@ -1087,6 +1129,97 @@ function Access({
                     Allow
                 </Button>
             </form>
+        </div>
+    );
+}
+
+/** Tags as removable chips over a textbox; suggestions (existing tags, or a new one) listed below it. */
+function TagInput({
+    id,
+    tags,
+    allTags,
+    onChange,
+}: {
+    id: string;
+    tags: string[];
+    allTags: string[];
+    onChange: (tags: string[]) => void;
+}) {
+    const [text, setText] = useState("");
+    const [focused, setFocused] = useState(false);
+    const [active, setActive] = useState(0);
+    const q = cleanTag(text);
+    const options = [
+        ...(q && !allTags.includes(q) && !tags.includes(q) ? [q] : []),
+        ...allTags.filter((t) => !tags.includes(t) && t.includes(q)),
+    ];
+    const full = tags.length >= 20;
+    const add = (tag?: string) => {
+        if (tag && !tags.includes(tag)) onChange([...tags, tag].sort());
+        setText("");
+        setActive(0);
+    };
+    const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            const n = options.length || 1;
+            setActive((a) => (a + (e.key === "ArrowDown" ? 1 : n - 1)) % n);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            add(options[Math.min(active, options.length - 1)]);
+        }
+    };
+    return (
+        <div className="flex flex-col gap-2">
+            {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                    {tags.map((t) => (
+                        <Tag
+                            key={t}
+                            name={t}
+                            onRemove={() =>
+                                onChange(tags.filter((x) => x !== t))
+                            }
+                        />
+                    ))}
+                </div>
+            )}
+            <Input
+                {...noFill}
+                id={id}
+                placeholder={full ? "20 tags max" : "Add a tag…"}
+                disabled={full}
+                value={text}
+                onChange={(e) => {
+                    setText(e.target.value);
+                    setActive(0);
+                }}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                onKeyDown={onKeyDown}
+            />
+            {focused && options.length > 0 && (
+                <ul className="flex max-h-48 flex-col overflow-y-auto rounded-lg border p-1">
+                    {options.map((t, i) => (
+                        <li key={t}>
+                            <button
+                                type="button"
+                                tabIndex={-1}
+                                className={cn(
+                                    "flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm",
+                                    i === active && "bg-accent",
+                                )}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onMouseEnter={() => setActive(i)}
+                                onClick={() => add(t)}
+                            >
+                                {!allTags.includes(t) && "Create"}
+                                <Tag name={t} />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </div>
     );
 }
