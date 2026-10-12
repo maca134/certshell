@@ -33,6 +33,7 @@ async function openAdmin(page: Page) {
                     email: "a@b.c",
                     groups: ["ops"],
                     lastLogin: 0,
+                    certs: { inUse: 0, unexpired: 0 },
                 },
             ],
         }),
@@ -231,7 +232,14 @@ test("users: Sign out & end sessions asks, then DELETEs by sub", async ({
     await page.route("/api/admin/users", (r) =>
         r.fulfill({
             json: [
-                { iss: "i", sub: "u 1", email: null, groups: [], lastLogin: 0 },
+                {
+                    iss: "i",
+                    sub: "u 1",
+                    email: null,
+                    groups: [],
+                    lastLogin: 0,
+                    certs: { inUse: 2, unexpired: 5 },
+                },
             ],
         }),
     );
@@ -242,6 +250,8 @@ test("users: Sign out & end sessions asks, then DELETEs by sub", async ({
         return r.fulfill({ status: 204 });
     });
     await page.goto("/admin/users");
+    await expect(page.getByText("2 in use")).toBeVisible();
+    await expect(page.getByText("5 unexpired")).toBeVisible();
     let asked = "";
     page.once("dialog", (d) => {
         asked = d.message();

@@ -75,8 +75,14 @@ export type AdminHost = {
 
 export type EnrollSnippet = { snippet: string; expiresAt: number };
 
-/** Someone who has logged in at least once; groups as of their last login. */
-export type SeenUser = User & { lastLogin: number };
+/**
+ * Someone who has logged in at least once; groups as of their last login.
+ * `certs.inUse`: open terminals + running task targets. `certs.unexpired`: certs signed within the cert TTL.
+ */
+export type SeenUser = User & {
+    lastLogin: number;
+    certs: { inUse: number; unexpired: number };
+};
 
 /** An open terminal. `startedAt`: ms since epoch. */
 export type LiveSession = {

@@ -11,13 +11,14 @@ import { Hono } from "hono";
 import type { Config } from "../config";
 import { audit } from "../lib/audit";
 import { jsonBody, writeGuards } from "../lib/http";
-import type { AppEnv } from "../lib/sessions";
+import { type AppEnv, now } from "../lib/sessions";
 import {
     validAddress,
     validGroup,
     validLogin,
     validName,
 } from "../lib/validate";
+import { CERT_TTL_SECONDS } from "../ssh/certs";
 import type { LiveTerminal, TerminalDeps } from "../ssh/terminal";
 import { issueSnippet } from "./enroll";
 
@@ -177,8 +178,19 @@ export function adminRoutes({
         return c.body(null, 204);
     });
 
-    app.get("/users", (c) =>
-        c.json<SeenUser[]>(
+    app.get("/users", (c) => {
+        const inUse = new Map<string, number>();
+        for (const { sub } of [...live.values(), ...tasks.values()])
+            inUse.set(sub, (inUse.get(sub) ?? 0) + 1);
+        const unexpired = new Map(
+            db
+                .query<{ sub: string; n: number }, [number]>(
+                    "SELECT sub, count(*) AS n FROM signs WHERE created_at > ? GROUP BY sub",
+                )
+                .all(now() - CERT_TTL_SECONDS)
+                .map((r) => [r.sub, r.n]),
+        );
+        return c.json<SeenUser[]>(
             db
                 .query<
                     {
@@ -199,9 +211,13 @@ export function adminRoutes({
                     email: u.email,
                     groups: JSON.parse(u.groups),
                     lastLogin: u.last_login,
+                    certs: {
+                        inUse: inUse.get(u.sub) ?? 0,
+                        unexpired: unexpired.get(u.sub) ?? 0,
+                    },
                 })),
-        ),
-    );
+        );
+    });
 
     app.get("/sessions", (c) =>
         c.json<LiveSession[]>(

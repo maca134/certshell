@@ -122,6 +122,7 @@ test("admin: seen users and audit log", async () => {
             email: "b@c.d",
             groups: ["ops", "certshell-admins"],
             lastLogin: 1000,
+            certs: { inUse: 0, unexpired: 0 },
         },
     ]);
 

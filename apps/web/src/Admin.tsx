@@ -93,13 +93,18 @@ export function Admin() {
     const [location] = useLocation();
     const view = location.slice(1);
     const [users, setUsers] = useState<SeenUser[]>([]);
+    const reloadUsers = useCallback(
+        () => api<SeenUser[]>("/api/admin/users").then(setUsers),
+        [],
+    );
+    // biome-ignore lint/correctness/useExhaustiveDependencies: refetch on view change so cert counts are current
     useEffect(() => {
-        api<SeenUser[]>("/api/admin/users").then(setUsers);
-    }, []);
+        reloadUsers();
+    }, [reloadUsers, view]);
     if (!(VIEWS as readonly string[]).includes(view))
         return <Redirect to="/hosts" replace />;
     if (view === "hosts") return <Hosts users={users} />;
-    if (view === "users") return <Users users={users} />;
+    if (view === "users") return <Users users={users} reload={reloadUsers} />;
     if (view === "sessions") return <Sessions />;
     return <Audit />;
 }
@@ -136,7 +141,13 @@ function Groups({ groups }: { groups: string[] }) {
     );
 }
 
-function Users({ users }: { users: SeenUser[] }) {
+function Users({
+    users,
+    reload,
+}: {
+    users: SeenUser[];
+    reload: () => Promise<void>;
+}) {
     const [error, setError] = useState("");
     const endAll = async (u: SeenUser) => {
         if (
@@ -149,7 +160,7 @@ function Users({ users }: { users: SeenUser[] }) {
         await api(
             `/api/admin/sessions?sub=${encodeURIComponent(u.sub)}`,
             "DELETE",
-        ).catch((e) => setError(e.message));
+        ).then(reload, (e) => setError(e.message));
     };
     return (
         <Page
@@ -168,6 +179,12 @@ function Users({ users }: { users: SeenUser[] }) {
                         <TableHead className="hidden sm:table-cell">
                             Groups
                         </TableHead>
+                        <TableHead
+                            className="text-right"
+                            title="In use: open terminals and running task targets. Unexpired: certs signed in the last 15 minutes."
+                        >
+                            Certs
+                        </TableHead>
                         <TableHead className="text-right">
                             Last sign-in
                         </TableHead>
@@ -175,7 +192,7 @@ function Users({ users }: { users: SeenUser[] }) {
                     </Head>
                     <TableBody className={tableBody}>
                         {users.length === 0 && (
-                            <Empty cols={4}>
+                            <Empty cols={5}>
                                 <EmptyState
                                     icon={UsersIcon}
                                     title="No users yet"
@@ -205,6 +222,12 @@ function Users({ users }: { users: SeenUser[] }) {
                                 </TableCell>
                                 <TableCell className="hidden whitespace-normal sm:table-cell">
                                     <Groups groups={u.groups} />
+                                </TableCell>
+                                <TableCell className="text-right whitespace-nowrap tabular-nums">
+                                    <div>{u.certs.inUse} in use</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {u.certs.unexpired} unexpired
+                                    </div>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <When t={u.lastLogin} />
