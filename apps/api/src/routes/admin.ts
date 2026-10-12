@@ -31,7 +31,7 @@ const newHostId = () =>
 export function adminRoutes({
     config,
     db,
-    terminal: { live, tasks },
+    terminal: { live, tasks, endedAt },
 }: {
     config: Config;
     db: Database;
@@ -263,6 +263,7 @@ export function adminRoutes({
     app.delete("/sessions", (c) => {
         const sub = c.req.query("sub");
         if (!sub) return c.json({ error: "sub required" }, 400);
+        endedAt.set(sub, Date.now());
         endSessions(
             c.var.user,
             [...live.values()].filter((s) => s.sub === sub),

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import type { LiveSession, User } from "@repo/shared";
 import { audit } from "../lib/audit";
-import type { Host } from "../lib/hosts";
+import { allowedHost, type Host } from "../lib/hosts";
 import { now } from "../lib/sessions";
 import { mintUserCert } from "./certs";
 
@@ -24,6 +24,8 @@ export type TerminalDeps = {
     live: Map<string, LiveTerminal>;
     /** Running task targets by `runId/hostId/login`. */
     tasks: Map<string, { sub: string; kill: () => void }>;
+    /** When an admin last ended each user's sessions, by sub. A sign started before that is dropped. */
+    endedAt: Map<string, number>;
     /** `remote`: a task's command; absent for a terminal. */
     command?: (args: {
         key: string;
@@ -80,6 +82,7 @@ export async function signSession(
     ip: string,
     opts: { pty?: boolean; run?: string } = {},
 ) {
+    const started = Date.now();
     const sessionId = crypto.randomUUID();
     const principal = `ws:${host.id}:${login}`;
     const dir = await mkdtemp(`${tmpdir()}/s-`);
@@ -116,6 +119,10 @@ export async function signSession(
             session: sessionId,
             run: opts.run,
         });
+        if ((deps.endedAt.get(user.sub) ?? -1) >= started)
+            throw new Error("ended by admin");
+        if (!allowedHost(deps.db, host.id, login, user.groups))
+            throw new Error("access revoked");
         return {
             sessionId,
             principal,

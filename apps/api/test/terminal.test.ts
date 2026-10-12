@@ -1,9 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname } from "node:path";
+import { openDb } from "../src/db";
 import { reachable } from "../src/lib/hosts";
 import { createSession } from "../src/lib/sessions";
 import { SESSION_COOKIE } from "../src/routes/auth";
+import { ensureCa } from "../src/ssh/ca";
+import { signSession, type TerminalDeps } from "../src/ssh/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 
 // Fake `ssh`: prints the login and cert principal, then echoes input via the PTY.
@@ -210,6 +215,44 @@ test("terminal: junk messages during signing are ignored", async () => {
     t.send({ t: "in", d: "still-alive\r" });
     await t.waitFor("still-alive");
     expect((await req("/healthz", {})).status).toBe(200);
+});
+
+test("signSession: dropped when an admin ends the user or revokes access mid-sign", async () => {
+    ctx = await startApp();
+    const root = await mkdtemp(`${tmpdir()}/sign-`);
+    await ensureCa(`${root}/ca`, "test-ca", undefined);
+    const deps: TerminalDeps = {
+        db: openDb(":memory:"),
+        caKey: `${root}/ca/user_ca`,
+        caPassword: undefined,
+        idleMs: 0,
+        maxMs: 0,
+        taskMs: 0,
+        maxSessions: 1,
+        maxSessionsTotal: 1,
+        live: new Map(),
+        tasks: new Map(),
+        endedAt: new Map(),
+    };
+    const user = { iss: "i", sub: "user-1", email: null, groups: ["g"] };
+    const host = { id: "h1", name: "h1", address: "h1.test", host_key: "k" };
+    deps.db.run(
+        "INSERT INTO hosts (id, name, address, host_key) VALUES ('h1', 'h1', 'h1.test', 'k')",
+    );
+    deps.db.run(
+        "INSERT INTO access (host_id, login, grp) VALUES ('h1', 'root', 'g')",
+    );
+    const pending = signSession(deps, user, host, "root", "1.2.3.4");
+    deps.endedAt.set("user-1", Date.now());
+    await expect(pending).rejects.toThrow("ended by admin");
+    expect(
+        (await signSession(deps, user, host, "root", "1.2.3.4")).principal,
+    ).toBe("ws:h1:root");
+
+    const revoked = signSession(deps, user, host, "root", "1.2.3.4");
+    deps.db.run("DELETE FROM access");
+    await expect(revoked).rejects.toThrow("access revoked");
+    await rm(root, { recursive: true, force: true });
 });
 
 test("terminal: '/' and control chars in email can't forge the cert key ID", async () => {

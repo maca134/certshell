@@ -23,6 +23,7 @@ export async function startApp(
     const db = openDb(":memory:");
     const live: TerminalDeps["live"] = new Map();
     const tasks: TerminalDeps["tasks"] = new Map();
+    const endedAt: TerminalDeps["endedAt"] = new Map();
     const app = createApp({
         config: loadConfig({
             APP_URL,
@@ -44,6 +45,7 @@ export async function startApp(
             maxSessionsTotal: 200,
             live,
             tasks,
+            endedAt,
             ...terminal,
         },
         latestVersion,
