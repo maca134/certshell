@@ -2,6 +2,13 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.9.0 - 2026-10-12
+- Admin: deleting a host, or changing its access, ends the open terminals and running task targets that lose access.
+- Startup: if the CA key exists but the `ca_password` secret is missing or wrong, CertShell now exits with a clear error instead of starting and failing every terminal and task.
+- `AUDIT_DAYS` also prunes cert sign records, which kept every user's email and host history forever.
+- Fixed: the Tasks page showed no last run for a task whose last run was older than your 50 newest runs.
+- Fixed: a terminal or task still getting its cert when an admin ended the user's sessions or removed their access could still open.
+
 ## 1.8.0 - 2026-10-12
 - Terminal: full screen button next to Search. Not shown where the browser doesn't allow it (Safari on iPhone).
 
