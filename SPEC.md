@@ -178,7 +178,8 @@ printf 'Authorization: Bearer %s\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/e
 
 if [ -d /run/systemd/system ]; then
   for u in ssh sshd; do
-    if systemctl is-active -q "$u"; then systemctl reload "$u"; break; fi
+    if systemctl is-active -q "$u.socket"; then systemctl try-restart "$u.service"; break; fi
+    if systemctl is-active -q "$u.service"; then systemctl reload "$u.service"; break; fi
   done
 elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
@@ -192,7 +193,7 @@ echo "enrolled: $(hostname)"
 
 - Admin-only (`OIDC_ADMIN_GROUP`).
 - `/api/enroll` validates the token and records the host public key against `HOST_ID`.
-- Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it; only an active unit, since a socket-activated sshd may be stopped and reads the config when it starts), OpenRC (Alpine), FreeBSD rc (only if sshd is running), else `SIGHUP` to `/run/sshd.pid` (init-less containers/LXCs). If sshd doesn't load the drop-in (no `Include sshd_config.d/*.conf`, e.g. stock FreeBSD), adds that `Include` as the first line of `sshd_config` (ahead of any `Match`), keeping a backup; if sshd still doesn't load it, restores `sshd_config` and fails loudly instead of reporting success. Host removal leaves the `Include`: it loads nothing once the drop-in is gone.
+- Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it; only an active unit, since a socket-activated sshd may be stopped and reads the config when it starts; a socket-activated one is restarted instead, as on SIGHUP it tries to bind the port the socket unit holds and exits), OpenRC (Alpine), FreeBSD rc (only if sshd is running), else `SIGHUP` to `/run/sshd.pid` (init-less containers/LXCs). If sshd doesn't load the drop-in (no `Include sshd_config.d/*.conf`, e.g. stock FreeBSD), adds that `Include` as the first line of `sshd_config` (ahead of any `Match`), keeping a backup; if sshd still doesn't load it, restores `sshd_config` and fails loudly instead of reporting success. Host removal leaves the `Include`: it loads nothing once the drop-in is gone.
 - Removing a host (UI): the app drops it (no more certs for `ws:<hostId>:*`) and shows a root snippet that deletes the drop-in + CA pubkey and reloads sshd. No token: it only takes trust away.
 - Homelab: bake into the Proxmox LXC golden template for zero-touch enrollment on clone.
 

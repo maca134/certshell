@@ -214,36 +214,40 @@ async function withFakes(
     }
 }
 
-test("systemd reload: only an active unit, once; a failed reload aborts", async () => {
-    // Units in $ACTIVE are active; reload exits $RELOAD_RC.
+test("systemd reload: restart if socket-activated, else reload an active unit; failure aborts", async () => {
+    // Units in $ACTIVE are active; reload/try-restart exit $RC.
     const systemctl = `case "$1" in
   is-active) for a in $ACTIVE; do [ "$a" = "$3" ] && exit 0; done; exit 3 ;;
-  reload) echo "reload $2" >> "$LOG"; exit "\${RELOAD_RC:-0}" ;;
+  reload|try-restart) echo "$1 $2" >> "$LOG"; exit "\${RC:-0}" ;;
 esac
 exit 1`;
-    const reload = (active: string, reloadRc = "0") =>
+    const reload = (active: string, rc = "0") =>
         withFakes(
             { systemctl },
             RELOAD_SSHD.replace("[ -d /run/systemd/system ]", "true"),
-            { ACTIVE: active, RELOAD_RC: reloadRc },
+            { ACTIVE: active, RC: rc },
         );
-    // Socket-activated sshd, not running: nothing to reload, carry on.
-    expect(await reload("")).toEqual({ code: 0, out: "done", reloads: "" });
+    const ok = (reloads: string) => ({ code: 0, out: "done", reloads });
+    expect(await reload("")).toEqual(ok(""));
     // Debian: sshd is an alias of ssh, both report active.
-    expect(await reload("ssh sshd")).toEqual({
-        code: 0,
-        out: "done",
-        reloads: "reload ssh",
-    });
-    expect(await reload("sshd")).toEqual({
-        code: 0,
-        out: "done",
-        reloads: "reload sshd",
-    });
-    expect(await reload("ssh", "1")).toEqual({
+    expect(await reload("ssh.service sshd.service")).toEqual(
+        ok("reload ssh.service"),
+    );
+    expect(await reload("sshd.service")).toEqual(ok("reload sshd.service"));
+    // Socket-activated: SIGHUP would make sshd re-bind the socket's port and die.
+    expect(await reload("ssh.socket ssh.service")).toEqual(
+        ok("try-restart ssh.service"),
+    );
+    expect(await reload("ssh.socket")).toEqual(ok("try-restart ssh.service"));
+    expect(await reload("ssh.service", "1")).toEqual({
         code: 1,
         out: "",
-        reloads: "reload ssh",
+        reloads: "reload ssh.service",
+    });
+    expect(await reload("ssh.socket", "1")).toEqual({
+        code: 1,
+        out: "",
+        reloads: "try-restart ssh.service",
     });
 });
 
