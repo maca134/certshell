@@ -23,6 +23,7 @@ import {
     Logo,
     Page,
     Tag,
+    TagFilter,
 } from "./components/layout";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
@@ -226,28 +227,11 @@ function Hosts({
         >
             {tags.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="mr-1 text-xs text-muted-foreground">
-                            Tags
-                        </span>
-                        <button
-                            type="button"
-                            aria-pressed={selected.length === 0}
-                            className="h-5 cursor-pointer rounded-full border px-2 text-xs font-medium text-muted-foreground aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
-                            onClick={() => setSelected([])}
-                        >
-                            All
-                        </button>
-                        {tags.map((t) => (
-                            <Tag
-                                key={t}
-                                name={t}
-                                muted={!selected.includes(t)}
-                                pressed={selected.includes(t)}
-                                onClick={() => toggle(t)}
-                            />
-                        ))}
-                    </div>
+                    <TagFilter
+                        tags={tags}
+                        selected={selected}
+                        onChange={setSelected}
+                    />
                     <div className="flex gap-0.5 rounded-md border p-0.5">
                         {[false, true].map((g) => (
                             <Button

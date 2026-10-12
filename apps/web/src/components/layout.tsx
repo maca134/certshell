@@ -129,3 +129,43 @@ export function Tag({
         </span>
     );
 }
+
+/** "All" plus a toggle per tag. */
+export function TagFilter({
+    tags,
+    selected,
+    onChange,
+}: {
+    tags: string[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+}) {
+    return (
+        <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs text-muted-foreground">Tags</span>
+            <button
+                type="button"
+                aria-pressed={selected.length === 0}
+                className="h-5 cursor-pointer rounded-full border px-2 text-xs font-medium text-muted-foreground aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
+                onClick={() => onChange([])}
+            >
+                All
+            </button>
+            {tags.map((t) => (
+                <Tag
+                    key={t}
+                    name={t}
+                    muted={!selected.includes(t)}
+                    pressed={selected.includes(t)}
+                    onClick={() =>
+                        onChange(
+                            selected.includes(t)
+                                ? selected.filter((x) => x !== t)
+                                : [...selected, t],
+                        )
+                    }
+                />
+            ))}
+        </div>
+    );
+}
