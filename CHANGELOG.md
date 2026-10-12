@@ -2,6 +2,13 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.11.0 - 2026-10-12
+- Tasks: a run's results can be grouped by output. Hosts with the same exit code and output are grouped, biggest group first, and each other group shows a diff against it. **By host** lists each host as before.
+- Alerts (Admin → Alerts): notifications through [shoutrrr](https://github.com/nicholas-fedor/shoutrrr) (ntfy, Gotify, Discord, Slack, Telegram, email, webhooks, …). Each channel picks its events: a task run with a failed host, a host offline or back online, a host newly needing a reboot, security changes, or a terminal opened (optionally only on some tags or logins). URLs can't be read back after saving, and are stored encrypted when `ca_password` is set. The image now includes the `shoutrrr` binary.
+- Fleet (Admin → Fleet): OS, uptime, pending and security updates, reboot flag and disk use for each host, with counts and **New task on these hosts**. Off until you set a facts login under Hosts → Edit; CertShell then logs in as it every 6 hours with a no-terminal cert.
+- The app checks port 22 on every enrolled host once a minute and logs `host_down` / `host_up` to the audit log.
+- Audit: new `host_key_mismatch` event when ssh refuses a host because its host key changed. `host_delete` entries include the host's name.
+
 ## 1.10.0 - 2026-10-12
 - Sessions end after 30 minutes idle or 8 hours, instead of exactly 1 hour after sign-in. Group changes at the IdP can now take up to 8 hours to reach new terminals; **Sign out & end sessions** still cuts a user off at once.
 - Admin: the Sessions page stops refreshing while its tab is hidden, so an idle admin tab no longer keeps the login alive.
