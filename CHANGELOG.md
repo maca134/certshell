@@ -2,6 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.8.0 - 2026-10-12
+- Terminal: full screen button next to Search. Not shown where the browser doesn't allow it (Safari on iPhone).
+
 ## 1.7.2 - 2026-10-12
 - Fixed: on short screens (e.g. a tablet in landscape) the sidebar menu scrolled with no visible scrollbar, so its last items looked missing. The scrollbar now shows.
 
