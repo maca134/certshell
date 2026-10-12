@@ -290,6 +290,7 @@ if (!exists("/data/ca/user_ca")) {
 ```
 
 - `caPassword` = `/run/secrets/ca_password` trimmed, if present.
+- If the key already exists, boot checks that `caPassword` opens it (`ssh-keygen -y`) and exits if not, rather than failing every sign later.
 - No admin bootstrap: admin = membership of `OIDC_ADMIN_GROUP` at the IdP.
 - `init: true` reaps zombies; `restart: unless-stopped` covers crashes. No child daemons to supervise.
 
