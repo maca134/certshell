@@ -95,6 +95,11 @@ export const MIGRATIONS: string[][] = [
     ],
     // 4: host tags, a sorted JSON array.
     ["ALTER TABLE hosts ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"],
+    // 5: session idle timeout under an absolute cap. Existing sessions keep their old expiry as the cap.
+    [
+        "ALTER TABLE sessions ADD COLUMN max_expires_at INTEGER NOT NULL DEFAULT 0",
+        "UPDATE sessions SET max_expires_at = expires_at",
+    ],
 ];
 
 export function migrate(db: Database, migrations = MIGRATIONS) {

@@ -141,7 +141,7 @@ Members of `OIDC_ADMIN_GROUP` get an **Admin** section:
 | `/run/secrets/ca_password` | no | none: CA key stored unencrypted, warning logged |
 
 - HTTPS is required (secure cookies; passkeys at the IdP).
-- Sessions last 1 hour, then go back through the IdP. Group changes at the IdP apply to new terminals within the hour.
+- Sessions end after 30 minutes idle or 8 hours, then go back through the IdP. Group changes at the IdP apply to new terminals within 8 hours.
 - Terminals close after 30 minutes idle, and always after 8 hours.
 
 ## Security

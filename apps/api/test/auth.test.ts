@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, expect, test } from "bun:test";
+import { afterAll, beforeEach, expect, setSystemTime, test } from "bun:test";
 import * as oidc from "openid-client";
 import { createApp } from "../src/app";
 import { loadConfig } from "../src/config";
@@ -120,7 +120,7 @@ test("callback creates a 1h session from iss+sub+groups", async () => {
 
     const set = res.headers.getSetCookie();
     const session = set.find((c) => c.startsWith(`${SESSION_COOKIE}=`)) ?? "";
-    expect(session).toContain("Max-Age=3600");
+    expect(session).toContain("Max-Age=28800");
     expect(session).toContain("Secure");
     expect(session).toContain("HttpOnly");
     expect(session).toContain("SameSite=Lax");
@@ -187,6 +187,29 @@ test("expired or unknown session → 401", async () => {
     expect((await get("/api/me", `${SESSION_COOKIE}=nope`)).status).toBe(401);
     db.run("UPDATE sessions SET expires_at = 0");
     expect((await get("/api/me", cookie)).status).toBe(401);
+});
+
+test("session: 30 min idle timeout, slid by each request, capped at 8h", async () => {
+    const cookie = await loggedIn();
+    const t0 = Date.now();
+    try {
+        setSystemTime(t0 + 29 * 60_000);
+        expect((await get("/api/me", cookie)).status).toBe(200);
+        setSystemTime(t0 + 58 * 60_000);
+        expect((await get("/api/me", cookie)).status).toBe(200);
+        for (let m = 80; m < 8 * 60; m += 20) {
+            setSystemTime(t0 + m * 60_000);
+            expect((await get("/api/me", cookie)).status).toBe(200);
+        }
+        setSystemTime(t0 + 8 * 3600_000 + 1000);
+        expect((await get("/api/me", cookie)).status).toBe(401);
+
+        const idle = await loggedIn();
+        setSystemTime(Date.now() + 31 * 60_000);
+        expect((await get("/api/me", idle)).status).toBe(401);
+    } finally {
+        setSystemTime();
+    }
 });
 
 test("session token is stored hashed", async () => {

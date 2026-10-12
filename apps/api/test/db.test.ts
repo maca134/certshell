@@ -26,6 +26,9 @@ function v1Db() {
     const db = new Database(":memory:");
     for (const sql of MIGRATIONS[0] ?? []) db.run(sql);
     db.run("INSERT INTO hosts (id, name, address) VALUES ('h1', 'web1', 'a')");
+    db.run(
+        "INSERT INTO sessions (id_hash, iss, sub, groups, expires_at) VALUES ('s', 'i', 'u', '[]', 123)",
+    );
     return db;
 }
 
@@ -57,6 +60,9 @@ test("v1.0.0 DB: upgrades in place, data kept; migrating again is a no-op", () =
     ]);
     expect(columns(db, "runs")).toContain("task_id");
     expect(db.query("SELECT tags FROM hosts").all()).toEqual([{ tags: "[]" }]);
+    expect(
+        db.query("SELECT expires_at, max_expires_at FROM sessions").all(),
+    ).toEqual([{ expires_at: 123, max_expires_at: 123 }]);
 });
 
 test("unreleased dev DB: old runs/commands replaced, saved tasks kept", () => {

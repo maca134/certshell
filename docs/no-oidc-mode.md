@@ -13,7 +13,7 @@ A single-user mode that signs in with passkeys stored by CertShell itself, so no
 | CLI | A `certshell` script on the image's PATH (added at build time, so the read-only filesystem is fine): `docker compose exec certshell certshell <command>`. It writes the same SQLite file as the running server; WAL is already on. |
 | `add-passkey` | CLI. Prints a setup link `/auth/setup?token=…` (256-bit token) and, on a separate line, a short code (6 digits). Both are stored hashed, valid for 10 min, single-use. User opens the link and types the code to register one more passkey; existing ones stay. 5 wrong codes = token burned. Only one token is valid at a time: issuing a new one deletes any old one. First setup is just `add-passkey` with no passkeys yet. Never printed at boot, never from env, never first-visitor registration. |
 | `reset-passkey` | CLI. Deletes **all** passkeys **and** all sessions directly in the DB, then prints an `add-passkey` link + code and the line "now run `docker compose restart certshell`". No web reset flow. Also the fix for a lost device: reset, restart, then `add-passkey` for each remaining device. |
-| Session | Unchanged: 1h absolute, then sign in again with a passkey. Open terminals keep their own 30 min idle / 8h max limits. |
+| Session | Unchanged: 30 min idle / 8h absolute, then sign in again with a passkey. Open terminals keep their own 30 min idle / 8h max limits. |
 | Admin UI | The frontend is told the mode. In passkey mode the Users tab is hidden and the access map's group field is filled in with the admin group and not editable. |
 | In-app passkey management | None. |
 
