@@ -124,9 +124,14 @@ sleep 1 # tail -f polls about once a second: let it print the last lines
 kill $tail_pid 2>/dev/null
 exit $rc`;
 
-/** systemd only if actually running (containers often ship systemctl without it), else OpenRC, else SIGHUP. */
+/**
+ * systemd only if actually running (containers often ship systemctl without it), else OpenRC, else SIGHUP.
+ * Under systemd, reload only an active unit: a socket-activated sshd (LXCs) is often stopped and reads the config when it starts.
+ */
 export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
-  systemctl reload ssh 2>/dev/null || systemctl reload sshd
+  for u in ssh sshd; do
+    if systemctl is-active -q "$u"; then systemctl reload "$u"; break; fi
+  done
 elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
 else

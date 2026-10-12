@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { type AdminHost, REMOVAL_SNIPPET } from "@repo/shared";
+import { type AdminHost, RELOAD_SSHD, REMOVAL_SNIPPET } from "@repo/shared";
 import { renderSnippet } from "../src/routes/enroll";
 import { run } from "../src/ssh/exec";
 import { APP_URL, startApp } from "./helpers/app";
@@ -180,6 +180,70 @@ test("snippet reloads sshd via systemd only when systemd is running", () => {
     });
     expect(snippet).toContain("if [ -d /run/systemd/system ]; then");
     expect(snippet).toContain('kill -HUP "$(cat /run/sshd.pid)"');
+});
+
+test("systemd reload: only an active unit, once; a failed reload aborts", async () => {
+    const dir = await mkdtemp(`${tmpdir()}/sysd-`);
+    try {
+        // Fake systemctl: units in $ACTIVE are active; logs reloads; reload exits $RELOAD_RC.
+        await Bun.write(
+            `${dir}/systemctl`,
+            `#!/bin/sh
+case "$1" in
+  is-active) for a in $ACTIVE; do [ "$a" = "$3" ] && exit 0; done; exit 3 ;;
+  reload) echo "reload $2" >> "$LOG"; exit "\${RELOAD_RC:-0}" ;;
+esac
+exit 1
+`,
+        );
+        await chmod(`${dir}/systemctl`, 0o755);
+        const reload = async (active: string, reloadRc = "0") => {
+            await rm(`${dir}/log`, { force: true });
+            const proc = Bun.spawn(
+                [
+                    "sh",
+                    "-c",
+                    `set -eu\n${RELOAD_SSHD.replace("[ -d /run/systemd/system ]", "true")}\necho done`,
+                ],
+                {
+                    stdout: "pipe",
+                    env: {
+                        PATH: `${dir}:${process.env.PATH}`,
+                        ACTIVE: active,
+                        RELOAD_RC: reloadRc,
+                        LOG: `${dir}/log`,
+                    },
+                },
+            );
+            const out = await new Response(proc.stdout).text();
+            const log = Bun.file(`${dir}/log`);
+            return {
+                code: await proc.exited,
+                out: out.trim(),
+                reloads: (await log.exists()) ? (await log.text()).trim() : "",
+            };
+        };
+        // Socket-activated sshd, not running: nothing to reload, carry on.
+        expect(await reload("")).toEqual({ code: 0, out: "done", reloads: "" });
+        // Debian: sshd is an alias of ssh, both report active.
+        expect(await reload("ssh sshd")).toEqual({
+            code: 0,
+            out: "done",
+            reloads: "reload ssh",
+        });
+        expect(await reload("sshd")).toEqual({
+            code: 0,
+            out: "done",
+            reloads: "reload sshd",
+        });
+        expect(await reload("ssh", "1")).toEqual({
+            code: 1,
+            out: "",
+            reloads: "reload ssh",
+        });
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
 });
 
 test("snippet: token reaches curl on stdin, not argv", () => {
