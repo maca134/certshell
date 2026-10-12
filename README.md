@@ -111,6 +111,7 @@ A task is a saved script plus the host logins it runs on, e.g. `apt-get upgrade 
 
 - **Tasks → New task**: a name, the script, then tick hosts and pick a login on each. Only host logins the access map gives you are offered, and that is checked again on every run.
 - **Run** starts every host at once. Each host shows ok or failed, its exit code and its output (the last 256 KB). **Run again** repeats it.
+- **Group by output** puts hosts with the same exit code and output together, biggest group first. Every other group shows a diff against the biggest one. On by default when at least two hosts match; **By host** lists each host instead.
 - The script runs in the login's shell without a terminal, so prompts get no input: use `-y` and similar. Runs are killed after 30 minutes.
 - **Keep running if the connection drops**: turn on for scripts that can cut their own connection (VPN, sshd, firewall or network changes). The script then finishes even if the app loses the connection, and its output also goes to a log file in `/tmp` on the host.
 - Tasks and runs are private to the user who made them. Limits: 100 tasks, 50 hosts per task, 16 KB per script. A run keeps its own copy of the script, so editing a task doesn't change past runs.
