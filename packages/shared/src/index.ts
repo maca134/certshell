@@ -8,9 +8,11 @@ export type User = {
 /** `update`: a newer release on GitHub, sent to admins only. */
 export type Me = User & { admin: boolean; version: string; update?: string };
 
+/** `tags`: sorted, each `[a-z0-9-]{1,32}`. */
 export type HostSummary = {
     id: string;
     name: string;
+    tags: string[];
     logins: string[];
 };
 
@@ -70,6 +72,7 @@ export type AdminHost = {
     name: string;
     address: string;
     enrolled: boolean;
+    tags: string[];
     access: AccessRule[];
 };
 

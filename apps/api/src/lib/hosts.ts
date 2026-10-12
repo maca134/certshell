@@ -11,8 +11,11 @@ export type Host = {
 
 export function accessibleHosts(db: Database, groups: string[]): HostSummary[] {
     return db
-        .query<{ id: string; name: string; logins: string }, [string]>(
-            `SELECT h.id, h.name, json_group_array(DISTINCT a.login ORDER BY a.login) AS logins
+        .query<
+            { id: string; name: string; tags: string; logins: string },
+            [string]
+        >(
+            `SELECT h.id, h.name, h.tags, json_group_array(DISTINCT a.login ORDER BY a.login) AS logins
              FROM hosts h
              JOIN access a ON a.host_id = h.id
              WHERE h.host_key IS NOT NULL
@@ -21,7 +24,11 @@ export function accessibleHosts(db: Database, groups: string[]): HostSummary[] {
              ORDER BY h.name`,
         )
         .all(JSON.stringify(groups))
-        .map((r) => ({ ...r, logins: JSON.parse(r.logins) }));
+        .map((r) => ({
+            ...r,
+            tags: JSON.parse(r.tags),
+            logins: JSON.parse(r.logins),
+        }));
 }
 
 export function allowedHost(

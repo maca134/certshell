@@ -56,6 +56,7 @@ test("v1.0.0 DB: upgrades in place, data kept; migrating again is a no-op", () =
         { id: "h1", name: "web1" },
     ]);
     expect(columns(db, "runs")).toContain("task_id");
+    expect(db.query("SELECT tags FROM hosts").all()).toEqual([{ tags: "[]" }]);
 });
 
 test("unreleased dev DB: old runs/commands replaced, saved tasks kept", () => {

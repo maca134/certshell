@@ -17,6 +17,7 @@ import {
     validGroup,
     validLogin,
     validName,
+    validTags,
 } from "../lib/validate";
 import { CERT_TTL_SECONDS } from "../ssh/certs";
 import type { LiveTerminal, TerminalDeps } from "../ssh/terminal";
@@ -50,11 +51,12 @@ export function adminRoutes({
                     name: string;
                     address: string;
                     enrolled: number;
+                    tags: string;
                     access: string;
                 },
                 []
             >(
-                `SELECT id, name, address, host_key IS NOT NULL AS enrolled,
+                `SELECT id, name, address, host_key IS NOT NULL AS enrolled, tags,
                    (SELECT json_group_array(json_object('login', login, 'group', grp) ORDER BY login, grp)
                     FROM access WHERE host_id = h.id) AS access
                  FROM hosts h ORDER BY name`,
@@ -64,6 +66,7 @@ export function adminRoutes({
             hosts.map((h) => ({
                 ...h,
                 enrolled: !!h.enrolled,
+                tags: JSON.parse(h.tags),
                 access: JSON.parse(h.access),
             })),
         );
@@ -100,11 +103,18 @@ export function adminRoutes({
             return c.json({ error: "invalid name" }, 400);
         if (input?.address !== undefined && !validAddress(input.address))
             return c.json({ error: "invalid address" }, 400);
+        if (input?.tags !== undefined && !validTags(input.tags))
+            return c.json({ error: "invalid tags" }, 400);
+        const tags =
+            input?.tags === undefined
+                ? null
+                : JSON.stringify([...new Set(input.tags as string[])].sort());
         db.run(
-            "UPDATE hosts SET name = coalesce(?, name), address = coalesce(?, address) WHERE id = ?",
+            "UPDATE hosts SET name = coalesce(?, name), address = coalesce(?, address), tags = coalesce(?, tags) WHERE id = ?",
             [
                 (input?.name as string | undefined) ?? null,
                 (input?.address as string | undefined) ?? null,
+                tags,
                 id,
             ],
         );
@@ -115,6 +125,7 @@ export function adminRoutes({
             host: id,
             name: input?.name,
             address: input?.address,
+            tags: input?.tags,
         });
         return c.body(null, 204);
     });

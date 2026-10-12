@@ -41,7 +41,7 @@ test("/api/hosts lists only hosts+logins for the user's groups", async () => {
     ctx.addHost("h2", "h2.test", "ssh-ed25519 BBBB", { root: "others" });
     const res = await req("/api/hosts", { cookie: ctx.cookie });
     expect(await res.json()).toEqual([
-        { id: "h1", name: "h1", logins: ["root"] },
+        { id: "h1", name: "h1", tags: [], logins: ["root"] },
     ]);
 });
 

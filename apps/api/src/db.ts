@@ -93,6 +93,8 @@ export const MIGRATIONS: string[][] = [
         "ALTER TABLE tasks ADD COLUMN detach INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE runs ADD COLUMN detach INTEGER NOT NULL DEFAULT 0",
     ],
+    // 4: host tags, a sorted JSON array.
+    ["ALTER TABLE hosts ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"],
 ];
 
 export function migrate(db: Database, migrations = MIGRATIONS) {
