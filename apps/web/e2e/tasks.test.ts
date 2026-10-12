@@ -159,6 +159,54 @@ test("run a task from the list → per-host results update live; run again", asy
         .toEqual(["POST /api/tasks/5/run", "POST /api/tasks/5/run"]);
 });
 
+test("run view groups identical outputs and diffs the odd one out", async ({
+    page,
+}) => {
+    await fakeApi(page);
+    const result = (hostName: string, exitCode: number, output: string) => ({
+        hostId: hostName,
+        hostName,
+        login: "root",
+        status: exitCode === 0 ? "ok" : "failed",
+        exitCode,
+        output,
+    });
+    const same = "Reading lists\n0 upgraded\nDone\n";
+    await page.route("/api/tasks/runs/r2", (r) =>
+        r.fulfill({
+            json: {
+                id: "r2",
+                taskId: 5,
+                name: "Upgrade",
+                script: "apt-get upgrade -y",
+                createdAt: Date.now(),
+                hosts: [
+                    result("web1", 0, same),
+                    result("web2", 0, same),
+                    result("web3", 1, "Reading lists\nE: locked\nDone\n"),
+                ],
+            },
+        }),
+    );
+    await page.goto("/tasks/runs/r2");
+    await expect(
+        page.getByText("3 finished hosts: 2 different outputs"),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("button", { name: "Group by output" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("2 hosts", { exact: true })).toBeVisible();
+    await expect(page.getByText("root@web1, root@web2")).toBeVisible();
+
+    await page.getByText("root@web3").click();
+    await expect(page.getByText("- 0 upgraded")).toBeVisible();
+    await expect(page.getByText("+ E: locked")).toBeVisible();
+
+    await page.getByRole("button", { name: "By host" }).click();
+    await expect(page.getByText("2 hosts", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("exit 1")).toBeVisible();
+});
+
 test("edit a task: prefilled, change hosts, save; delete", async ({ page }) => {
     const calls = await fakeApi(page);
     await page.goto("/tasks");

@@ -17,7 +17,7 @@ import {
     Plus,
     Trash2,
 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { AMBER, GREEN, When } from "./Admin";
 import { api } from "./api";
@@ -28,6 +28,12 @@ import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
+import {
+    diffLines,
+    groupOutputs,
+    type OutputGroup,
+    withContext,
+} from "./outputs";
 import { withTags } from "./tags";
 
 const MAX_TARGETS = 50;
@@ -443,6 +449,11 @@ function RunView({ id }: { id: string }) {
     const [run, setRun] = useState<RunDetail>();
     const [error, setError] = useState<string>();
     const again = useRun();
+    // Unset until the user picks: grouped when at least two hosts share an output.
+    const [byOutput, setByOutput] = useState<boolean>();
+    const groups = groupOutputs(run?.hosts ?? []);
+    const finished = groups.reduce((n, g) => n + g.hosts.length, 0);
+    const grouped = finished >= 2 && (byOutput ?? groups.length < finished);
 
     useEffect(() => {
         let live = true;
@@ -498,14 +509,62 @@ function RunView({ id }: { id: string }) {
                     <pre className="overflow-x-auto rounded-lg border bg-[#0e0e11] p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
                         {run.script}
                     </pre>
+                    {finished >= 2 && (
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">
+                                {groups.length === 1
+                                    ? `All ${finished} finished hosts: same output`
+                                    : `${finished} finished hosts: ${groups.length} different outputs`}
+                            </span>
+                            <div className="flex gap-0.5 rounded-md border p-0.5">
+                                {[false, true].map((g) => (
+                                    <Button
+                                        key={String(g)}
+                                        size="xs"
+                                        variant={
+                                            grouped === g
+                                                ? "secondary"
+                                                : "ghost"
+                                        }
+                                        aria-pressed={grouped === g}
+                                        onClick={() => setByOutput(g)}
+                                    >
+                                        {g ? "Group by output" : "By host"}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <Card className="gap-0 py-0">
                         <ul className="divide-y">
-                            {run.hosts.map((h) => (
-                                <HostResult
-                                    key={`${h.hostId}:${h.login}`}
-                                    {...h}
-                                />
-                            ))}
+                            {grouped
+                                ? [
+                                      ...groups.map((g, i) => (
+                                          <GroupResult
+                                              key={`${g.exitCode}:${g.hosts[0]?.hostId}:${g.hosts[0]?.login}`}
+                                              group={g}
+                                              base={
+                                                  i > 0
+                                                      ? groups[0]?.output
+                                                      : undefined
+                                              }
+                                          />
+                                      )),
+                                      ...run.hosts
+                                          .filter((h) => h.status === "running")
+                                          .map((h) => (
+                                              <HostResult
+                                                  key={`${h.hostId}:${h.login}`}
+                                                  {...h}
+                                              />
+                                          )),
+                                  ]
+                                : run.hosts.map((h) => (
+                                      <HostResult
+                                          key={`${h.hostId}:${h.login}`}
+                                          {...h}
+                                      />
+                                  ))}
                         </ul>
                     </Card>
                 </>
@@ -514,37 +573,127 @@ function RunView({ id }: { id: string }) {
     );
 }
 
-function HostResult({ hostName, login, status, exitCode, output }: RunHost) {
+function StatusBadge({ status }: { status: RunStatus }) {
+    return (
+        <Badge className={STATUS[status]}>
+            <span
+                className={cn(
+                    "size-1.5 rounded-full bg-current",
+                    status === "running" && "animate-pulse",
+                )}
+            />
+            {status}
+        </Badge>
+    );
+}
+
+function ResultRow({
+    label,
+    status,
+    exitCode,
+    children,
+}: {
+    label: ReactNode;
+    status: RunStatus;
+    exitCode: number | null;
+    children: ReactNode;
+}) {
     return (
         <li>
             <details className="group">
                 <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 [&::-webkit-details-marker]:hidden">
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-                    <span className="min-w-0 truncate font-mono text-sm">
-                        <span className="text-muted-foreground">{login}@</span>
-                        {hostName}
-                    </span>
+                    {label}
                     <span className="ml-auto flex shrink-0 items-center gap-2">
                         {exitCode !== null && (
                             <span className="text-xs text-muted-foreground tabular-nums">
                                 exit {exitCode}
                             </span>
                         )}
-                        <Badge className={STATUS[status]}>
-                            <span
-                                className={cn(
-                                    "size-1.5 rounded-full bg-current",
-                                    status === "running" && "animate-pulse",
-                                )}
-                            />
-                            {status}
-                        </Badge>
+                        <StatusBadge status={status} />
                     </span>
                 </summary>
-                <pre className="max-h-96 overflow-auto border-t bg-[#0e0e11] px-4 py-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
-                    {output || "(no output yet)"}
-                </pre>
+                {children}
             </details>
         </li>
+    );
+}
+
+const OUTPUT =
+    "max-h-96 overflow-auto border-t bg-[#0e0e11] px-4 py-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap";
+
+function HostResult({ hostName, login, status, exitCode, output }: RunHost) {
+    return (
+        <ResultRow
+            label={
+                <span className="min-w-0 truncate font-mono text-sm">
+                    <span className="text-muted-foreground">{login}@</span>
+                    {hostName}
+                </span>
+            }
+            status={status}
+            exitCode={exitCode}
+        >
+            <pre className={OUTPUT}>{output || "(no output yet)"}</pre>
+        </ResultRow>
+    );
+}
+
+/** `base`: the biggest group's output; set on every other group, which then shows its diff against it. */
+function GroupResult({ group, base }: { group: OutputGroup; base?: string }) {
+    const names = group.hosts.map((h) => `${h.login}@${h.hostName}`);
+    const diff =
+        base === undefined ? [] : withContext(diffLines(base, group.output));
+    const sameOutput = diff.every((d) => "skipped" in d);
+    return (
+        <ResultRow
+            label={
+                <span className="flex min-w-0 flex-col">
+                    <span className="text-sm font-medium">
+                        {group.hosts.length} host
+                        {group.hosts.length === 1 ? "" : "s"}
+                        {base !== undefined && (
+                            <span className="font-normal text-muted-foreground">
+                                {" · differs from the most common output"}
+                            </span>
+                        )}
+                    </span>
+                    <span
+                        className="truncate font-mono text-xs text-muted-foreground"
+                        title={names.join(", ")}
+                    >
+                        {names.join(", ")}
+                    </span>
+                </span>
+            }
+            status={group.status}
+            exitCode={group.exitCode}
+        >
+            <pre className={OUTPUT}>
+                {base === undefined
+                    ? group.output || "(no output)"
+                    : sameOutput
+                      ? "Same output as the most common one; only the exit code differs."
+                      : diff.map((d, i) => (
+                            <div
+                                // biome-ignore lint/suspicious/noArrayIndexKey: lines have no identity of their own
+                                key={i}
+                                className={cn(
+                                    "skipped" in d && "text-muted-foreground",
+                                    "op" in d &&
+                                        d.op === "-" &&
+                                        "bg-red-400/10 text-red-300",
+                                    "op" in d &&
+                                        d.op === "+" &&
+                                        "bg-emerald-400/10 text-emerald-300",
+                                )}
+                            >
+                                {"skipped" in d
+                                    ? `… ${d.skipped} unchanged line${d.skipped === 1 ? "" : "s"}`
+                                    : `${d.op} ${d.text}`}
+                            </div>
+                        ))}
+            </pre>
+        </ResultRow>
     );
 }
