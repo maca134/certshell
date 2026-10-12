@@ -1,5 +1,7 @@
-import { type LucideIcon, Server } from "lucide-react";
+import { cn } from "cn";
+import { type LucideIcon, Server, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { tagColour } from "../tags";
 
 export function Page({
     title,
@@ -76,5 +78,54 @@ export function HostIcon() {
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-linear-to-b from-white/8 to-white/2">
             <Server className="size-4 text-muted-foreground" />
         </div>
+    );
+}
+
+/** A host tag. `onClick` makes it a toggle button (`pressed`); `muted` greys it out. `onRemove` adds an × button. */
+export function Tag({
+    name,
+    muted,
+    pressed,
+    onClick,
+    onRemove,
+}: {
+    name: string;
+    muted?: boolean;
+    pressed?: boolean;
+    onClick?: () => void;
+    onRemove?: () => void;
+}) {
+    const className = cn(
+        "inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap",
+        muted
+            ? "border-border text-muted-foreground hover:text-foreground"
+            : tagColour(name),
+        onClick && "cursor-pointer hover:brightness-125",
+    );
+    if (onClick)
+        return (
+            <button
+                type="button"
+                aria-pressed={!!pressed}
+                className={className}
+                onClick={onClick}
+            >
+                {name}
+            </button>
+        );
+    return (
+        <span className={className}>
+            {name}
+            {onRemove && (
+                <button
+                    type="button"
+                    aria-label={`remove tag ${name}`}
+                    className="-mr-1 cursor-pointer opacity-70 hover:opacity-100"
+                    onClick={onRemove}
+                >
+                    <X className="size-3" />
+                </button>
+            )}
+        </span>
     );
 }

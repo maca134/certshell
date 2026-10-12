@@ -1,8 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const hosts = [
-    { id: "h1", name: "web1", logins: ["root"] },
-    { id: "h2", name: "web2", logins: ["root", "deploy"] },
+    { id: "h1", name: "web1", tags: [], logins: ["root"] },
+    { id: "h2", name: "web2", tags: [], logins: ["root", "deploy"] },
 ];
 
 const task = {

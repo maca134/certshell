@@ -16,7 +16,14 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, Route, Switch, useLocation } from "wouter";
 import { Admin } from "./Admin";
 import { api } from "./api";
-import { Avatar, EmptyState, HostIcon, Logo, Page } from "./components/layout";
+import {
+    Avatar,
+    EmptyState,
+    HostIcon,
+    Logo,
+    Page,
+    Tag,
+} from "./components/layout";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 import {
@@ -39,6 +46,7 @@ import {
 import { Skeleton } from "./components/ui/skeleton";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Tasks } from "./Tasks";
+import { groupByTag, withTags } from "./tags";
 
 // xterm is half the bundle: load it after the host list renders, before the user picks a host.
 const loadTerminal = () => import("./TerminalView");
@@ -194,11 +202,67 @@ function Hosts({
     hosts?: HostSummary[];
     up: Record<string, boolean>;
 }) {
+    const [selected, setSelected] = useState<string[]>([]);
+    const [grouped, setGrouped] = useState(false);
+    const tags = [...new Set(hosts?.flatMap((h) => h.tags))].sort();
+    const toggle = (tag: string) =>
+        setSelected((s) =>
+            s.includes(tag) ? s.filter((t) => t !== tag) : [...s, tag],
+        );
+    const shown = hosts && withTags(hosts, selected);
+    const row = (host: HostSummary, key = host.id) => (
+        <HostRow
+            key={key}
+            host={host}
+            up={up[host.id]}
+            selected={selected}
+            onTag={toggle}
+        />
+    );
     return (
         <Page
             title="Hosts"
             description="Choose a server and an account to open a secure shell."
         >
+            {tags.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="mr-1 text-xs text-muted-foreground">
+                            Tags
+                        </span>
+                        <button
+                            type="button"
+                            aria-pressed={selected.length === 0}
+                            className="h-5 cursor-pointer rounded-full border px-2 text-xs font-medium text-muted-foreground aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
+                            onClick={() => setSelected([])}
+                        >
+                            All
+                        </button>
+                        {tags.map((t) => (
+                            <Tag
+                                key={t}
+                                name={t}
+                                muted={!selected.includes(t)}
+                                pressed={selected.includes(t)}
+                                onClick={() => toggle(t)}
+                            />
+                        ))}
+                    </div>
+                    <div className="flex gap-0.5 rounded-md border p-0.5">
+                        {[false, true].map((g) => (
+                            <Button
+                                key={String(g)}
+                                size="xs"
+                                variant={grouped === g ? "secondary" : "ghost"}
+                                aria-pressed={grouped === g}
+                                onClick={() => setGrouped(g)}
+                            >
+                                {g ? "Group by tag" : "List"}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+            )}
             <Card className="gap-0 py-0">
                 {!hosts &&
                     [0, 1, 2].map((i) => (
@@ -220,64 +284,90 @@ function Hosts({
                         server.
                     </EmptyState>
                 )}
+                {!!hosts?.length && shown?.length === 0 && (
+                    <EmptyState icon={Server} title="No matching hosts">
+                        No host has all the selected tags.
+                    </EmptyState>
+                )}
                 <ul className="divide-y">
-                    {hosts?.map((host) => (
-                        <li
-                            key={host.id}
-                            className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60"
-                        >
-                            <HostIcon />
-                            <div className="flex min-w-0 flex-1 flex-col">
-                                <span className="flex items-center gap-2">
-                                    <span
-                                        className="truncate font-medium"
-                                        title={host.name}
-                                    >
-                                        {host.name}
-                                    </span>
-                                    {host.id in up && (
-                                        <span
-                                            role="img"
-                                            aria-label={
-                                                up[host.id]
-                                                    ? "online"
-                                                    : "offline"
-                                            }
-                                            title={
-                                                up[host.id]
-                                                    ? "Online"
-                                                    : "Offline: port 22 unreachable"
-                                            }
-                                            className={`size-2 shrink-0 rounded-full ${up[host.id] ? "bg-emerald-400" : "bg-muted-foreground/40"}`}
-                                        />
-                                    )}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                    {host.logins.length} account
-                                    {host.logins.length === 1 ? "" : "s"}
-                                </span>
-                            </div>
-                            <div className="flex flex-wrap justify-end gap-2">
-                                {host.logins.map((login) => (
-                                    <Button
-                                        key={login}
-                                        asChild
-                                        variant="secondary"
-                                        size="sm"
-                                        className="font-mono hover:bg-primary hover:text-primary-foreground"
-                                    >
-                                        <Link href={`/ssh/${host.id}/${login}`}>
-                                            <Terminal />
-                                            {login}
-                                        </Link>
-                                    </Button>
-                                ))}
-                            </div>
-                        </li>
-                    ))}
+                    {grouped
+                        ? groupByTag(shown ?? []).map((g) => [
+                              <li
+                                  key={`#${g.tag}`}
+                                  className="flex items-center gap-2 bg-muted/40 px-4 py-2 text-xs text-muted-foreground"
+                              >
+                                  {g.tag ? <Tag name={g.tag} /> : "Untagged"}
+                                  <span>{g.hosts.length}</span>
+                              </li>,
+                              ...g.hosts.map((h) => row(h, `${g.tag}/${h.id}`)),
+                          ])
+                        : shown?.map((h) => row(h))}
                 </ul>
             </Card>
         </Page>
+    );
+}
+
+function HostRow({
+    host,
+    up,
+    selected,
+    onTag,
+}: {
+    host: HostSummary;
+    up?: boolean;
+    selected: string[];
+    onTag: (tag: string) => void;
+}) {
+    return (
+        <li className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60">
+            <HostIcon />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="flex items-center gap-2">
+                    <span className="truncate font-medium" title={host.name}>
+                        {host.name}
+                    </span>
+                    {up !== undefined && (
+                        <span
+                            role="img"
+                            aria-label={up ? "online" : "offline"}
+                            title={
+                                up ? "Online" : "Offline: port 22 unreachable"
+                            }
+                            className={`size-2 shrink-0 rounded-full ${up ? "bg-emerald-400" : "bg-muted-foreground/40"}`}
+                        />
+                    )}
+                </span>
+                <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    {host.logins.length} account
+                    {host.logins.length === 1 ? "" : "s"}
+                    {host.tags.map((t) => (
+                        <Tag
+                            key={t}
+                            name={t}
+                            pressed={selected.includes(t)}
+                            onClick={() => onTag(t)}
+                        />
+                    ))}
+                </span>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+                {host.logins.map((login) => (
+                    <Button
+                        key={login}
+                        asChild
+                        variant="secondary"
+                        size="sm"
+                        className="font-mono hover:bg-primary hover:text-primary-foreground"
+                    >
+                        <Link href={`/ssh/${host.id}/${login}`}>
+                            <Terminal />
+                            {login}
+                        </Link>
+                    </Button>
+                ))}
+            </div>
+        </li>
     );
 }
 

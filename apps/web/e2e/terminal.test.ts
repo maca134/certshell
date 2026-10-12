@@ -15,7 +15,9 @@ async function openTerminal(page: Page) {
         }),
     );
     await page.route("/api/hosts", (r) =>
-        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+        r.fulfill({
+            json: [{ id: "h1", name: "web1", tags: [], logins: ["root"] }],
+        }),
     );
     const typed: string[] = [];
     let url = "";
@@ -74,7 +76,9 @@ test("closed session shows the reason and reconnects on demand", async ({
         }),
     );
     await page.route("/api/hosts", (r) =>
-        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+        r.fulfill({
+            json: [{ id: "h1", name: "web1", tags: [], logins: ["root"] }],
+        }),
     );
     let sockets = 0;
     await page.routeWebSocket(/\/api\/terminal/, (ws) => {
@@ -100,7 +104,9 @@ test("host list preloads the terminal chunk before a host is picked", async ({
         }),
     );
     await page.route("/api/hosts", (r) =>
-        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+        r.fulfill({
+            json: [{ id: "h1", name: "web1", tags: [], logins: ["root"] }],
+        }),
     );
     const terminalChunk = page.waitForRequest(/TerminalView/);
     await page.goto("/");
@@ -115,9 +121,9 @@ test("host list: dot shows whether port 22 answers", async ({ page }) => {
     await page.route("/api/hosts", (r) =>
         r.fulfill({
             json: [
-                { id: "h1", name: "web1", logins: ["root"] },
-                { id: "h2", name: "web2", logins: ["root"] },
-                { id: "h3", name: "web3", logins: ["root"] },
+                { id: "h1", name: "web1", tags: [], logins: ["root"] },
+                { id: "h2", name: "web2", tags: [], logins: ["root"] },
+                { id: "h3", name: "web3", tags: [], logins: ["root"] },
             ],
         }),
     );
@@ -178,7 +184,9 @@ test("paste: no prompt when the shell turned on bracketed paste", async ({
         r.fulfill({ json: { sub: "s", groups: [], admin: false } }),
     );
     await page.route("/api/hosts", (r) =>
-        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+        r.fulfill({
+            json: [{ id: "h1", name: "web1", tags: [], logins: ["root"] }],
+        }),
     );
     const typed: string[] = [];
     await page.routeWebSocket(/\/api\/terminal/, (ws) => {
@@ -210,7 +218,9 @@ test("search: finds text in scrollback, says when nothing matches", async ({
         r.fulfill({ json: { sub: "s", groups: [], admin: false } }),
     );
     await page.route("/api/hosts", (r) =>
-        r.fulfill({ json: [{ id: "h1", name: "web1", logins: ["root"] }] }),
+        r.fulfill({
+            json: [{ id: "h1", name: "web1", tags: [], logins: ["root"] }],
+        }),
     );
     const typed: string[] = [];
     await page.routeWebSocket(/\/api\/terminal/, (ws) => {
