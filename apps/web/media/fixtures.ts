@@ -1,7 +1,9 @@
 import type { Page } from "@playwright/test";
 import type {
     AdminHost,
+    AlertChannel,
     AuditEntry,
+    HostFactsRow,
     HostSummary,
     LiveSession,
     Me,
@@ -30,7 +32,7 @@ const adminHosts: AdminHost[] = [
         name: "web1",
         address: "10.0.1.11",
         enrolled: true,
-        factsLogin: null,
+        factsLogin: "root",
         tags: ["edge", "prod", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -42,7 +44,7 @@ const adminHosts: AdminHost[] = [
         name: "web2",
         address: "10.0.1.12",
         enrolled: true,
-        factsLogin: null,
+        factsLogin: "root",
         tags: ["prod", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -54,7 +56,7 @@ const adminHosts: AdminHost[] = [
         name: "db1",
         address: "10.0.2.21",
         enrolled: true,
-        factsLogin: null,
+        factsLogin: "root",
         tags: ["db", "prod"],
         access: [
             { login: "postgres", group: "dba" },
@@ -66,7 +68,7 @@ const adminHosts: AdminHost[] = [
         name: "staging1",
         address: "10.0.3.11",
         enrolled: true,
-        factsLogin: null,
+        factsLogin: "root",
         tags: ["docker", "staging", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -78,7 +80,7 @@ const adminHosts: AdminHost[] = [
         name: "ci-runner",
         address: "10.0.3.40",
         enrolled: true,
-        factsLogin: null,
+        factsLogin: "root",
         tags: ["dev", "docker"],
         access: [{ login: "ci", group: "ops" }],
     },
@@ -87,7 +89,7 @@ const adminHosts: AdminHost[] = [
         name: "backup1",
         address: "10.0.3.31",
         enrolled: true,
-        factsLogin: null,
+        factsLogin: "root",
         tags: ["backup"],
         access: [{ login: "root", group: "ops" }],
     },
@@ -348,6 +350,170 @@ function diskRun(id: string, done: boolean): RunDetail {
     };
 }
 
+const UPGRADED = `Reading package lists...
+Building dependency tree...
+Calculating upgrade...
+The following packages will be upgraded:
+  libssl3 openssl
+2 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Setting up libssl3:amd64 (3.0.17-1~deb12u3) ...
+Setting up openssl (3.0.17-1~deb12u3) ...
+`;
+
+/** r0: three hosts upgraded the same two packages, one also took a kernel. */
+function upgradeRun(): RunDetail {
+    const host = (hostId: string, output: string): RunHost => ({
+        hostId,
+        hostName: adminHosts.find((h) => h.id === hostId)?.name ?? "",
+        login: "root",
+        status: "ok",
+        exitCode: 0,
+        output,
+    });
+    return {
+        id: "r0",
+        taskId: 1,
+        name: "Upgrade packages",
+        script: "apt-get update && apt-get upgrade -y",
+        detach: true,
+        createdAt: ago(60 * 22),
+        hosts: [
+            host("h1", UPGRADED),
+            host("h2", UPGRADED),
+            host("h3", UPGRADED),
+            host(
+                "h4",
+                UPGRADED.replace(
+                    "  libssl3 openssl",
+                    "  libssl3 linux-image-amd64 openssl",
+                )
+                    .replace("2 upgraded", "3 upgraded")
+                    .replace(
+                        "Setting up openssl",
+                        "Setting up linux-image-amd64 (6.1.153-1) ...\nSetting up openssl",
+                    ),
+            ),
+        ],
+    };
+}
+
+const facts = (
+    hostId: string,
+    f: HostFactsRow["facts"],
+    over: Partial<HostFactsRow> = {},
+): HostFactsRow => {
+    const h = adminHosts.find((x) => x.id === hostId);
+    return {
+        hostId,
+        hostName: h?.name ?? "",
+        tags: h?.tags ?? [],
+        login: "root",
+        collectedAt: ago(42),
+        facts: f,
+        error: null,
+        collecting: false,
+        ...over,
+    };
+};
+
+const debian = (o: object) => ({
+    os: "Debian GNU/Linux 12 (bookworm)",
+    kernel: "6.1.0-28-amd64",
+    arch: "x86_64",
+    openssh: "OpenSSH_9.2p1",
+    ...o,
+});
+
+const fleet: HostFactsRow[] = [
+    facts(
+        "h1",
+        debian({
+            uptime: 23 * 86400 + 4 * 3600,
+            reboot: true,
+            updates: 14,
+            security: 3,
+            disk: 77,
+        }),
+    ),
+    facts(
+        "h2",
+        debian({
+            uptime: 23 * 86400 + 2 * 3600,
+            reboot: true,
+            updates: 14,
+            security: 3,
+            disk: 58,
+        }),
+    ),
+    facts(
+        "h3",
+        debian({
+            uptime: 61 * 86400,
+            reboot: false,
+            updates: 2,
+            security: 0,
+            disk: 33,
+        }),
+    ),
+    facts("h4", {
+        os: "Ubuntu 24.04.3 LTS",
+        kernel: "6.8.0-85-generic",
+        arch: "x86_64",
+        openssh: "OpenSSH_9.6p1",
+        uptime: 5 * 86400 + 7 * 3600,
+        reboot: false,
+        updates: 0,
+        security: 0,
+        disk: 41,
+    }),
+    facts("h5", {
+        os: "Alpine Linux v3.22",
+        kernel: "6.12.48-0-lts",
+        arch: "aarch64",
+        openssh: "OpenSSH_10.0p2",
+        uptime: 9 * 86400,
+        updates: 6,
+        disk: 93,
+    }),
+    facts(
+        "h6",
+        debian({
+            uptime: 140 * 86400,
+            reboot: false,
+            updates: 31,
+            security: 9,
+            disk: 64,
+        }),
+        {
+            collectedAt: ago(60 * 7),
+            error: "ssh: connect to host 10.0.3.31 port 22: Connection timed out",
+        },
+    ),
+];
+
+const alerts: AlertChannel[] = [
+    {
+        id: 1,
+        name: "Ops phone",
+        service: "ntfy",
+        events: ["host_down", "reboot", "security", "terminal"],
+        tags: ["prod"],
+        logins: ["root"],
+        lastSentAt: ago(14),
+        lastError: null,
+    },
+    {
+        id: 2,
+        name: "#infra",
+        service: "discord",
+        events: ["task_failed", "host_down"],
+        tags: [],
+        logins: [],
+        lastSentAt: ago(60 * 7),
+        lastError: null,
+    },
+];
+
 const PROMPT = "\x1b[1;32mroot@web1\x1b[0m:\x1b[1;34m~\x1b[0m# ";
 const SHELL: Record<string, string> = {
     uptime: " 09:41:07 up 23 days,  4:12,  1 user,  load average: 0.08, 0.12, 0.09\r\n",
@@ -365,6 +531,16 @@ export async function mockApi(page: Page, version: string) {
     await page.route("/api/admin/users", (r) => r.fulfill(json(users)));
     await page.route("/api/admin/sessions**", (r) => r.fulfill(json(sessions)));
     await page.route("/api/admin/audit**", (r) => r.fulfill(json(audit)));
+    await page.route("/api/admin/alerts**", (r) =>
+        r.request().method() === "GET"
+            ? r.fulfill(json(alerts))
+            : r.fulfill({ status: 204 }),
+    );
+    await page.route("/api/admin/facts**", (r) =>
+        r.request().method() === "GET"
+            ? r.fulfill(json(fleet))
+            : r.fulfill({ status: 204 }),
+    );
     await page.route("/api/admin/hosts**", (r) => {
         const req = r.request();
         if (req.method() === "GET") return r.fulfill(json(adminHosts));
@@ -387,7 +563,11 @@ export async function mockApi(page: Page, version: string) {
         const id = new URL(r.request().url()).pathname.split("/").pop() ?? "";
         const n = (polls.get(id) ?? 0) + 1;
         polls.set(id, n);
-        r.fulfill(json(diskRun(id, id === "r1" || n > 1)));
+        r.fulfill(
+            json(
+                id === "r0" ? upgradeRun() : diskRun(id, id === "r1" || n > 1),
+            ),
+        );
     });
     await page.routeWebSocket(/\/api\/terminal/, (ws) => {
         const out = (s: string) => ws.send(Buffer.from(s));
