@@ -117,15 +117,17 @@ export function openDb(path: string) {
 
 const DAY_MS = 24 * 60 * 60_000;
 
-/** Deletes audit entries and task runs older than the given days. */
+/** Deletes audit entries (and cert signs) and task runs older than the given days. */
 export function prune(
     db: Database,
     { auditDays, runDays }: { auditDays?: number; runDays?: number },
 ) {
     if (auditDays) {
-        const { changes } = db.run("DELETE FROM audit WHERE ts < ?", [
-            Date.now() - auditDays * DAY_MS,
+        const before = Date.now() - auditDays * DAY_MS;
+        db.run("DELETE FROM signs WHERE created_at < ?", [
+            Math.floor(before / 1000),
         ]);
+        const { changes } = db.run("DELETE FROM audit WHERE ts < ?", [before]);
         if (changes)
             audit(db, {
                 event: "audit_prune",

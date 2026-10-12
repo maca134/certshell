@@ -97,7 +97,7 @@ test("a failing step rolls back and stops at the last good version", () => {
     expect(tables(db)).toEqual(["a"]);
 });
 
-test("prune: drops audit entries and runs past their days; unset keeps all", () => {
+test("prune: drops audit entries, signs and runs past their days; unset keeps all", () => {
     const db = openDb(":memory:");
     const day = 24 * 60 * 60_000;
     const old = Date.now() - 10 * day;
@@ -122,6 +122,11 @@ test("prune: drops audit entries and runs past their days; unset keeps all", () 
             [id],
         );
     }
+    for (const at of [old, Date.now()])
+        db.run(
+            "INSERT INTO signs (created_at, sub, principal, host_id, session_id) VALUES (?, 's', 'ws:h1:root', 'h1', 'x')",
+            [Math.floor(at / 1000)],
+        );
     const events = () =>
         db
             .query<{ event: string }, []>("SELECT event FROM audit ORDER BY id")
@@ -133,11 +138,13 @@ test("prune: drops audit entries and runs past their days; unset keeps all", () 
     prune(db, {});
     expect(events()).toEqual(["old", "new"]);
     expect(runs("runs", "id")).toHaveLength(2);
+    expect(runs("signs", "serial")).toHaveLength(2);
 
     prune(db, { auditDays: 7, runDays: 7 });
     expect(events()).toEqual(["new", "audit_prune", "run_prune"]);
     expect(runs("runs", "id")).toEqual([{ id: "r-new" }]);
     expect(runs("run_hosts", "run_id")).toEqual([{ id: "r-new" }]);
+    expect(runs("signs", "serial")).toEqual([{ id: 2 }]);
 });
 
 test("AUDIT_DAYS / RUN_DAYS: optional whole days", () => {
