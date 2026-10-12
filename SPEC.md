@@ -140,7 +140,7 @@ The admin enters the host's name and address (editable later in the UI, along wi
 echo 'Authorization: Bearer <token>' | curl -fsS -H @- 'https://ssh.example.com/api/enroll' | sh
 ```
 
-The token goes to curl on stdin (`-H @-`), never argv, so other local users can't read it from `ps`. `GET /api/enroll` (same token, not consumed) returns the script below with the CA pubkey and token inlined; the script's `POST /api/enroll` consumes the token. The script is wrapped in `main() { … }; main` so a truncated download is a syntax error, not half a run.
+The token goes to curl on stdin (`-H @-`), never argv, so other local users can't read it from `ps`. `GET /api/enroll` (same token, not consumed) returns the script below with the CA pubkey and token inlined; the script's `POST /api/enroll` consumes the token. The script is wrapped in `main() { … }; main "$@"` so a truncated download is a syntax error, not half a run.
 
 ```sh
 #!/bin/sh
@@ -167,7 +167,7 @@ AuthorizedPrincipalsCommand /bin/echo ws:$HOST_ID:%u
 AuthorizedPrincipalsCommandUser nobody
 EOF
 
-loaded() { sshd -T | grep -qx "trustedusercakeys $CA_FILE"; }
+loaded() { sshd -T | grep -qix "trustedusercakeys $CA_FILE"; }
 sshd -t
 if ! loaded; then
   cp -p "$MAIN" "$MAIN.certshell.bak"
@@ -179,7 +179,7 @@ if ! loaded; then
   echo "added Include $SSH_DIR/sshd_config.d/*.conf to $MAIN (backup: $MAIN.certshell.bak)"
 fi
 
-HOST_KEY=$(sshd -T | awk '$1 == "hostkey" { n = split($2, p, "/"); if (p[n] == "ssh_host_ed25519_key") print $2 }')
+HOST_KEY=$(sshd -T | awk 'tolower($1) == "hostkey" { n = split($2, p, "/"); if (p[n] == "ssh_host_ed25519_key") print $2 }')
 [ -f "$HOST_KEY.pub" ] || { echo "sshd has no ssh_host_ed25519_key HostKey" >&2; exit 1; }
 
 printf 'Authorization: Bearer %s\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \
@@ -197,7 +197,7 @@ elif command -v rc-service >/dev/null 2>&1; then
 elif [ -x /etc/rc.d/sshd ] && [ "$(uname)" = FreeBSD ]; then
   if service sshd onestatus >/dev/null 2>&1; then service sshd onereload; fi
 else
-  PIDFILE=$(sshd -T | sed -n "s/^pidfile //p")
+  PIDFILE=$(sshd -T | grep -i "^pidfile " | cut -d " " -f 2)
   if [ -f "$PIDFILE" ]; then kill -HUP "$(cat "$PIDFILE")"; fi
 fi
 echo "enrolled: $(hostname)"
