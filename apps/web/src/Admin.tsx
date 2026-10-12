@@ -31,6 +31,7 @@ import {
     useState,
 } from "react";
 import { Redirect, useLocation } from "wouter";
+import { Alerts } from "./Alerts";
 import { api } from "./api";
 import { Avatar, EmptyState, HostIcon, Page, Tag } from "./components/layout";
 import { Alert, AlertDescription } from "./components/ui/alert";
@@ -64,9 +65,9 @@ import {
 } from "./components/ui/tooltip";
 import { cleanTag } from "./tags";
 
-const VIEWS = ["hosts", "users", "sessions", "audit"] as const;
+const VIEWS = ["hosts", "users", "sessions", "alerts", "audit"] as const;
 
-const noFill = { autoComplete: "off", "data-lpignore": "true" };
+export const noFill = { autoComplete: "off", "data-lpignore": "true" };
 
 const RTF = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const UNITS = [
@@ -115,10 +116,17 @@ export function Admin() {
     if (view === "hosts") return <Hosts users={users} />;
     if (view === "users") return <Users users={users} reload={reloadUsers} />;
     if (view === "sessions") return <Sessions />;
+    if (view === "alerts") return <Alerts />;
     return <Audit />;
 }
 
-function Empty({ cols, children }: { cols: number; children: ReactNode }) {
+export function Empty({
+    cols,
+    children,
+}: {
+    cols: number;
+    children: ReactNode;
+}) {
     return (
         <TableRow className="hover:bg-transparent">
             <TableCell colSpan={cols} className="whitespace-normal">
@@ -128,7 +136,7 @@ function Empty({ cols, children }: { cols: number; children: ReactNode }) {
     );
 }
 
-function Head({ children }: { children: ReactNode }) {
+export function Head({ children }: { children: ReactNode }) {
     return (
         <TableHeader className="bg-muted/50 [&_th]:h-9 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground [&_th:first-child]:pl-4 [&_th:last-child]:pr-4">
             <TableRow className="hover:bg-transparent">{children}</TableRow>
@@ -136,7 +144,8 @@ function Head({ children }: { children: ReactNode }) {
     );
 }
 
-const tableBody = "[&_td]:py-3 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4";
+export const tableBody =
+    "[&_td]:py-3 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4";
 
 function Groups({ groups }: { groups: string[] }) {
     return (
@@ -771,7 +780,7 @@ function HostRow({
 }
 
 /** Icon button that opens the enclosing Dialog. */
-function RowAction({
+export function RowAction({
     label,
     tooltip,
     className,
@@ -1141,7 +1150,7 @@ function Access({
 }
 
 /** Tags as removable chips over a textbox; suggestions (existing tags, or a new one) listed below it. */
-function TagInput({
+export function TagInput({
     id,
     tags,
     allTags,

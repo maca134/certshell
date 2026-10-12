@@ -1,5 +1,6 @@
 import type { HostSummary, Me } from "@repo/shared";
 import {
+    Bell,
     ChevronRight,
     CircleArrowUp,
     Globe,
@@ -186,6 +187,7 @@ const ADMIN_NAV = [
     { href: "/admin/hosts", label: "Hosts", icon: Server },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/sessions", label: "Sessions", icon: MonitorDot },
+    { href: "/admin/alerts", label: "Alerts", icon: Bell },
     { href: "/admin/audit", label: "Audit", icon: ScrollText },
 ];
 
