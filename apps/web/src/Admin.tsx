@@ -13,9 +13,11 @@ import {
     ChevronRight,
     Copy,
     MonitorDot,
+    Pencil,
     Plus,
     ScrollText,
     Server,
+    SquareTerminal,
     Trash2,
     Users as UsersIcon,
     X,
@@ -54,6 +56,11 @@ import {
     TableHeader,
     TableRow,
 } from "./components/ui/table";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "./components/ui/tooltip";
 
 const VIEWS = ["hosts", "users", "sessions", "audit"] as const;
 
@@ -443,8 +450,6 @@ const eventTone = (event: string) =>
 function Hosts({ users }: { users: SeenUser[] }) {
     const [hosts, setHosts] = useState<AdminHost[]>();
     const [error, setError] = useState("");
-    const [snippets, setSnippets] = useState<Record<string, EnrollSnippet>>({});
-    const [open, setOpen] = useState<string>();
 
     const reload = useCallback(
         () =>
@@ -465,11 +470,6 @@ function Hosts({ users }: { users: SeenUser[] }) {
         } catch (e) {
             setError((e as Error).message);
         }
-    };
-
-    const showSnippet = (id: string, s: EnrollSnippet) => {
-        setSnippets((all) => ({ ...all, [id]: s }));
-        setOpen(id);
     };
 
     const groups = [
@@ -527,20 +527,16 @@ function Hosts({ users }: { users: SeenUser[] }) {
                             <HostRow
                                 key={host.id}
                                 host={host}
-                                open={open === host.id}
-                                onToggle={() =>
-                                    setOpen(
-                                        open === host.id ? undefined : host.id,
+                                onChanged={reload}
+                                onRemove={() =>
+                                    act(() =>
+                                        api(
+                                            `/api/admin/hosts/${host.id}`,
+                                            "DELETE",
+                                        ),
                                     )
                                 }
-                            >
-                                <HostPanel
-                                    host={host}
-                                    snippet={snippets[host.id]}
-                                    act={act}
-                                    onSnippet={(s) => showSnippet(host.id, s)}
-                                />
-                            </HostRow>
+                            />
                         ))}
                     </TableBody>
                 </Table>
@@ -690,194 +686,235 @@ function Status({ enrolled }: { enrolled: boolean }) {
 
 function HostRow({
     host,
-    open,
-    onToggle,
-    children,
+    onChanged,
+    onRemove,
 }: {
     host: AdminHost;
-    open: boolean;
-    onToggle: () => void;
+    onChanged: () => Promise<void>;
+    onRemove: () => void;
+}) {
+    return (
+        <TableRow>
+            <TableCell className="whitespace-normal">
+                <div className="flex items-center gap-3">
+                    <HostIcon />
+                    <div>
+                        <div className="font-medium">{host.name}</div>
+                        <div className="font-mono text-xs break-all text-muted-foreground">
+                            {host.address}
+                        </div>
+                    </div>
+                </div>
+            </TableCell>
+            <TableCell>
+                <Status enrolled={host.enrolled} />
+            </TableCell>
+            <TableCell className="hidden whitespace-normal sm:table-cell">
+                {host.access.length === 0 ? (
+                    <span className="text-muted-foreground">No access</span>
+                ) : (
+                    <div className="flex flex-wrap gap-1">
+                        {host.access.map((r) => (
+                            <Badge
+                                key={`${r.login}/${r.group}`}
+                                variant="secondary"
+                                className="font-normal"
+                            >
+                                {r.group}
+                                <span className="text-muted-foreground">→</span>
+                                <span className="font-mono">{r.login}</span>
+                            </Badge>
+                        ))}
+                    </div>
+                )}
+            </TableCell>
+            <TableCell>
+                <div className="flex justify-end gap-0.5">
+                    <EnrollHost host={host} onClose={onChanged} />
+                    <EditHost host={host} onSaved={onChanged} />
+                    <RemoveHost host={host} onDelete={onRemove} />
+                </div>
+            </TableCell>
+        </TableRow>
+    );
+}
+
+/** Icon button that opens the enclosing Dialog. */
+function RowAction({
+    label,
+    tooltip,
+    className,
+    children,
+}: {
+    label: string;
+    tooltip: string;
+    className?: string;
     children: ReactNode;
 }) {
     return (
-        <>
-            <TableRow
-                className="cursor-pointer data-[open=true]:border-b-0 data-[open=true]:bg-muted/40"
-                data-open={open}
-                onClick={onToggle}
-            >
-                <TableCell className="whitespace-normal">
-                    <button
-                        type="button"
-                        aria-expanded={open}
-                        className="flex items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                        <HostIcon />
-                        <div>
-                            <div className="font-medium">{host.name}</div>
-                            <div className="font-mono text-xs break-all text-muted-foreground">
-                                {host.address}
-                            </div>
-                        </div>
-                    </button>
-                </TableCell>
-                <TableCell>
-                    <Status enrolled={host.enrolled} />
-                </TableCell>
-                <TableCell className="hidden whitespace-normal sm:table-cell">
-                    {host.access.length === 0 ? (
-                        <span className="text-muted-foreground">No access</span>
-                    ) : (
-                        <div className="flex flex-wrap gap-1">
-                            {host.access.map((r) => (
-                                <Badge
-                                    key={`${r.login}/${r.group}`}
-                                    variant="secondary"
-                                    className="font-normal"
-                                >
-                                    {r.group}
-                                    <span className="text-muted-foreground">
-                                        →
-                                    </span>
-                                    <span className="font-mono">{r.login}</span>
-                                </Badge>
-                            ))}
-                        </div>
-                    )}
-                </TableCell>
-                <TableCell>
-                    <ChevronRight
-                        className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
-                    />
-                </TableCell>
-            </TableRow>
-            {open && (
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableCell
-                        colSpan={4}
-                        className="px-4 pt-1 pb-5 whitespace-normal"
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <DialogTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={label}
+                        className={cn("text-muted-foreground", className)}
                     >
                         {children}
-                    </TableCell>
-                </TableRow>
-            )}
-        </>
+                    </Button>
+                </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
     );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-    return (
-        <section className="flex flex-col gap-2.5 rounded-xl border bg-card p-4">
-            <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                {title}
-            </h3>
-            {children}
-        </section>
-    );
-}
-
-function HostPanel({
+function EnrollHost({
     host,
-    snippet,
-    act,
-    onSnippet,
+    onClose,
 }: {
     host: AdminHost;
-    snippet?: EnrollSnippet;
-    act: (fn: () => Promise<unknown>) => Promise<void>;
-    onSnippet: (snippet: EnrollSnippet) => void;
+    onClose: () => void;
 }) {
-    const url = `/api/admin/hosts/${host.id}`;
+    const [snippet, setSnippet] = useState<EnrollSnippet>();
+    const [error, setError] = useState("");
+    const action = host.enrolled ? "Re-enroll" : "Enroll";
+    const openChange = (open: boolean) => {
+        setSnippet(undefined);
+        setError("");
+        if (!open) return onClose();
+        api<EnrollSnippet>(`/api/admin/hosts/${host.id}/snippet`, "POST").then(
+            setSnippet,
+            (e) => setError(e.message),
+        );
+    };
+    return (
+        <Dialog onOpenChange={openChange}>
+            <RowAction label={`${action} ${host.name}`} tooltip={action}>
+                <SquareTerminal />
+            </RowAction>
+            <DialogContent className="grid-cols-[minmax(0,1fr)] sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>
+                        {action} {host.name}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {host.enrolled
+                            ? "Run this on the host again, e.g. after its host key changed."
+                            : "Run this on the host to trust the CertShell CA."}
+                    </DialogDescription>
+                </DialogHeader>
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+                {snippet && <Snippet {...snippet} />}
+                <DialogFooter showCloseButton />
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function EditHost({
+    host,
+    onSaved,
+}: {
+    host: AdminHost;
+    onSaved: () => Promise<void>;
+}) {
+    const [open, setOpen] = useState(false);
     const [name, setName] = useState(host.name);
     const [address, setAddress] = useState(host.address);
-    const changed = name !== host.name || address !== host.address;
-
+    const [rules, setRules] = useState(host.access);
+    const [error, setError] = useState("");
+    const url = `/api/admin/hosts/${host.id}`;
+    const formId = `edit-${host.id}`;
+    const openChange = (o: boolean) => {
+        setOpen(o);
+        if (!o) return;
+        setName(host.name);
+        setAddress(host.address);
+        setRules(host.access);
+        setError("");
+    };
+    const save = async (e: FormEvent) => {
+        e.preventDefault();
+        setError("");
+        try {
+            if (name.trim() !== host.name || address.trim() !== host.address)
+                await api(url, "PATCH", {
+                    name: name.trim(),
+                    address: address.trim(),
+                });
+            if (JSON.stringify(rules) !== JSON.stringify(host.access))
+                await api(`${url}/access`, "PUT", rules);
+            await onSaved();
+            setOpen(false);
+        } catch (e) {
+            setError((e as Error).message);
+        }
+    };
     return (
-        <div className="flex flex-col gap-5">
-            <div className="grid gap-5 md:grid-cols-2">
-                <Section title="Details">
-                    <form
-                        className="flex flex-col gap-3"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            act(() =>
-                                api(url, "PATCH", {
-                                    name: name.trim(),
-                                    address: address.trim(),
-                                }),
-                            );
-                        }}
-                    >
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor={`name-${host.id}`}>Name</Label>
-                            <Input
-                                {...noFill}
-                                id={`name-${host.id}`}
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor={`address-${host.id}`}>
-                                Address
-                            </Label>
-                            <Input
-                                {...noFill}
-                                id={`address-${host.id}`}
-                                className="font-mono"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 pt-1">
-                            <code
-                                className="mr-auto truncate font-mono text-xs text-muted-foreground"
-                                title="Host ID"
-                            >
-                                {host.id}
-                            </code>
-                            <RemoveHost
-                                host={host}
-                                onDelete={() => act(() => api(url, "DELETE"))}
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    act(async () =>
-                                        onSnippet(
-                                            await api<EnrollSnippet>(
-                                                `${url}/snippet`,
-                                                "POST",
-                                            ),
-                                        ),
-                                    )
-                                }
-                            >
-                                {host.enrolled ? "Re-enroll" : "Enroll snippet"}
-                            </Button>
-                            {changed && (
-                                <Button type="submit" size="sm">
-                                    Save
-                                </Button>
-                            )}
-                        </div>
-                    </form>
-                </Section>
-                <Section title="Access">
-                    <Access
-                        rules={host.access}
-                        onSave={(rules) =>
-                            act(() => api(`${url}/access`, "PUT", rules))
-                        }
-                    />
-                </Section>
-            </div>
-            {snippet && <Snippet {...snippet} />}
-        </div>
+        <Dialog open={open} onOpenChange={openChange}>
+            <RowAction label={`Edit ${host.name}`} tooltip="Edit">
+                <Pencil />
+            </RowAction>
+            <DialogContent className="grid-cols-[minmax(0,1fr)] sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Edit {host.name}</DialogTitle>
+                    <DialogDescription>
+                        Host ID <code className="font-mono">{host.id}</code>{" "}
+                        stays the same, so renaming needs no change on the host.
+                    </DialogDescription>
+                </DialogHeader>
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+                <form
+                    id={formId}
+                    className="flex flex-col gap-4"
+                    onSubmit={save}
+                >
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor={`name-${host.id}`}>Name</Label>
+                        <Input
+                            {...noFill}
+                            id={`name-${host.id}`}
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor={`address-${host.id}`}>Address</Label>
+                        <Input
+                            {...noFill}
+                            id={`address-${host.id}`}
+                            className="font-mono"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            required
+                        />
+                    </div>
+                </form>
+                <div className="flex flex-col gap-2">
+                    <Label>Access</Label>
+                    <Access rules={rules} onChange={setRules} />
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" form={formId}>
+                        Save
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -890,12 +927,13 @@ function RemoveHost({
 }) {
     return (
         <Dialog>
-            <DialogTrigger asChild>
-                <Button type="button" variant="destructive" size="sm">
-                    <Trash2 />
-                    Remove
-                </Button>
-            </DialogTrigger>
+            <RowAction
+                label={`Remove ${host.name}`}
+                tooltip="Remove"
+                className="hover:text-destructive"
+            >
+                <Trash2 />
+            </RowAction>
             <DialogContent className="grid-cols-[minmax(0,1fr)] sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Remove {host.name}</DialogTitle>
@@ -917,6 +955,17 @@ function RemoveHost({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <section className="flex flex-col gap-2.5 rounded-xl border bg-card p-4">
+            <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                {title}
+            </h3>
+            {children}
+        </section>
     );
 }
 
@@ -968,16 +1017,20 @@ function Shell({ text }: { text: string }) {
 
 function Access({
     rules,
-    onSave,
+    onChange,
 }: {
     rules: AccessRule[];
-    onSave: (rules: AccessRule[]) => void;
+    onChange: (rules: AccessRule[]) => void;
 }) {
     const [login, setLogin] = useState("");
     const [group, setGroup] = useState("");
     const add = (e: FormEvent) => {
         e.preventDefault();
-        onSave([...rules, { login: login.trim(), group: group.trim() }]);
+        const rule = { login: login.trim(), group: group.trim() };
+        if (
+            !rules.some((r) => r.login === rule.login && r.group === rule.group)
+        )
+            onChange([...rules, rule]);
         setLogin("");
     };
     return (
@@ -1003,9 +1056,7 @@ function Access({
                                 className="ml-auto text-muted-foreground hover:text-destructive"
                                 aria-label={`remove ${r.group} → ${r.login}`}
                                 onClick={() =>
-                                    confirm(
-                                        `Remove ${r.group} → ${r.login}?`,
-                                    ) && onSave(rules.filter((x) => x !== r))
+                                    onChange(rules.filter((x) => x !== r))
                                 }
                             >
                                 <X />
