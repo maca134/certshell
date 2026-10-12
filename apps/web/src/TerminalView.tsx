@@ -8,6 +8,8 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronUp,
+    Maximize,
+    Minimize,
     RotateCw,
     Search,
     X,
@@ -61,6 +63,13 @@ export function TerminalView({
     const [searching, setSearching] = useState(false);
     const [query, setQuery] = useState("");
     const [missing, setMissing] = useState(false);
+    const [full, setFull] = useState(!!document.fullscreenElement);
+
+    useEffect(() => {
+        const sync = () => setFull(!!document.fullscreenElement);
+        document.addEventListener("fullscreenchange", sync);
+        return () => document.removeEventListener("fullscreenchange", sync);
+    }, []);
 
     const find = (back = false, q = query, incremental = false) => {
         const search = searchRef.current;
@@ -222,6 +231,25 @@ export function TerminalView({
                     >
                         <Search />
                     </Button>
+                    {document.fullscreenEnabled && (
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground"
+                            aria-label={
+                                full ? "Exit full screen" : "Full screen"
+                            }
+                            title={full ? "Exit full screen" : "Full screen"}
+                            onClick={() =>
+                                (full
+                                    ? document.exitFullscreen()
+                                    : document.documentElement.requestFullscreen()
+                                ).catch(() => {})
+                            }
+                        >
+                            {full ? <Minimize /> : <Maximize />}
+                        </Button>
+                    )}
                     {status.state === "closed" && (
                         <Button
                             variant="secondary"
