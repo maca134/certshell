@@ -2,6 +2,11 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.10.0 - 2026-10-12
+- Sessions end after 30 minutes idle or 8 hours, instead of exactly 1 hour after sign-in. Group changes at the IdP can now take up to 8 hours to reach new terminals; **Sign out & end sessions** still cuts a user off at once.
+- Admin: the Sessions page stops refreshing while its tab is hidden, so an idle admin tab no longer keeps the login alive.
+- Fixed: another site on the same domain could sign you out of CertShell. Sign-out is now only accepted from CertShell's own pages.
+
 ## 1.9.0 - 2026-10-12
 - Admin: deleting a host, or changing its access, ends the open terminals and running task targets that lose access.
 - Startup: if the CA key exists but the `ca_password` secret is missing or wrong, CertShell now exits with a clear error instead of starting and failing every terminal and task.
