@@ -6,7 +6,7 @@
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
-![CertShell demo: open a terminal, run a task on several hosts, manage host access](docs/media/demo.gif)
+![CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, tag a host](docs/media/demo.gif)
 
 **Website & setup generator: [certshell.dev](https://certshell.dev)**
 
@@ -18,6 +18,7 @@ A browser SSH terminal for your servers. You log in with your identity provider 
 - Admins map **IdP group → host → login** in the web UI. No edits on the host after enrollment.
 - Every login, cert and session goes to an audit log (in the app and on stdout). The host's sshd logs each cert's ID and serial too.
 - **Tasks**: save a script and the hosts it runs on (e.g. `apt-get upgrade -y` on every web server), run it in one click, and see each host's exit code and output.
+- **Tags**: admins tag hosts. Filter or group the host list by tag, and pick task hosts the same way. Tags only organise; they don't change access.
 
 Scope: browser terminal and tasks. No native `ssh`/`scp`/`sftp` and no port forwarding.
 
