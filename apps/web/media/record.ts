@@ -105,6 +105,9 @@ async function screenshots(browser: Browser) {
     await page.goto("/tasks/runs/r1");
     await page.getByText("postgres@").click();
     await shot(page, "task-run");
+    await page.goto("/tasks/runs/r0");
+    await page.getByText("differs from the most common output").click();
+    await shot(page, "task-run-grouped");
 
     await page.goto("/admin/hosts");
     await page.getByRole("button", { name: "Edit web2" }).waitFor();
@@ -112,6 +115,12 @@ async function screenshots(browser: Browser) {
     await page.getByRole("button", { name: "Edit web2" }).click();
     await page.getByRole("dialog").getByPlaceholder("Add a tag…").click();
     await shot(page, "admin-host-tags");
+    await page.goto("/admin/fleet");
+    await page.getByText("ci-runner").first().waitFor();
+    await shot(page, "admin-fleet");
+    await page.goto("/admin/alerts");
+    await page.getByText("Ops phone").first().waitFor();
+    await shot(page, "admin-alerts");
     await page.goto("/admin/users");
     await page.getByText("carol@example.com").first().waitFor();
     await shot(page, "admin-users");
@@ -182,11 +191,11 @@ async function walkthrough(page: Page) {
     await click(page, tagBar.getByRole("button", { name: "prod" }));
     await pause(650);
     await click(page, tagBar.getByRole("button", { name: "web", exact: true }));
-    await pause(950);
+    await pause(750);
     await click(page, tagBar.getByRole("button", { name: "All" }));
     await pause(450);
     await click(page, page.getByRole("button", { name: "Group by tag" }));
-    await pause(1500);
+    await pause(1200);
     await click(page, page.getByRole("button", { name: "List" }));
     await pause(500);
 
@@ -207,7 +216,7 @@ async function walkthrough(page: Page) {
         delay: 45,
     });
     await page.keyboard.press("Enter");
-    await pause(1650);
+    await pause(1350);
     await click(page, page.getByRole("button", { name: "Hosts" }));
     await pause(350);
 
@@ -224,7 +233,14 @@ async function walkthrough(page: Page) {
     await page.getByText("exit 0").first().waitFor();
     await pause(600);
     await click(page, page.getByText("postgres@"));
-    await pause(1500);
+    await pause(1200);
+
+    // Fleet: hosts that need a reboot.
+    await click(page, page.getByRole("link", { name: "Fleet" }));
+    await page.getByText("ci-runner").first().waitFor();
+    await pause(900);
+    await click(page, page.getByRole("button", { name: /^Need a reboot/ }));
+    await pause(1300);
 
     // Admin: tag a host, with suggestions.
     await click(page, page.getByRole("link", { name: "Hosts" }).nth(1));
@@ -248,5 +264,7 @@ async function walkthrough(page: Page) {
     await click(page, dialog.getByRole("button", { name: "Save" }));
     await page.mouse.move(640, 720, { steps: 10 });
     await page.keyboard.press("Escape");
-    await pause(2000);
+    // The closed dialog hands focus back to its Edit button; don't end on a focus ring.
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+    await pause(1500);
 }
