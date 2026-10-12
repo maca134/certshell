@@ -69,8 +69,7 @@ async function openAdmin(page: Page) {
         return r.fulfill({ json: hosts });
     });
     await page.goto("/admin/hosts");
-    await page.getByRole("button", { name: /web1/ }).click();
-    await expect(page.getByLabel("name")).toHaveValue("web1");
+    await expect(page.getByRole("button", { name: "Edit web1" })).toBeVisible();
     return calls;
 }
 
@@ -93,21 +92,25 @@ test("add host shows the enroll snippet", async ({ page }) => {
     });
 });
 
-test("editing details PATCHes; re-enroll shows a fresh snippet", async ({
+test("edit dialog PATCHes details; re-enroll shows a fresh snippet", async ({
     page,
 }) => {
     const calls = await openAdmin(page);
-    await page.getByLabel("name").fill("web2");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect
-        .poll(() => calls.find((c) => c.method === "PATCH"))
-        .toEqual({
+    await page.getByRole("button", { name: "Edit web1" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByLabel("Name")).toHaveValue("web1");
+    await dialog.getByLabel("Name").fill("web2");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
+    expect(calls.filter((c) => c.method !== "GET")).toEqual([
+        {
             method: "PATCH",
             path: "/api/admin/hosts/h1",
             body: { name: "web2", address: "10.0.0.1" },
-        });
-    await page.getByRole("button", { name: "Re-enroll" }).click();
-    await expect(page.getByText("curl reenroll")).toBeVisible();
+        },
+    ]);
+    await page.getByRole("button", { name: "Re-enroll web1" }).click();
+    await expect(dialog.getByText("curl reenroll")).toBeVisible();
     expect(calls).toContainEqual({
         method: "POST",
         path: "/api/admin/hosts/h1/snippet",
@@ -115,35 +118,46 @@ test("editing details PATCHes; re-enroll shows a fresh snippet", async ({
     });
 });
 
-test("removing an access rule asks first, then PUTs the remaining rules", async ({
-    page,
-}) => {
+test("access edits wait for Save; Cancel discards them", async ({ page }) => {
     const calls = await openAdmin(page);
-    page.once("dialog", (d) => d.dismiss());
-    await page.getByRole("button", { name: "remove ops → root" }).click();
+    const dialog = page.getByRole("dialog");
+    await page.getByRole("button", { name: "Edit web1" }).click();
+    await dialog.getByRole("button", { name: "remove ops → root" }).click();
+    await expect(dialog.getByText("No one can log in yet.")).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await page.getByRole("button", { name: "Edit web1" }).click();
+    await expect(
+        dialog.getByRole("button", { name: "remove ops → root" }),
+    ).toBeVisible();
     expect(calls.some((c) => c.method === "PUT")).toBe(false);
-    page.once("dialog", (d) => d.accept());
-    await page.getByRole("button", { name: "remove ops → root" }).click();
-    await expect
-        .poll(() => calls.find((c) => c.method === "PUT"))
-        .toEqual({
+
+    await dialog.getByRole("button", { name: "remove ops → root" }).click();
+    await dialog.getByPlaceholder("IdP group").fill("dev");
+    await dialog.getByPlaceholder("login").fill("deploy");
+    await dialog.getByRole("button", { name: "Allow" }).click();
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
+    expect(calls.filter((c) => c.method !== "GET")).toEqual([
+        {
             method: "PUT",
             path: "/api/admin/hosts/h1/access",
-            body: [],
-        });
+            body: [{ login: "deploy", group: "dev" }],
+        },
+    ]);
 });
 
 test("remove host shows the removal snippet, then DELETEs", async ({
     page,
 }) => {
     const calls = await openAdmin(page);
-    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await page.getByRole("button", { name: "Remove web1" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText(/rm -f .*50-certshell\.conf/)).toBeVisible();
     await dialog.getByRole("button", { name: "Cancel" }).click();
     expect(calls.some((c) => c.method === "DELETE")).toBe(false);
 
-    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await page.getByRole("button", { name: "Remove web1" }).click();
     await dialog.getByRole("button", { name: "Remove host" }).click();
     await expect(page.getByText("No hosts yet")).toBeVisible();
     expect(calls).toContainEqual({
