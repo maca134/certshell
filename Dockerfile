@@ -18,6 +18,17 @@ COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 RUN bun install --frozen-lockfile --production --filter api
 
+# Built from source: the v0.21.2 release binary has Go 1.27.1 / x/net 0.59.0 CVEs. Module versions are
+# checked against Go's checksum database. Bump SHOUTRRR/X_NET by hand; Dependabot bumps the Go image.
+FROM --platform=$BUILDPLATFORM golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS shoutrrr
+ARG TARGETOS TARGETARCH
+ARG SHOUTRRR=v0.21.2 X_NET=v0.61.0
+WORKDIR /build
+RUN go mod init build && \
+    go get github.com/nicholas-fedor/shoutrrr/shoutrrr@$SHOUTRRR golang.org/x/net@$X_NET && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
+    go build -trimpath -ldflags "-s -w" -o /shoutrrr github.com/nicholas-fedor/shoutrrr/shoutrrr
+
 FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && \
     rm -rf /var/lib/apt/lists/* && install -d -o 1000 -g 1000 /data
@@ -26,8 +37,8 @@ COPY --from=api /app ./
 COPY packages/shared packages/shared
 COPY apps/api/src apps/api/src
 COPY --from=web /app/apps/web/dist apps/web/dist
-# Sends alerts. Static Go binary; Dependabot bumps the tag + digest.
-COPY --from=nickfedor/shoutrrr:0.21.2@sha256:e73ba91d1cc727aaf1588a6460919be4b70926ad59092cb83dbaf7db76a6876b /shoutrrr /usr/local/bin/shoutrrr
+# Sends alerts (SPEC §3.5).
+COPY --from=shoutrrr /shoutrrr /usr/local/bin/shoutrrr
 ARG VERSION=dev
 ENV CERTSHELL_VERSION=$VERSION
 USER 1000:1000
