@@ -2,6 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.7.1 - 2026-10-12
+- Fixed: on tablets (Firefox, and other browsers whose toolbar hides on scroll) the sidebar was shorter than the screen and cut off its last item (Audit).
+
 ## 1.7.0 - 2026-10-12
 - Host tags. Admins add them in Manage hosts → Edit, with suggestions from tags already in use. Each tag gets a colour from its name. Tags only organise hosts; they don't affect access.
 - Hosts page: filter by tags (a host must have every selected tag) and a "Group by tag" view.
