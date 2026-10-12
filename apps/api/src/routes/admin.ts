@@ -144,6 +144,7 @@ export function adminRoutes({
             email: c.var.user.email,
             host: id,
         });
+        revoke(c.var.user, id, () => false);
         return c.body(null, 204);
     });
 
@@ -186,6 +187,11 @@ export function adminRoutes({
             host: id,
             rules,
         });
+        revoke(c.var.user, id, (login, groups) =>
+            (rules as AccessRule[]).some(
+                (r) => r.login === login && groups.includes(r.group),
+            ),
+        );
         return c.body(null, 204);
     });
 
@@ -233,7 +239,7 @@ export function adminRoutes({
     app.get("/sessions", (c) =>
         c.json<LiveSession[]>(
             [...live.values()]
-                .map(({ kill: _, ...s }) => s)
+                .map(({ kill: _, groups: _groups, ...s }) => s)
                 .sort((a, b) => a.startedAt - b.startedAt),
         ),
     );
@@ -251,6 +257,22 @@ export function adminRoutes({
                 login: s.login,
             });
         }
+    };
+
+    /** Ends terminals and task targets on the host that `allowed` no longer permits. */
+    const revoke = (
+        by: User,
+        hostId: string,
+        allowed: (login: string, groups: string[]) => boolean,
+    ) => {
+        endSessions(
+            by,
+            [...live.values()].filter(
+                (s) => s.hostId === hostId && !allowed(s.login, s.groups),
+            ),
+        );
+        for (const t of tasks.values())
+            if (t.hostId === hostId && !allowed(t.login, t.groups)) t.kill();
     };
 
     app.delete("/sessions/:id", (c) => {

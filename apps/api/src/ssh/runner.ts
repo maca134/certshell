@@ -61,6 +61,9 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
                 }, terminal.taskMs);
                 terminal.tasks.set(key, {
                     sub: user.sub,
+                    groups: user.groups,
+                    hostId: host.id,
+                    login,
                     kill: () => {
                         ended = true;
                         proc.kill();
