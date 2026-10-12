@@ -124,6 +124,7 @@ Admins add alert channels (Admin → Alerts): a [shoutrrr](https://github.com/ni
 |---|---|
 | `task_failed` | the last target of a run finishes, and at least one failed. One alert per run. |
 | `host_down` | `host_down` / `host_up`: every 60 s the app TCP-checks port 22 on enrolled hosts. Offline after 2 failed checks in a row, back online after 1 success. A host's first check after startup only records its state, so restarts don't re-alert. |
+| `reboot` | `host_reboot_required`: a host facts collection (§3.6) finds the reboot flag set when the host's previous facts didn't. |
 | `security` | host create/update/delete, access map change, enroll snippet, enroll, session ended or user signed out by an admin, alert channel create/update/delete, `host_key_mismatch` (ssh exit 255 with "Host key verification failed." on a terminal or task target). |
 | `terminal` | `session_start`, optionally only for hosts with any of the channel's tags or for its logins. |
 
