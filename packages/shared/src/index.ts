@@ -124,10 +124,17 @@ sleep 1 # tail -f polls about once a second: let it print the last lines
 kill $tail_pid 2>/dev/null
 exit $rc`;
 
+/** Sets SSH_DIR to the config dir of the sshd on PATH (OPNsense and ports OpenSSH: /usr/local/etc/ssh). */
+export const SSH_DIR_SH = `case "$(command -v sshd)" in
+  /usr/local/*) SSH_DIR=/usr/local/etc/ssh ;;
+  *) SSH_DIR=/etc/ssh ;;
+esac`;
+
 /**
  * systemd only if actually running (containers often ship systemctl without it), else OpenRC, else FreeBSD rc, else SIGHUP.
  * systemd/FreeBSD reload only a running sshd: a stopped one (e.g. socket-activated in LXCs) reads the config when it starts.
  * Socket-activated sshd is restarted, not reloaded: on SIGHUP it tries to bind the port the socket unit holds, and exits.
+ * SIGHUP uses the pidfile sshd reports (FreeBSD/OPNsense: /var/run, Linux: /run); no pidfile means sshd isn't running.
  */
 export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
   for u in ssh sshd; do
@@ -136,12 +143,28 @@ export const RELOAD_SSHD = `if [ -d /run/systemd/system ]; then
   done
 elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
-elif [ "$(uname)" = FreeBSD ]; then
+elif [ -x /etc/rc.d/sshd ] && [ "$(uname)" = FreeBSD ]; then
   if service sshd onestatus >/dev/null 2>&1; then service sshd onereload; fi
 else
-  kill -HUP "$(cat /run/sshd.pid)"
+  PIDFILE=$(sshd -T | sed -n "s/^pidfile //p")
+  if [ -f "$PIDFILE" ]; then kill -HUP "$(cat "$PIDFILE")"; fi
 fi`;
 
+/**
+ * A paste-anywhere command that runs `script` in sh: each line is a single-quoted printf arg, which
+ * sh, bash, csh and tcsh (root's shell on FreeBSD/OPNsense) all read the same way. csh can't end a heredoc.
+ */
+export function forAnyShell(script: string) {
+    if (/['!]/.test(script)) throw new Error("script can't contain ' or !");
+    return `printf '%s\\n' \\\n${script
+        .split("\n")
+        .map((l) => `  '${l}' \\\n`)
+        .join("")}  | sh`;
+}
+
 /** Undoes the enroll script on the host. Run as root. */
-export const REMOVAL_SNIPPET = `rm -f /etc/ssh/sshd_config.d/50-certshell.conf /etc/ssh/certshell_user_ca.pub
-sshd -t && ${RELOAD_SSHD}`;
+export const REMOVAL_SNIPPET = forAnyShell(`set -eu
+${SSH_DIR_SH}
+rm -f "$SSH_DIR/sshd_config.d/50-certshell.conf" "$SSH_DIR/certshell_user_ca.pub"
+sshd -t
+${RELOAD_SSHD}`);

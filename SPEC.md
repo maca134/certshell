@@ -149,32 +149,43 @@ APP_URL='https://ssh.example.com'  # rendered from the app's APP_URL
 HOST_ID='h7f3k2ab'                 # app-assigned, immutable
 CA_PUB='ssh-ed25519 AAAA... certshell'
 TOKEN='eyJ...'                     # one-time, 10 min, bound to this host
-CONF=/etc/ssh/sshd_config.d/50-certshell.conf
-MAIN=/etc/ssh/sshd_config
+case "$(command -v sshd)" in
+  /usr/local/*) SSH_DIR=/usr/local/etc/ssh ;;
+  *) SSH_DIR=/etc/ssh ;;
+esac
+CONF=$SSH_DIR/sshd_config.d/50-certshell.conf
+CA_FILE=$SSH_DIR/certshell_user_ca.pub
+MAIN=$SSH_DIR/sshd_config
 
-mkdir -p /etc/ssh/sshd_config.d
-printf '%s\n' "$CA_PUB" > /etc/ssh/certshell_user_ca.pub
+# A failed first enroll leaves nothing behind; a failed re-enroll keeps the working config.
+[ -e "$CONF" ] || trap 'rm -f "$CONF" "$CA_FILE"' EXIT
+mkdir -p "$SSH_DIR/sshd_config.d"
+printf '%s\n' "$CA_PUB" > "$CA_FILE"
 cat > "$CONF" <<EOF
-TrustedUserCAKeys /etc/ssh/certshell_user_ca.pub
+TrustedUserCAKeys $CA_FILE
 AuthorizedPrincipalsCommand /bin/echo ws:$HOST_ID:%u
 AuthorizedPrincipalsCommandUser nobody
 EOF
 
-loaded() { sshd -T | grep -qx 'trustedusercakeys /etc/ssh/certshell_user_ca.pub'; }
+loaded() { sshd -T | grep -qx "trustedusercakeys $CA_FILE"; }
 sshd -t
 if ! loaded; then
   cp -p "$MAIN" "$MAIN.certshell.bak"
-  { echo 'Include /etc/ssh/sshd_config.d/*.conf'; cat "$MAIN.certshell.bak"; } > "$MAIN"
+  { printf 'Include %s/sshd_config.d/*.conf\n' "$SSH_DIR"; cat "$MAIN.certshell.bak"; } > "$MAIN"
   if ! { sshd -t && loaded; }; then
-    cat "$MAIN.certshell.bak" > "$MAIN"; rm "$CONF"
+    cat "$MAIN.certshell.bak" > "$MAIN"
     echo "could not load $CONF via an Include in $MAIN; $MAIN restored" >&2; exit 1
   fi
-  echo "added Include /etc/ssh/sshd_config.d/*.conf to $MAIN (backup: $MAIN.certshell.bak)"
+  echo "added Include $SSH_DIR/sshd_config.d/*.conf to $MAIN (backup: $MAIN.certshell.bak)"
 fi
+
+HOST_KEY=$(sshd -T | awk '$1 == "hostkey" { n = split($2, p, "/"); if (p[n] == "ssh_host_ed25519_key") print $2 }')
+[ -f "$HOST_KEY.pub" ] || { echo "sshd has no ssh_host_ed25519_key HostKey" >&2; exit 1; }
 
 printf 'Authorization: Bearer %s\n' "$TOKEN" | curl -fsS -X POST "$APP_URL/api/enroll" \
   -H @- \
-  --data-binary @/etc/ssh/ssh_host_ed25519_key.pub
+  --data-binary "@$HOST_KEY.pub"
+trap - EXIT
 
 if [ -d /run/systemd/system ]; then
   for u in ssh sshd; do
@@ -183,18 +194,21 @@ if [ -d /run/systemd/system ]; then
   done
 elif command -v rc-service >/dev/null 2>&1; then
   rc-service sshd reload
-elif [ "$(uname)" = FreeBSD ]; then
+elif [ -x /etc/rc.d/sshd ] && [ "$(uname)" = FreeBSD ]; then
   if service sshd onestatus >/dev/null 2>&1; then service sshd onereload; fi
 else
-  kill -HUP "$(cat /run/sshd.pid)"
+  PIDFILE=$(sshd -T | sed -n "s/^pidfile //p")
+  if [ -f "$PIDFILE" ]; then kill -HUP "$(cat "$PIDFILE")"; fi
 fi
 echo "enrolled: $(hostname)"
 ```
 
 - Admin-only (`OIDC_ADMIN_GROUP`).
 - `/api/enroll` validates the token and records the host public key against `HOST_ID`.
-- Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it; only an active unit, since a socket-activated sshd may be stopped and reads the config when it starts; a socket-activated one is restarted instead, as on SIGHUP it tries to bind the port the socket unit holds and exits), OpenRC (Alpine), FreeBSD rc (only if sshd is running), else `SIGHUP` to `/run/sshd.pid` (init-less containers/LXCs). If sshd doesn't load the drop-in (no `Include sshd_config.d/*.conf`, e.g. stock FreeBSD), adds that `Include` as the first line of `sshd_config` (ahead of any `Match`), keeping a backup; if sshd still doesn't load it, restores `sshd_config` and fails loudly instead of reporting success. Host removal leaves the `Include`: it loads nothing once the drop-in is gone.
-- Removing a host (UI): the app drops it (no more certs for `ws:<hostId>:*`) and shows a root snippet that deletes the drop-in + CA pubkey and reloads sshd. No token: it only takes trust away.
+- Reloads sshd via systemd (only if actually running — containers often ship `systemctl` without it; only an active unit, since a socket-activated sshd may be stopped and reads the config when it starts; a socket-activated one is restarted instead, as on SIGHUP it tries to bind the port the socket unit holds and exits), OpenRC (Alpine), FreeBSD rc (only if sshd is running), else `SIGHUP` to the pidfile `sshd -T` reports, if sshd is running (OPNsense, init-less containers/LXCs). If sshd doesn't load the drop-in (no `Include sshd_config.d/*.conf`, e.g. stock FreeBSD), adds that `Include` as the first line of `sshd_config` (ahead of any `Match`), keeping a backup; if sshd still doesn't load it, restores `sshd_config` and fails loudly instead of reporting success. Host removal leaves the `Include`: it loads nothing once the drop-in is gone.
+- Paths follow the `sshd` on `PATH`: `/usr/local/sbin/sshd` (OPNsense, ports OpenSSH) → `/usr/local/etc/ssh`, else `/etc/ssh`. The host key posted is the `ssh_host_ed25519_key` HostKey from `sshd -T` (OPNsense: `/conf/sshd`).
+- A failed first enroll removes the drop-in and CA pubkey it wrote; a failed re-enroll leaves the existing ones.
+- Removing a host (UI): the app drops it (no more certs for `ws:<hostId>:*`) and shows a root snippet that deletes the drop-in + CA pubkey and reloads sshd. No token: it only takes trust away. The snippet feeds its script to `sh` as `printf` arguments, so it pastes into csh/tcsh too (root's shell on FreeBSD and OPNsense; csh can't end a heredoc).
 - Homelab: bake into the Proxmox LXC golden template for zero-touch enrollment on clone.
 
 ---
@@ -329,7 +343,7 @@ Operator steps: README → Quick start.
 
 - Small trusted group; access managed as IdP groups + the app's access map.
 - An OIDC provider that emits a `groups` claim, where users cannot change their own group membership.
-- Targets are Linux or FreeBSD, OpenSSH ≥ 7.3 (`Include`), with `curl` (not in FreeBSD base; the admin installs it), reachable on `:22` from the app. Tasks run in the login's shell: sh-syntax scripts need a POSIX login shell (not csh/tcsh).
+- Targets are Linux, FreeBSD or OPNsense, OpenSSH ≥ 7.3 (`Include`), with `curl` (not in FreeBSD base; the admin installs it), reachable on `:22` from the app. Tasks run in the login's shell: sh-syntax scripts need a POSIX login shell (not csh/tcsh).
 - May be internet-exposed behind an HTTPS reverse proxy; §3.3 is accepted on that basis.
 - Break-glass SSH stays offline, **not** signed by this CA, with no dependency on this app.
 

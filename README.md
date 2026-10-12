@@ -87,11 +87,13 @@ Already have a reverse proxy? Drop the `caddy`/`traefik` service, publish `certs
 2. **Enroll snippet** → copy it and run it as root on the host. It's valid for 10 minutes and one use.
 3. Under the host, **Allow** an IdP group a login (e.g. `ops` → `root`).
 
-Host requirements: Linux or FreeBSD, OpenSSH ≥ 7.3, `curl` (FreeBSD: `pkg install curl`), and reachable on port 22 from the app. Tasks run in the login's shell, so a login whose shell is csh/tcsh (possible on FreeBSD) needs csh-syntax scripts. The host must reach `https://ssh.example.com` only while enrolling.
+Host requirements: Linux, FreeBSD or OPNsense, OpenSSH ≥ 7.3, `curl` (FreeBSD: `pkg install curl`), and reachable on port 22 from the app. Tasks run in the login's shell, so a login whose shell is csh/tcsh (possible on FreeBSD) needs csh-syntax scripts. The host must reach `https://ssh.example.com` only while enrolling.
 
-The script writes the CA public key, adds `/etc/ssh/sshd_config.d/50-certshell.conf`, checks sshd loads it (if `sshd_config` doesn't include `sshd_config.d/*.conf`, as on FreeBSD, it adds that `Include` as the first line, keeping a backup at `/etc/ssh/sshd_config.certshell.bak`), records the host key with the app, and reloads sshd. The app pins that host key, so a different machine at the same address is refused.
+The script writes the CA public key, adds `sshd_config.d/50-certshell.conf` (in `/etc/ssh`, or `/usr/local/etc/ssh` on OPNsense), checks sshd loads it (if `sshd_config` doesn't include `sshd_config.d/*.conf`, as on FreeBSD, it adds that `Include` as the first line, keeping a backup at `sshd_config.certshell.bak`), records the host key with the app, and reloads sshd. If it fails before the host key is recorded, a first enroll removes what it wrote. The app pins that host key, so a different machine at the same address is refused.
 
-**Removing a host.** **Remove** on the host's panel. CertShell stops signing certs for it straight away. The host still trusts the CA until you run the command the dialog shows, as root on the host. It deletes `/etc/ssh/sshd_config.d/50-certshell.conf` and `/etc/ssh/certshell_user_ca.pub`, then reloads sshd. An `Include` line the enroll script added stays; it loads nothing once the drop-in is gone. Open terminals to the host stay open until they close or you end them under **Admin → Sessions**.
+**Removing a host.** **Remove** on the host's panel. CertShell stops signing certs for it straight away. The host still trusts the CA until you run the command the dialog shows, as root on the host. It deletes `sshd_config.d/50-certshell.conf` and `certshell_user_ca.pub`, then reloads sshd. It works pasted into sh, bash or csh. An `Include` line the enroll script added stays; it loads nothing once the drop-in is gone. Open terminals to the host stay open until they close or you end them under **Admin → Sessions**.
+
+**OPNsense.** Enroll from a root shell (console or SSH, menu option 8). First, under **System → Settings → Administration → Secure Shell**: enable it on an interface the app can reach, and tick **Permit root user login** if you'll allow `root`. OPNsense only lets the `wheel` group log in over SSH, so other logins must be in `wheel`. Root's shell is the OPNsense console menu, and commands run under csh: a `root` terminal opens on the menu (8 for a shell), and `root` tasks need csh syntax, so prefer a `wheel` login with `/bin/sh` for tasks. The drop-in lives outside `config.xml`: a reinstall from a config backup needs a re-enroll.
 
 ## Using CertShell
 
@@ -188,7 +190,7 @@ docker compose pull && docker compose up -d
 - **The IdP says you're not allowed**: add your group to the OIDC client's allowed groups (Pocket ID: the client's **Access** tab).
 - **Logged in, but no hosts**: none of your groups is allowed on a host. Group names must match exactly (Pocket ID: the **name**, not the friendly name). Groups are read at sign-in, so sign out and back in after changing them.
 - **No Admin section**: you're not in `OIDC_ADMIN_GROUP`, or haven't signed in again since being added.
-- **Enroll: "could not load … via an Include in /etc/ssh/sshd_config"**: the script added the `Include`, but sshd still didn't pick up the drop-in, so it put `sshd_config` back. Usually `sshd_config` sets `TrustedUserCAKeys`, `AuthorizedPrincipalsCommand` or `AuthorizedPrincipalsCommandUser` itself (sshd keeps the first value); remove those lines, then run a new snippet.
+- **Enroll: "could not load … via an Include in …/sshd_config"**: the script added the `Include`, but sshd still didn't pick up the drop-in, so it put `sshd_config` back. Usually `sshd_config` sets `TrustedUserCAKeys`, `AuthorizedPrincipalsCommand` or `AuthorizedPrincipalsCommandUser` itself (sshd keeps the first value); remove those lines, then run a new snippet.
 - **Enroll: curl fails**: the host can't reach `https://ssh.example.com`, or the snippet is older than 10 minutes or already used. Generate a new one.
 - **Host shows offline**: port 22 on the host's address isn't reachable from the CertShell container. Check the address and firewalls.
 
