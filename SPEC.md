@@ -132,6 +132,16 @@ Admins add alert channels (Admin → Alerts): a [shoutrrr](https://github.com/ni
 - Sent by `shoutrrr send -t <title> -m -` with the URL in `SHOUTRRR_URL` (never argv: `ps` on the Docker host), the body on stdin, and an environment holding only that plus `*_proxy`, so shoutrrr never sees our secrets. One shoutrrr at a time per channel, 30 s timeout, at most 20 sends a minute per channel (excess dropped with a log line). Each channel keeps its last send time and error; "Send test" shows the error.
 - Admins can already shell into every host, so letting them point the app at any URL (`generic+http://internal-host/…`) adds no reach they don't have.
 
+### 3.6 Host facts
+
+Admins set a **facts login** per host (Manage hosts → Edit; blank = off). The app then logs in as it to read facts for the Fleet page: OS, kernel, arch, uptime, reboot flag, pending (and security) package updates, `/` disk use, OpenSSH version.
+
+- The app mints these certs **itself** (actor `system` in `sign` and `facts` audit entries), on the login the admin picked, without the access-map check: an admin setting a facts login is the authorization. Same cert as a task (`-O clear`, no `permit-pty`, 15 min). The app could already mint any cert (§3.3), so this adds no power, only a standing use of it.
+- Due when a host's facts are missing, older than 6 h or from another login; checked 1 min after start, then every 10 min, 8 hosts at a time. Refresh (one host or all) in the UI.
+- A fixed POSIX script (`FACTS_SCRIPT`) goes to `sh -s` on stdin, so it runs in sh even when the login's shell is csh. Wrapped in `main() { … }; main </dev/null`: sh reads it all before running, so a command reading stdin can't eat the rest. Output is `key=value` lines; the app keeps only known keys and checks each value. 60 s timeout.
+- Package counts come from the host's own cache (`apt-get -s upgrade`, `dnf -C`, `apk -s`, `pkg version -RU`); the script never refreshes it. No cache → no count rather than 0. Reboot flag: `/var/run/reboot-required` (Debian/Ubuntu), `needs-restarting -r` (RHEL family), installed vs running kernel (FreeBSD).
+- One row per host in `host_facts`. A failed collection keeps the last good facts and stores the error.
+
 ---
 
 ## 4. Target host configuration
@@ -288,7 +298,7 @@ Published as `ghcr.io/maca134/certshell` for `linux/amd64` and `linux/arm64` by 
 ```
 /data
 ├── ca/user_ca{,.pub}  # SSH user CA; private key encrypted with ca_password if set
-└── app.sqlite         # hosts, access map, sessions, tasks, alert channels, audit log
+└── app.sqlite         # hosts, access map, sessions, tasks, alert channels, host facts, audit log
 ```
 
 ### 6.2 First boot (idempotent, no manual CLI)
