@@ -10,6 +10,7 @@ Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell
 - Fleet: **Refresh all** while a collection is running adds to it instead of starting more ssh connections.
 - Setup page: trusted proxies must be IP addresses. Ranges like `10.0.0.0/8` were accepted but never matched.
 - Tasks: the run page no longer slows down on big runs while hosts are still running.
+- Fixed: a terminal that ended while you were typing (time limit, idle, or ended by an admin) could say "Connection ended" instead of why it ended.
 
 ## 1.13.0 - 2026-10-13
 - Tasks: scripts are syntax highlighted in the editor and on the run page.
