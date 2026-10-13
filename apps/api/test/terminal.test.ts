@@ -8,7 +8,11 @@ import { reachable } from "../src/lib/hosts";
 import { createSession } from "../src/lib/sessions";
 import { SESSION_COOKIE } from "../src/routes/auth";
 import { ensureCa } from "../src/ssh/ca";
-import { signSession, type TerminalDeps } from "../src/ssh/terminal";
+import {
+    openTerminal,
+    signSession,
+    type TerminalDeps,
+} from "../src/ssh/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 
 // Fake `ssh`: prints the login and cert principal, then echoes input via the PTY.
@@ -252,6 +256,45 @@ test("signSession: dropped when an admin ends the user or revokes access mid-sig
     const revoked = signSession(deps, user, host, "root", "1.2.3.4");
     deps.db.run("DELETE FROM access");
     await expect(revoked).rejects.toThrow("access revoked");
+    await rm(root, { recursive: true, force: true });
+});
+
+test("terminal: input that arrives after ssh exited is dropped, not thrown", async () => {
+    ctx = await startApp();
+    const root = await mkdtemp(`${tmpdir()}/late-`);
+    await ensureCa(`${root}/ca`, "test-ca", undefined);
+    const deps: TerminalDeps = {
+        db: openDb(":memory:"),
+        caKey: `${root}/ca/user_ca`,
+        caPassword: undefined,
+        idleMs: 10_000,
+        maxMs: 10_000,
+        taskMs: 0,
+        maxSessions: 1,
+        maxSessionsTotal: 1,
+        live: new Map(),
+        tasks: new Map(),
+        endedAt: new Map(),
+        command: () => ["sh", "-c", "exit 0"],
+    };
+    deps.db.run(
+        "INSERT INTO hosts (id, name, address, host_key) VALUES ('h1', 'h1', 'h1.test', 'k')",
+    );
+    deps.db.run(
+        "INSERT INTO access (host_id, login, grp) VALUES ('h1', 'root', 'g')",
+    );
+    const { promise: exited, resolve } = Promise.withResolvers<string>();
+    const t = await openTerminal(
+        deps,
+        { iss: "i", sub: "user-1", email: null, groups: ["g"] },
+        { id: "h1", name: "h1", address: "h1.test", host_key: "k" },
+        "root",
+        "1.2.3.4",
+        { cols: 80, rows: 24, onData: () => {}, onExit: resolve },
+    );
+    expect(await exited).toBe("exited");
+    expect(() => t.write("x")).not.toThrow();
+    expect(() => t.resize(100, 30)).not.toThrow();
     await rm(root, { recursive: true, force: true });
 });
 
