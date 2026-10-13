@@ -17,20 +17,22 @@ type Row = {
 
 export type Message = { title: string; body: string };
 
-const SECURITY_EVENTS = new Set([
-    "host_create",
-    "host_update",
-    "host_delete",
-    "access_update",
-    "enroll_snippet",
-    "enroll",
-    "session_kill",
-    "user_signout",
-    "alert_create",
-    "alert_update",
-    "alert_delete",
-    "host_key_mismatch",
-]);
+/** Audit events that alert as security events, and each one's title. `host` is the host's name. */
+const SECURITY_TITLES: Record<string, (e: AuditInput, host: string) => string> =
+    {
+        host_create: (_, h) => `Host added: ${h}`,
+        host_update: (_, h) => `Host changed: ${h}`,
+        host_delete: (_, h) => `Host removed: ${h}`,
+        access_update: (_, h) => `Access changed on ${h}`,
+        enroll_snippet: (_, h) => `Enroll snippet issued for ${h}`,
+        enroll: (_, h) => `Host enrolled: ${h}`,
+        session_kill: (_, h) => `Terminal ended by an admin on ${h}`,
+        user_signout: () => "User signed out by an admin",
+        alert_create: (e) => `Alert channel added: ${e.name}`,
+        alert_update: (e) => `Alert channel changed: ${e.name}`,
+        alert_delete: (e) => `Alert channel removed: ${e.name}`,
+        host_key_mismatch: (_, h) => `Host key mismatch on ${h}`,
+    };
 
 /** Sends per channel per minute; the rest are dropped with a log line. */
 const PER_MINUTE = 20;
@@ -214,20 +216,6 @@ export function alerter({
     const who = (e: AuditInput) => String(e.email ?? e.sub ?? "someone");
 
     function securityMessage(e: AuditInput): Message {
-        const titles: Record<string, string> = {
-            host_create: `Host added: ${hostName(e)}`,
-            host_update: `Host changed: ${hostName(e)}`,
-            host_delete: `Host removed: ${hostName(e)}`,
-            access_update: `Access changed on ${hostName(e)}`,
-            enroll_snippet: `Enroll snippet issued for ${hostName(e)}`,
-            enroll: `Host enrolled: ${hostName(e)}`,
-            session_kill: `Terminal ended by an admin on ${hostName(e)}`,
-            user_signout: "User signed out by an admin",
-            alert_create: `Alert channel added: ${e.name}`,
-            alert_update: `Alert channel changed: ${e.name}`,
-            alert_delete: `Alert channel removed: ${e.name}`,
-            host_key_mismatch: `Host key mismatch on ${hostName(e)}`,
-        };
         const lines = [
             e.event === "host_key_mismatch"
                 ? `ssh refused ${hostName(e)}: its host key isn't the one recorded at enrollment. The host was reinstalled, or something else answers at its address. Re-enroll it once you know which.`
@@ -245,7 +233,7 @@ export function alerter({
             lines.push(`User: ${e.user}`);
         lines.push(new URL("/admin/audit", appUrl).href);
         return {
-            title: `CertShell: ${titles[e.event]}`,
+            title: `CertShell: ${SECURITY_TITLES[e.event]?.(e, hostName(e))}`,
             body: lines.join("\n"),
         };
     }
@@ -290,7 +278,7 @@ export function alerter({
         let event: AlertEvent;
         let msg: Message | undefined;
         let matches = (_c: AlertChannel) => true;
-        if (SECURITY_EVENTS.has(e.event)) {
+        if (Object.hasOwn(SECURITY_TITLES, e.event)) {
             event = "security";
             msg = securityMessage(e);
         } else if (e.event === "task_end") {
