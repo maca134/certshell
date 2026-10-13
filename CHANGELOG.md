@@ -2,6 +2,10 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.12.0 - 2026-10-13
+- When your session has ended, a **Session ended** popup now asks you to sign in again, instead of the page jumping straight to sign-in on your next click. Open terminals keep running. The check also runs as soon as you switch back to the tab.
+- Signing in takes you back to the page you were on, instead of the host list.
+
 ## 1.11.1 - 2026-10-12
 - Fixed: Fleet's **Refresh all** showed "JSON.parse: unexpected end of data".
 - Fixed: Fleet showed an uptime of about 56 years on FreeBSD and OPNsense hosts. Hosts collected before this fix show the right uptime after their next collection, or straight away with **Refresh**.
