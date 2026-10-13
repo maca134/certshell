@@ -30,7 +30,7 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
 - Accepts any username. The username is passed to the app, never trusted.
 - Auth: `keyboard-interactive` with no prompts, accepted at once. It approves nothing; approval happens in the app.
 - Session channel: `pty-req`, `window-change`, `shell` only. Rejects `exec`, `subsystem` (sftp), `env`, agent and X11 forwarding, `direct-tcpip`, `tcpip-forward`.
-- One session per connection. Handshake timeout and per-IP connection cap.
+- One session per connection. Handshake timeout and per-IP connection cap. Global cap on connections waiting for approval (e.g. 50); past it, new connections are refused.
 - Per session, opens a WS to the app's internal listener: first message `{user, ip, cols, rows}`, then raw bytes both ways and resize messages.
 - Authenticates to the app with a shared secret (Docker secret `gateway_secret`).
 
@@ -46,7 +46,7 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
   - User picks a host + login from the pairs the access map allows (same list and check as the web UI). Last used is preselected.
 - **After approval** the connection is bound to that user (`sub`, groups from the fresh login) and target. `openTerminal()` connects; the access check runs again there. Input typed before the terminal opens is dropped, not replayed. When the terminal exits, the SSH connection closes. Another host = a new connection and approval.
 - **Limits.** Terminals keep their own limits (§3.2) and count against the existing per-user and total ssh caps. "End all of a user's sessions" also closes their gateway connections.
-- **Rate limits.** Pending logins per IP, approvals per user.
+- **Rate limits.** Pending logins per IP and in total (same global cap as the gateway, enforced here too), approvals per user.
 - **Audit.** `gateway_connect` (username, IP), `gateway_approve` (sub, email, username, IP, host, login) / `gateway_deny` / `gateway_expire` (sub, email, username, IP), then the normal `sign` / `session_start` / `session_end`.
 
 ## Phishing
@@ -64,13 +64,16 @@ Not fully closable; same as any device-code flow.
 ## Threat model changes
 
 - New public port (2222) and a new pre-auth surface: the SSH handshake and the login-link PTY. Pre-auth input to the app is only the username (validated) and IP.
-- Gateway compromise ⇒ sees plaintext of terminals passing through it, and can start pending logins. It can't approve them (needs the IdP in a browser) or mint certs.
+- Gateway compromise ⇒ sees and can type into every terminal passing through it, and can start pending logins. It can't approve them (needs the IdP in a browser) or mint certs. Can't be prevented: the gateway must decrypt SSH to show the link; end-to-end would need a client script. Contained instead (Deployment).
 - App compromise: unchanged (§3.3).
 - A shell through the gateway is the same as the browser terminal to the target: same cert, same principal, same limits.
 
 ## Deployment
 
-- New image `ghcr.io/maca134/certshell-gateway`, built and released alongside the app, multi-arch, pinned by digest, non-root, same hardening as the app.
+- New image `ghcr.io/maca134/certshell-gateway`, built and released alongside the app, multi-arch, pinned by digest. Distroless static image: no shell, no tools.
+- Gateway hardening: non-root, `read_only`, `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit`, `mem_limit`. Only writable path is its host key volume.
+- Gateway network: its own internal network shared with the app only. No route to enrolled hosts, the IdP or the internet. It reaches nothing but the app's internal listener.
+- The app's internal listener is on that network only, not on the proxy's network.
 - Compose: `gateway` publishes `${GATEWAY_PORT:-2222}`. Exception to §6.3 "only the proxy publishes ports": SSH carries its own encryption.
 - Optional: no `gateway_secret`, no gateway service ⇒ feature off.
 - Setup generator on certshell.dev and README updated.
