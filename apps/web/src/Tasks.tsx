@@ -34,6 +34,7 @@ import {
     type OutputGroup,
     withContext,
 } from "./outputs";
+import { type TokenKind, tokenize } from "./shell";
 import { withTags } from "./tags";
 
 const MAX_TARGETS = 50;
@@ -295,18 +296,29 @@ function TaskForm({ id, hosts }: { id?: number; hosts?: HostSummary[] }) {
                     </div>
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="task-script">Script</Label>
-                        <textarea
-                            id="task-script"
-                            rows={8}
-                            required
-                            maxLength={16 * 1024}
-                            spellCheck={false}
-                            autoComplete="off"
-                            value={script}
-                            onChange={(e) => setScript(e.target.value)}
-                            placeholder={"apt-get update\napt-get upgrade -y"}
-                            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                        />
+                        <div className="grid rounded-lg dark:bg-input/30">
+                            <pre
+                                aria-hidden
+                                className="col-start-1 row-start-1 border border-transparent px-2.5 py-2 font-mono text-sm break-words whitespace-pre-wrap"
+                            >
+                                <Highlighted script={script} />
+                                {"\n"}
+                            </pre>
+                            <textarea
+                                id="task-script"
+                                rows={8}
+                                required
+                                maxLength={16 * 1024}
+                                spellCheck={false}
+                                autoComplete="off"
+                                value={script}
+                                onChange={(e) => setScript(e.target.value)}
+                                placeholder={
+                                    "apt-get update\napt-get upgrade -y"
+                                }
+                                className="col-start-1 row-start-1 w-full resize-none overflow-hidden rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm text-transparent caret-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                            />
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             Runs in each login's shell, without a terminal:
                             prompts get no input. Killed after 30 minutes.
@@ -513,7 +525,7 @@ function RunView({ id }: { id: string }) {
                         </p>
                     )}
                     <pre className="overflow-x-auto rounded-lg border bg-[#0e0e11] p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                        {run.script}
+                        <Highlighted script={run.script} />
                     </pre>
                     {finished >= 2 && (
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -702,4 +714,23 @@ function GroupResult({ group, base }: { group: OutputGroup; base?: string }) {
             </pre>
         </ResultRow>
     );
+}
+
+const TOKEN: Record<TokenKind, string | undefined> = {
+    plain: undefined,
+    comment: "text-zinc-500 italic",
+    string: "text-emerald-300",
+    var: "text-sky-300",
+    keyword: "text-fuchsia-300",
+    command: "text-amber-200",
+    op: "text-zinc-400",
+};
+
+function Highlighted({ script }: { script: string }) {
+    return tokenize(script).map((t, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: tokens have no identity of their own
+        <span key={i} className={TOKEN[t.kind]}>
+            {t.text}
+        </span>
+    ));
 }
