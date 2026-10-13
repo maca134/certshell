@@ -203,8 +203,11 @@ export async function openTerminal(
     });
 
     let reason: string | undefined;
+    // Input can still arrive after a kill or exit; the closed pty would throw on it.
+    let ended = false;
     const kill = (why: string) => {
         reason = why;
+        ended = true;
         proc.kill();
     };
     deps.live.set(sessionId, {
@@ -222,6 +225,7 @@ export async function openTerminal(
     const max = setTimeout(() => kill("max session length"), deps.maxMs);
 
     proc.exited.then(async (code) => {
+        ended = true;
         deps.live.delete(sessionId);
         clearTimeout(idle);
         clearTimeout(max);
@@ -251,12 +255,13 @@ export async function openTerminal(
 
     return {
         write(data: string | Uint8Array) {
+            if (ended) return;
             clearTimeout(idle);
             idle = setTimeout(() => kill("idle timeout"), deps.idleMs);
             proc.terminal?.write(data);
         },
         resize(cols: number, rows: number) {
-            proc.terminal?.resize(cols, rows);
+            if (!ended) proc.terminal?.resize(cols, rows);
         },
         close() {
             kill("closed");
