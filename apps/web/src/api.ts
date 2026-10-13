@@ -1,3 +1,5 @@
+export const SESSION_EXPIRED = "session-expired";
+
 export async function api<T = void>(
     path: string,
     method = "GET",
@@ -10,7 +12,7 @@ export async function api<T = void>(
         body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (res.status === 401) {
-        location.href = "/auth/login";
+        dispatchEvent(new Event(SESSION_EXPIRED));
         throw new Error("signed out");
     }
     if (!res.ok) {

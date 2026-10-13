@@ -58,16 +58,27 @@ test("group by tag: a host under each of its tags, untagged last", async ({
         ]);
 });
 
-test("tabbing back with an expired session goes to sign-in", async ({
+test("tabbing back with an expired session shows the sign-in popup", async ({
     page,
 }) => {
     await openHosts(page);
     await page.route("/api/me", (r) =>
         r.fulfill({ status: 401, json: { error: "unauthenticated" } }),
     );
-    await page.route("/auth/login", (r) => r.fulfill({ body: "idp" }));
-    await page.evaluate(() =>
-        document.dispatchEvent(new Event("visibilitychange")),
-    );
-    await expect(page).toHaveURL(/\/auth\/login$/);
+    await page.route("/auth/login**", (r) => r.fulfill({ body: "idp" }));
+    const tabBack = () =>
+        page.evaluate(() =>
+            document.dispatchEvent(new Event("visibilitychange")),
+        );
+    const popup = page.getByRole("dialog", { name: "Session ended" });
+
+    await tabBack();
+    await popup.getByRole("button", { name: "Later" }).click();
+    await expect(popup).toBeHidden();
+    await expect(page.getByText("docker-01")).toBeVisible();
+
+    await page.evaluate(() => history.pushState(null, "", "/?q=1"));
+    await tabBack();
+    await popup.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/auth\/login\?next=%2F%3Fq%3D1$/);
 });
