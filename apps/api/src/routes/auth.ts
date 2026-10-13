@@ -22,6 +22,13 @@ const cookieOpts = {
     path: "/",
 } as const;
 
+/** Same-origin path + query from untrusted input, else "/". */
+function localPath(next: string | undefined) {
+    const base = "http://local";
+    const url = new URL(next ?? "/", base);
+    return url.origin === base ? url.pathname + url.search : "/";
+}
+
 const SIGNED_OUT_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Signed out</title>
 <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#141417;color:#f4f4f5;font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;-webkit-font-smoothing:antialiased">
 <main style="width:min(360px,calc(100vw - 32px));padding:32px;box-sizing:border-box;border:1px solid rgb(255 255 255/8%);border-radius:16px;background:#1b1b1f;text-align:center">
@@ -52,7 +59,8 @@ export function authRoutes({
         }
         const state = oidc.randomState();
         const verifier = oidc.randomPKCECodeVerifier();
-        setCookie(c, LOGIN_COOKIE, `${state}.${verifier}`, {
+        const next = encodeURIComponent(localPath(c.req.query("next")));
+        setCookie(c, LOGIN_COOKIE, `${state}.${verifier}.${next}`, {
             ...cookieOpts,
             maxAge: 600,
         });
@@ -67,7 +75,9 @@ export function authRoutes({
     });
 
     app.get("/auth/callback", async (c) => {
-        const [state, verifier] = (getCookie(c, LOGIN_COOKIE) ?? "").split(".");
+        const [state, verifier, ...next] = (
+            getCookie(c, LOGIN_COOKIE) ?? ""
+        ).split(".");
         deleteCookie(c, LOGIN_COOKIE, cookieOpts);
         if (!state || !verifier)
             return c.text("login expired, start again", 400);
@@ -118,7 +128,7 @@ export function authRoutes({
             groups,
             ip: c.var.ip,
         });
-        return c.redirect("/");
+        return c.redirect(localPath(decodeURIComponent(next.join("."))));
     });
 
     app.post("/auth/logout", (c) => {

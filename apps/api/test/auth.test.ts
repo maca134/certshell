@@ -62,8 +62,8 @@ const cookieValue = (res: Response, name: string) =>
         .find((c) => c.startsWith(`${name}=`))
         ?.split(";")[0];
 
-async function login() {
-    const res = await get("/auth/login");
+async function login(path = "/auth/login") {
+    const res = await get(path);
     expect(res.status).toBe(302);
     const authUrl = new URL(res.headers.get("location") ?? "");
     idp.challenge = authUrl.searchParams.get("code_challenge") ?? "";
@@ -92,9 +92,27 @@ test("public routes need no session", async () => {
 test("no session → 401 on /api, redirect to login elsewhere", async () => {
     expect((await get("/api/me")).status).toBe(401);
     expect((await get("/api/admin/ping")).status).toBe(401);
-    const res = await get("/");
+    const res = await get("/ssh/h1/root?x=1");
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/auth/login");
+    expect(res.headers.get("location")).toBe(
+        "/auth/login?next=%2Fssh%2Fh1%2Froot%3Fx%3D1",
+    );
+});
+
+test("login returns to a same-origin next, else /", async () => {
+    const cases = [
+        ["/ssh/h1/root.x?a=1", "/ssh/h1/root.x?a=1"],
+        ["//evil.test/x", "/"],
+        ["/\\evil.test/x", "/"],
+        ["https://evil.test/x", "/"],
+    ];
+    for (const [next, landing] of cases) {
+        const flow = await login(
+            `/auth/login?next=${encodeURIComponent(next)}`,
+        );
+        const res = await flow.callback(undefined, flow.loginCookie);
+        expect(res.headers.get("location")).toBe(landing);
+    }
 });
 
 test("login redirect: PKCE S256, state, groups scope, APP_URL callback", async () => {

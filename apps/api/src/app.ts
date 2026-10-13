@@ -99,7 +99,9 @@ export function createApp({
         if (!user)
             return c.req.path.startsWith("/api/")
                 ? c.json({ error: "unauthenticated" }, 401)
-                : c.redirect("/auth/login");
+                : c.redirect(
+                      `/auth/login?next=${encodeURIComponent(c.req.path + new URL(c.req.url).search)}`,
+                  );
         c.set("user", user);
         return next();
     });
