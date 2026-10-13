@@ -2,6 +2,15 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.14.0 - 2026-10-13
+- Phones and tablets: a key tray under the terminal with Esc, Tab, Ctrl, Alt, ^C, ^D, Home, End, PgUp, PgDn and arrows. Ctrl and Alt apply to the next key; tap again to lock them. Arrows repeat when held. In landscape the tray sits to the right of the terminal.
+- Phones and tablets: the pencil key opens a compose line, for keyboard predictions, swipe and voice. Enter sends it.
+- Fixed: on Android with Gboard, a word could be typed twice (for example `hellohello123`) after moving the cursor.
+- Fixed: a failed alert could log and show the channel's full webhook URL, token included. URLs are now replaced with `<url>` in alert errors.
+- Fleet: **Refresh all** while a collection is running adds to it instead of starting more ssh connections.
+- Setup page: trusted proxies must be IP addresses. Ranges like `10.0.0.0/8` were accepted but never matched.
+- Tasks: the run page no longer slows down on big runs while hosts are still running.
+
 ## 1.13.0 - 2026-10-13
 - Tasks: scripts are syntax highlighted in the editor and on the run page.
 
