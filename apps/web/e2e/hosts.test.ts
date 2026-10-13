@@ -57,3 +57,17 @@ test("group by tag: a host under each of its tags, untagged last", async ({
             expect.stringContaining("build"),
         ]);
 });
+
+test("tabbing back with an expired session goes to sign-in", async ({
+    page,
+}) => {
+    await openHosts(page);
+    await page.route("/api/me", (r) =>
+        r.fulfill({ status: 401, json: { error: "unauthenticated" } }),
+    );
+    await page.route("/auth/login", (r) => r.fulfill({ body: "idp" }));
+    await page.evaluate(() =>
+        document.dispatchEvent(new Event("visibilitychange")),
+    );
+    await expect(page).toHaveURL(/\/auth\/login$/);
+});
