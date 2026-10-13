@@ -27,16 +27,17 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
 ## Gateway (Go)
 
 - Listens on `:2222`. Host key generated on first boot, kept in its own volume. Fingerprint shown in the app UI so users can check it on first connect.
-- Accepts any username with `none` auth. The username is passed to the app, never trusted.
+- Accepts any username. The username is passed to the app, never trusted.
+- Auth methods: `publickey`, then `keyboard-interactive` with no prompts as a fallback. `none` is refused, else OpenSSH never offers its keys. A `publickey` success means the client signed with the private key (checked by `x/crypto/ssh`); its fingerprint goes to the app. Neither method approves anything.
 - Session channel: `pty-req`, `window-change`, `shell` only. Rejects `exec`, `subsystem` (sftp), `env`, agent and X11 forwarding, `direct-tcpip`, `tcpip-forward`.
 - One session per connection. Handshake timeout and per-IP connection cap.
-- Per session, opens a WS to the app's internal listener: first message `{user, ip, cols, rows}`, then raw bytes both ways and resize messages.
+- Per session, opens a WS to the app's internal listener: first message `{user, ip, key?, cols, rows}`, then raw bytes both ways and resize messages.
 - Authenticates to the app with a shared secret (Docker secret `gateway_secret`).
 
 ## App (Bun)
 
 - **Internal listener** on a separate port (e.g. 3001), not on the proxy's upstream port, so the proxy can't route it by mistake. Only the gateway's WS. Disabled unless `gateway_secret` exists.
-- **Login link.** Per connection: a 256-bit token (stored hashed) + a 2-digit code, valid 2 min, single use. The app writes the link and code into the PTY and waits.
+- **Login link.** Per connection: a 256-bit token (stored hashed) + a 2-digit code, valid 2 min, single use. The app writes the link, a QR code of it (half-block characters, only if the terminal is wide enough) and the code into the PTY and waits. QR is for SSH from a laptop; on the phone, tap the link (Termux: `terminal-onclick-url-open=true` in `~/.termux/termux.properties`, else long-press → More → Select URL).
 - **Approval page** `/g/<token>`:
   - Forces a fresh IdP login (`max_age=0`, checks `auth_time`), so the IdP asks for the passkey.
   - Shows the SSH username, client IP and time.
@@ -73,16 +74,29 @@ Not fully closable; same as any device-code flow.
 - Optional: no `gateway_secret`, no gateway service ⇒ feature off.
 - Setup generator on certshell.dev and README updated.
 
+## After v1: push approval
+
+Sends the login link as a push to the user's browser, so SSH from a laptop can be approved on the phone. The link and QR stay as the fallback.
+
+- **Web Push** (VAPID, service worker). Users opt in per browser in the web UI. No admin alert channels (§3.5): those are shared, not per user.
+- **SSH keys list** in the web UI, per user: paste a public key, list, revoke, last used. A key from an approved connection is added automatically. Unused for 30 days ⇒ removed.
+- **Known-key gate.** A push is sent only if the client proved a key on the user's list (gateway `publickey` success, above). Public keys are public, so offering one is not enough. No key ⇒ link/QR only. Termux has no key until `ssh-keygen` is run once.
+- A key only allows the push. It never skips the approval page, code pick or passkey.
+- **Spam backstops.** Same notification tag, so a new push replaces the old one. Per username: 1 per 30 s, 5 per hour, then link only. No approve button: the push only opens the page. Snooze action: no pushes for 1h.
+- **Audit:** `gateway_key_add` / `gateway_key_remove` (sub, fingerprint, by user or by approval), `gateway_push` (sub, IP).
+- Later, the same list can hold FIDO2 keys (`sk-ssh-ed25519`) as a full login for laptop users.
+
 ## Not in v1
 
-- **Trust this device.** Remember the client key for 8h to skip the link. Adds a standing key; revisit after v1.
+- Push approval and the SSH keys list (above).
+- **Trust this device.** A known key skips approval for 8h. Turns the key into a login; revisit after push.
 - `scp` / `sftp` / port forwarding / `exec`.
 
 ## Open questions
 
 - Which claim is the "IdP username"? `preferred_username` (Pocket ID sets it) or email local part. SPEC §3.1 says email is never used for access; here it is only a phishing check, but some IdPs let users edit both.
 - Does Pocket ID honour `max_age=0`? If not, `prompt=login`.
-- Can Termux open the link with one tap? (Long-press → Select URL works.)
+- Does Termux render OSC 8 hyperlinks? Untested.
 
 ## Spec changes when built
 
@@ -98,3 +112,4 @@ Not fully closable; same as any device-code flow.
 2. App: internal listener, login link, approval page, host list.
 3. Gateway: limits, host key, image, release workflow.
 4. Compose, setup generator, README, SPEC.
+5. After v1: SSH keys list, then push.
