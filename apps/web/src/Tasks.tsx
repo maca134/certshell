@@ -17,7 +17,13 @@ import {
     Plus,
     Trash2,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import {
+    type FormEvent,
+    type ReactNode,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 import { Link, Route, Switch, useLocation, useSearch } from "wouter";
 import { AMBER, GREEN, When } from "./Admin";
 import { api } from "./api";
@@ -660,8 +666,14 @@ function HostResult({ hostName, login, status, exitCode, output }: RunHost) {
 /** `base`: the biggest group's output; set on every other group, which then shows its diff against it. */
 function GroupResult({ group, base }: { group: OutputGroup; base?: string }) {
     const names = group.hosts.map((h) => `${h.login}@${h.hostName}`);
-    const diff =
-        base === undefined ? [] : withContext(diffLines(base, group.output));
+    // The run page polls every 1.5s; finished outputs don't change, so don't re-diff them.
+    const diff = useMemo(
+        () =>
+            base === undefined
+                ? []
+                : withContext(diffLines(base, group.output)),
+        [base, group.output],
+    );
     const sameOutput = diff.every((d) => "skipped" in d);
     return (
         <ResultRow
