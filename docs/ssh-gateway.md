@@ -1,4 +1,4 @@
-# SSH gateway (proposal, not built)
+# SSH gateway (parked proposal, not built)
 
 Plain `ssh` from a phone (Termux) to a CertShell terminal, approved in the browser with a fresh IdP login. Fixes the mobile terminal: xterm.js and Android keyboards don't mix, a native terminal does.
 
