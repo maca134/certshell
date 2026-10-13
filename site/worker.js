@@ -7,7 +7,8 @@ const PARAMS = {
     sshDomain: HOST,
     idDomain: HOST,
     issuer: /^https?:\/\/[\w.:/-]+$/,
-    trustedProxies: /^[0-9a-f.:/, ]+$/i,
+    // IPs only: the app matches peers exactly, so a CIDR would never match.
+    trustedProxies: /^[0-9a-f.:, ]+$/i,
     caPassword: /^[01]$/,
 };
 

@@ -157,6 +157,7 @@ describe("site install worker", () => {
             "proxy=nginx",
             "toString=x",
             "encryptionKey=abc",
+            "trustedProxies=10.0.0.0%2F8",
         ]) {
             expect((await get(`/install?${q}`)).status).toBe(400);
         }
