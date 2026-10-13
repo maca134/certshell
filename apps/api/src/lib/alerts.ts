@@ -132,14 +132,16 @@ export function alerter({
 
     async function deliver(row: Row, msg: Message) {
         let error: string | null = null;
+        let url = "";
         try {
+            url = await unseal(row.url);
             const proc = Bun.spawn(
                 [...shoutrrr, "send", "-t", msg.title, "-m", "-"],
                 {
                     // Not all of process.env: shoutrrr needs none of our secrets.
                     env: {
                         ...proxyEnv(),
-                        SHOUTRRR_URL: await unseal(row.url),
+                        SHOUTRRR_URL: url,
                     },
                     stdin: new TextEncoder().encode(msg.body),
                     stdout: "ignore",
@@ -166,6 +168,9 @@ export function alerter({
         } catch (err) {
             error = (err as Error).message;
         }
+        // shoutrrr's errors quote the webhook URL, token and all; the URL is write-only (SPEC §3.5).
+        if (error && url) error = error.replaceAll(url, "<url>");
+        error &&= error.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>");
         if (error) console.warn(`alert "${row.name}" failed: ${error}`);
         db.run(
             "UPDATE alert_channels SET last_sent_at = ?, last_error = ? WHERE id = ?",
