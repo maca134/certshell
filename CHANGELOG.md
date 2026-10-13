@@ -2,6 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.13.0 - 2026-10-13
+- Tasks: scripts are syntax highlighted in the editor and on the run page.
+
 ## 1.12.0 - 2026-10-13
 - When your session has ended, a **Session ended** popup now asks you to sign in again, instead of the page jumping straight to sign-in on your next click. Open terminals keep running. The check also runs as soon as you switch back to the tab.
 - Signing in takes you back to the page you were on, instead of the host list.
