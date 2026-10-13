@@ -226,6 +226,13 @@ test("search: finds text in scrollback, says when nothing matches", async ({
 
     await page.getByRole("button", { name: "Search scrollback" }).click();
     const box = page.getByRole("textbox", { name: "Search" });
+    // Opening the bar shrinks the terminal; a refit after the search scrolls the match away.
+    await page.evaluate(
+        () =>
+            new Promise((r) =>
+                requestAnimationFrame(() => requestAnimationFrame(r)),
+            ),
+    );
     await box.fill("needle");
     await expect(page.getByText("needle", { exact: true })).toBeVisible();
     await expect(page.getByText("No match")).toBeHidden();
@@ -236,4 +243,57 @@ test("search: finds text in scrollback, says when nothing matches", async ({
     await expect(box).toBeHidden();
     await page.keyboard.type("x");
     await expect.poll(() => typed.join("")).toContain("x");
+});
+
+test("touch: key tray sends keys, one-shot Ctrl applies to the next typed key", async ({
+    page,
+    isMobile,
+}) => {
+    const { typed } = await openTerminal(page);
+    const tray = page.getByRole("region", { name: "Terminal keys" });
+    if (!isMobile) return await expect(tray).toHaveCount(0);
+    await tray.getByRole("button", { name: "Up", exact: true }).tap();
+    await tray.getByRole("button", { name: "Control C" }).tap();
+    await tray.getByRole("button", { name: "Ctrl", exact: true }).tap();
+    await page.keyboard.type("r");
+    await page.keyboard.type("x");
+    await expect.poll(() => typed.join("")).toBe("\x1b[A\x03\x12x");
+});
+
+test("touch: a word Gboard re-composes is sent once", async ({
+    page,
+    isMobile,
+}) => {
+    test.skip(!isMobile, "touch only");
+    const { typed } = await openTerminal(page);
+    await page.keyboard.type("hello");
+    await page.getByRole("button", { name: "Left" }).tap();
+    // Gboard re-opens the word it remembers and grows it: "hello" -> "hello123".
+    const cdp = await page.context().newCDPSession(page);
+    await page
+        .getByLabel("Type into terminal")
+        .evaluate((t: HTMLTextAreaElement) => t.setSelectionRange(0, 5));
+    await cdp.send("Input.imeSetComposition", {
+        text: "hello1",
+        selectionStart: 6,
+        selectionEnd: 6,
+    });
+    await cdp.send("Input.insertText", { text: "hello123" });
+    await page.keyboard.press("Enter");
+    await expect.poll(() => typed.join("")).toBe("hello\x1b[D123\r");
+});
+
+test("touch: compose bar sends the line on Enter", async ({
+    page,
+    isMobile,
+}) => {
+    test.skip(!isMobile, "touch only");
+    const { typed } = await openTerminal(page);
+    await page.getByRole("button", { name: "Compose line" }).tap();
+    const line = page.getByLabel("Compose a line");
+    await expect(line).toBeFocused();
+    await line.fill("ls -la");
+    await line.press("Enter");
+    await expect.poll(() => typed.join("")).toBe("ls -la\r");
+    await expect(line).toHaveValue("");
 });
