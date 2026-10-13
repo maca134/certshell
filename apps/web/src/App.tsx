@@ -65,7 +65,12 @@ export function App() {
     const onAdmin = location.startsWith("/admin");
 
     useEffect(() => {
-        api<Me>("/api/me").then(setMe);
+        const loadMe = () => {
+            if (!document.hidden) api<Me>("/api/me").then(setMe);
+        };
+        loadMe();
+        document.addEventListener("visibilitychange", loadMe);
+        return () => document.removeEventListener("visibilitychange", loadMe);
     }, []);
     useEffect(() => {
         if (onAdmin) return;
