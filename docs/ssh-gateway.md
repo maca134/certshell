@@ -28,10 +28,10 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
 
 - Listens on `:2222`. Host key generated on first boot, kept in its own volume. Fingerprint shown in the app UI so users can check it on first connect.
 - Accepts any username. The username is passed to the app, never trusted.
-- Auth methods: `publickey`, then `keyboard-interactive` with no prompts as a fallback. `none` is refused, else OpenSSH never offers its keys. A `publickey` success means the client signed with the private key (checked by `x/crypto/ssh`); its fingerprint goes to the app. Neither method approves anything.
+- Auth: `keyboard-interactive` with no prompts, accepted at once. It approves nothing; approval happens in the app.
 - Session channel: `pty-req`, `window-change`, `shell` only. Rejects `exec`, `subsystem` (sftp), `env`, agent and X11 forwarding, `direct-tcpip`, `tcpip-forward`.
 - One session per connection. Handshake timeout and per-IP connection cap.
-- Per session, opens a WS to the app's internal listener: first message `{user, ip, key?, cols, rows}`, then raw bytes both ways and resize messages.
+- Per session, opens a WS to the app's internal listener: first message `{user, ip, cols, rows}`, then raw bytes both ways and resize messages.
 - Authenticates to the app with a shared secret (Docker secret `gateway_secret`).
 
 ## App (Bun)
@@ -41,10 +41,10 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
 - **Approval page** `/g/<token>`:
   - Forces a fresh IdP login (`max_age=0`, checks `auth_time`), so the IdP asks for the passkey.
   - Shows the SSH username, client IP and time.
-  - User picks the code from 3 options. Wrong pick burns the token.
+  - User types the 2-digit code shown in the terminal. Wrong code burns the token.
   - SSH username must equal the approving user's IdP username, or the approval is refused.
   - User picks a host + login from the pairs the access map allows (same list and check as the web UI). Last used is preselected.
-- **After approval** the connection is bound to that user (`sub`, groups from the fresh login) and target. `openTerminal()` connects; the access check runs again there. When the terminal exits, the SSH connection closes. Another host = a new connection and approval.
+- **After approval** the connection is bound to that user (`sub`, groups from the fresh login) and target. `openTerminal()` connects; the access check runs again there. Input typed before the terminal opens is dropped, not replayed. When the terminal exits, the SSH connection closes. Another host = a new connection and approval.
 - **Limits.** Terminals keep their own limits (§3.2) and count against the existing per-user and total ssh caps. "End all of a user's sessions" also closes their gateway connections.
 - **Rate limits.** Pending logins per IP, approvals per user.
 - **Audit.** `gateway_connect` (username, IP), `gateway_approve` (sub, email, username, IP, host, login) / `gateway_deny` / `gateway_expire` (sub, email, username, IP), then the normal `sign` / `session_start` / `session_end`.
@@ -53,7 +53,7 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
 
 An attacker connects and sends a victim their link. Mitigations:
 
-- Code match: the code is only in the attacker's terminal, so the victim can't pick it.
+- Code match: the code is only in the attacker's terminal, so the victim can't type it. A guess is right 1 time in 100.
 - Username must match the approving user.
 - Page shows IP and username.
 - Single use, 2 min expiry.
@@ -81,7 +81,8 @@ Sends the login link as a push to the user's browser, so SSH from a laptop can b
 
 - **Web Push** (VAPID, service worker). Users opt in per browser in the web UI. No admin alert channels (§3.5): those are shared, not per user.
 - **SSH keys list** in the web UI, per user: paste a public key, list, revoke, last used. A key from an approved connection is added automatically. Unused for 30 days ⇒ removed.
-- **Known-key gate.** A push is sent only if the client proved a key on the user's list (gateway `publickey` success, above). Public keys are public, so offering one is not enough. No key ⇒ link/QR only. Termux has no key until `ssh-keygen` is run once.
+- **Gateway `publickey` auth**, tried before `keyboard-interactive` (`none` refused, else OpenSSH never offers its keys). Success means the client signed with the private key (checked by `x/crypto/ssh`); the fingerprint goes to the app as `key` in the first message. It still approves nothing.
+- **Known-key gate.** A push is sent only if the client proved a key on the user's list. Public keys are public, so offering one is not enough. No key ⇒ link/QR only. Termux has no key until `ssh-keygen` is run once.
 - A key only allows the push. It never skips the approval page, code pick or passkey.
 - **Spam backstops.** Same notification tag, so a new push replaces the old one. Per username: 1 per 30 s, 5 per hour, then link only. No approve button: the push only opens the page. Snooze action: no pushes for 1h.
 - **Audit:** `gateway_key_add` / `gateway_key_remove` (sub, fingerprint, by user or by approval), `gateway_push` (sub, IP).
