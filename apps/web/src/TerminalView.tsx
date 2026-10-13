@@ -17,6 +17,15 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
+import {
+    attachTouchInput,
+    ComposeBar,
+    KeyTray,
+    ShowKeysButton,
+    TOUCH,
+    TouchIO,
+    useSideLayout,
+} from "./KeyTray";
 
 const FONT = '"Geist Mono Variable", ui-monospace, Menlo, monospace';
 
@@ -64,6 +73,10 @@ export function TerminalView({
     const [query, setQuery] = useState("");
     const [missing, setMissing] = useState(false);
     const [full, setFull] = useState(!!document.fullscreenElement);
+    const [io] = useState(() => new TouchIO());
+    const side = useSideLayout() && TOUCH;
+    const [tray, setTray] = useState(true);
+    const [composing, setComposing] = useState(false);
 
     useEffect(() => {
         const sync = () => setFull(!!document.fullscreenElement);
@@ -162,7 +175,13 @@ export function TerminalView({
                 if (ws.readyState === WebSocket.OPEN)
                     ws.send(JSON.stringify(msg));
             };
-            term.onData((d) => send({ t: "in", d }));
+            const input = (d: string) => send({ t: "in", d });
+            term.onData(input);
+            io.send = input;
+            io.appCursor = () => term.modes.applicationCursorKeysMode;
+            const detachTouch = TOUCH
+                ? attachTouchInput(el, term, io)
+                : () => {};
             term.onResize(({ cols, rows }) =>
                 send({ t: "resize", cols, rows }),
             );
@@ -189,6 +208,8 @@ export function TerminalView({
             term.focus();
 
             return () => {
+                detachTouch();
+                io.send = () => {};
                 resized.disconnect();
                 el.removeEventListener("paste", onPaste, true);
                 ws.onclose = null;
@@ -196,7 +217,7 @@ export function TerminalView({
                 term.dispose();
             };
         }
-    }, [host.id, login, attempt]);
+    }, [host.id, login, attempt, io]);
 
     return (
         <div
@@ -311,7 +332,34 @@ export function TerminalView({
                     </Button>
                 </div>
             )}
-            <div ref={ref} className="min-h-0 flex-1 py-2 pl-3" />
+            <div
+                className={cn(
+                    "flex min-h-0 flex-1",
+                    side ? "flex-row" : "flex-col",
+                )}
+            >
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    <div className="relative flex min-h-0 flex-1 flex-col">
+                        <div
+                            ref={ref}
+                            className="relative min-h-0 flex-1 py-2 pl-3"
+                        />
+                        {TOUCH && !tray && (
+                            <ShowKeysButton onClick={() => setTray(true)} />
+                        )}
+                    </div>
+                    {composing && <ComposeBar io={io} />}
+                </div>
+                {TOUCH && tray && (
+                    <KeyTray
+                        io={io}
+                        side={side}
+                        composing={composing}
+                        onCompose={() => setComposing((c) => !c)}
+                        onHide={() => setTray(false)}
+                    />
+                )}
+            </div>
         </div>
     );
 }
