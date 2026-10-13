@@ -5,8 +5,8 @@ Plain `ssh` from a phone (Termux) to a CertShell terminal, approved in the brows
 ```
 ssh -p 2222 alice@ssh.example.com
   → "Open https://ssh.example.com/g/<token>   code 42"
-  → tap link, pick 42, IdP asks for passkey
-  → host list in the terminal, Enter connects
+  → tap link, pick 42, pick host + login, IdP asks for passkey
+  → terminal on that host
 ```
 
 Reverses SPEC.md §9 "Menu-style jump host" with new information: the goal is a usable phone terminal, not `scp`/`sftp`/VS Code Remote. Those stay out of scope.
@@ -21,7 +21,7 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
 | | |
 |---|---|
 | Gateway | Separate container. Go, `golang.org/x/crypto/ssh`, about 150 lines. SSH transport only: no auth decisions, no UI, no state. Never sees the CA key. |
-| App | Everything else: login link, approval, host list, `openTerminal()`, limits, audit. Unchanged terminal path. |
+| App | Everything else: login link, approval and host pick, `openTerminal()`, limits, audit. Unchanged terminal path. |
 | Split | Go owns the SSH parser (the risky part, best-maintained library). Logic stays in TypeScript. |
 
 ## Gateway (Go)
@@ -43,10 +43,11 @@ ssh client ──:2222──► gateway (Go, x/crypto/ssh) ──WS, internal po
   - Shows the SSH username, client IP and time.
   - User picks the code from 3 options. Wrong pick burns the token.
   - SSH username must equal the approving user's IdP username, or the approval is refused.
-- **After approval** the connection is bound to that user (`sub`, groups from the fresh login). The PTY shows the host + login pairs the access map allows. Type to filter, Enter connects via `openTerminal()`. On exit, back to the list; `q` quits.
-- **Limits.** Gateway connection: 8h absolute from approval, 30 min idle at the list. Terminals keep their own limits (§3.2) and count against the existing per-user and total ssh caps. "End all of a user's sessions" also closes their gateway connections.
+  - User picks a host + login from the pairs the access map allows (same list and check as the web UI). Last used is preselected.
+- **After approval** the connection is bound to that user (`sub`, groups from the fresh login) and target. `openTerminal()` connects; the access check runs again there. When the terminal exits, the SSH connection closes. Another host = a new connection and approval.
+- **Limits.** Terminals keep their own limits (§3.2) and count against the existing per-user and total ssh caps. "End all of a user's sessions" also closes their gateway connections.
 - **Rate limits.** Pending logins per IP, approvals per user.
-- **Audit.** `gateway_connect` (username, IP), `gateway_approve` / `gateway_deny` / `gateway_expire` (sub, email, username, IP), then the normal `sign` / `session_start` / `session_end`.
+- **Audit.** `gateway_connect` (username, IP), `gateway_approve` (sub, email, username, IP, host, login) / `gateway_deny` / `gateway_expire` (sub, email, username, IP), then the normal `sign` / `session_start` / `session_end`.
 
 ## Phishing
 
@@ -109,7 +110,7 @@ Sends the login link as a push to the user's browser, so SSH from a laptop can b
 ## Plan
 
 1. Spike: Go gateway + stub app, connect from Termux. Checks resize, keyboard, link tap.
-2. App: internal listener, login link, approval page, host list.
+2. App: internal listener, login link, approval page with host pick.
 3. Gateway: limits, host key, image, release workflow.
 4. Compose, setup generator, README, SPEC.
 5. After v1: SSH keys list, then push.
