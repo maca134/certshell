@@ -190,15 +190,21 @@ export function factsCollector(db: Database, terminal: TerminalDeps) {
         return true;
     }
 
-    /** Collects hosts in `ids`, PARALLEL at a time. */
-    async function collectAll(ids: string[]) {
-        const queue = [...ids];
-        await Promise.all(
+    const queue: string[] = [];
+    let running: Promise<unknown> | undefined;
+    /** Collects hosts in `ids`, PARALLEL at a time. While a run is going, adds to its queue. */
+    function collectAll(ids: string[]) {
+        for (const id of ids) if (!queue.includes(id)) queue.push(id);
+        running ??= Promise.all(
             Array.from({ length: PARALLEL }, async () => {
                 for (let id = queue.shift(); id; id = queue.shift())
                     await collect(id);
             }),
-        );
+        ).finally(() => {
+            running = undefined;
+            if (queue.length) void collectAll([]);
+        });
+        return running;
     }
 
     /** Hosts with a facts login whose facts are missing or older than FACTS_MAX_AGE_MS. */

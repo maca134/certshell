@@ -212,6 +212,24 @@ test("refresh all: 202, then collected in the background", async () => {
     expect((await list()).every((r) => r.facts?.os)).toBe(true);
 }, 30_000);
 
+test("refresh all while one is running adds to its queue: no host dropped", async () => {
+    const seen: string[] = [];
+    await setup({
+        command: ({ host, login }) => {
+            seen.push(`${host.id}:${login}`);
+            return ["sh", "-c", "echo os=x"];
+        },
+    });
+    await setLogin("h1", "root");
+    await setLogin("h2", "root");
+    await Promise.all([
+        ctx.facts.collectAll(["h1"]),
+        ctx.facts.collectAll(["h1", "h2"]),
+    ]);
+    // h1 was already running when the second call queued it, so it may run again.
+    expect([...new Set(seen)].sort()).toEqual(["h1:root", "h2:root"]);
+});
+
 test("deleting a host drops its facts", async () => {
     await setup();
     await setLogin("h1", "root");
