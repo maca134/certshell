@@ -72,7 +72,7 @@ Not fully closable; same as any device-code flow.
 
 - New image `ghcr.io/maca134/certshell-gateway`, built and released alongside the app, multi-arch, pinned by digest. Distroless static image: no shell, no tools.
 - Gateway hardening: non-root, `read_only`, `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit`, `mem_limit`. Only writable path is its host key volume.
-- Gateway network: its own internal network shared with the app only. No route to enrolled hosts, the IdP or the internet. It reaches nothing but the app's internal listener.
+- Gateway networks: an `internal: true` network shared with the app only (to reach the internal listener), plus its own bridge network with no other containers, for the published port (Docker can't publish ports on an internal network). No other containers reachable. That bridge still has outbound internet; blocking it needs host firewall rules, so it's a documented option, not default.
 - The app's internal listener is on that network only, not on the proxy's network.
 - Compose: `gateway` publishes `${GATEWAY_PORT:-2222}`. Exception to §6.3 "only the proxy publishes ports": SSH carries its own encryption.
 - Optional: no `gateway_secret`, no gateway service ⇒ feature off.
