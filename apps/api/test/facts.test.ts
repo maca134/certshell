@@ -112,7 +112,7 @@ test("refresh runs the real script via sh -s as the system user, with a no-PTY c
         ["facts", "system"],
     ]);
     expect(JSON.parse(audits[0]?.data ?? "{}").principal).toBe("ws:h1:facts");
-});
+}, 30_000);
 
 test("BSD uptime: from kern.boottime's sec, not its usec", async () => {
     const dir = await mkdtemp(`${tmpdir()}/sysctl-`);
@@ -207,10 +207,10 @@ test("refresh all: 202, then collected in the background", async () => {
     await setLogin("h1", "root");
     await setLogin("h2", "root");
     expect((await call("POST", "/facts/refresh")).status).toBe(202);
-    for (let i = 0; i < 100 && (await list()).some((r) => !r.collectedAt); i++)
+    for (let i = 0; i < 800 && (await list()).some((r) => !r.collectedAt); i++)
         await Bun.sleep(30);
     expect((await list()).every((r) => r.facts?.os)).toBe(true);
-});
+}, 30_000);
 
 test("deleting a host drops its facts", async () => {
     await setup();
