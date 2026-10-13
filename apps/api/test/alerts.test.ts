@@ -218,6 +218,19 @@ test("failed send → 502 with shoutrrr's error, kept as lastError", async () =>
     );
 });
 
+test("failed send: webhook URLs in shoutrrr's error are redacted", async () => {
+    await setup();
+    const id = await create({
+        url: "discord://SECRETTOK@1?leak",
+        events: ["host_down"],
+    });
+    const res = await call("POST", `/${id}/test`);
+    expect(res.status).toBe(502);
+    const error = 'Post "<url>": dial tcp: lookup failed';
+    expect(await res.json()).toEqual({ error });
+    expect((await list())[0]?.lastError).toBe(error);
+});
+
 test("security events go to channels that picked them", async () => {
     await setup();
     await create({ name: "sec" });
