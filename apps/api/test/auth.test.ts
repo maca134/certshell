@@ -100,7 +100,7 @@ test("no session → 401 on /api, redirect to login elsewhere", async () => {
 });
 
 test("login returns to a same-origin next, else /", async () => {
-    const cases = [
+    const cases: [string, string][] = [
         ["/ssh/h1/root.x?a=1", "/ssh/h1/root.x?a=1"],
         ["//evil.test/x", "/"],
         ["/\\evil.test/x", "/"],
