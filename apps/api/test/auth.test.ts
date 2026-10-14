@@ -192,7 +192,9 @@ test("callback rejects wrong state, missing login cookie, bad code", async () =>
     expect(expired.status).toBe(400);
     expect(await expired.text()).toContain('href="/auth/login"');
     idp.challenge = "mismatch";
-    expect((await flow.callback(undefined, flow.loginCookie)).status).toBe(400);
+    const failed = await flow.callback(undefined, flow.loginCookie);
+    expect(failed.status).toBe(400);
+    expect(await failed.text()).toContain('href="/auth/login"');
     expect(db.query("SELECT count(*) AS n FROM sessions").get()).toEqual({
         n: 0,
     });
@@ -317,7 +319,9 @@ test("IdP down → 503, then retries discovery", async () => {
         alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
         facts: factsCollector(db, {} as TerminalDeps),
     });
-    expect((await get("/auth/login")).status).toBe(503);
+    const down = await get("/auth/login");
+    expect(down.status).toBe(503);
+    expect(await down.text()).toContain('href="/auth/login"');
     expect((await get("/auth/login")).status).toBe(302);
 });
 
