@@ -2,6 +2,12 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.14.2 - 2026-10-14
+- Fixed: anyone with access to a host could fake a **Host key mismatch** alert by printing ssh's message in a terminal or task and exiting with code 255. The check now reads only ssh's own messages.
+- Terminal: a browser that falls too far behind on output (for example `cat` of a big file over a slow link) is now disconnected instead of silently missing part of the output.
+- Tasks: while hosts are still running, the run page shows the last 8 KB of each one's output. Full output appears when the host finishes.
+- Tasks: the task list stays fast with many past runs.
+
 ## 1.14.1 - 2026-10-14
 - Sign-in errors (took too long, failed, identity provider down) now show a page with a **Sign in again** button instead of a line of plain text.
 
