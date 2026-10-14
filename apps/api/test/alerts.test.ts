@@ -418,17 +418,36 @@ test("host monitor: first check silent, offline after 2 failed checks, back onli
 
 test("host key mismatch on a terminal: audited and alerted", async () => {
     await setup({
-        command: () => [
+        command: ({ log }) => [
             "sh",
             "-c",
-            "echo 'Host key verification failed.' >&2; exit 255",
+            `echo 'Host key verification failed.' > "$0"; exit 255`,
+            log ?? "",
         ],
     });
     await create();
     const t = ctx.connect("host=h1&login=root");
-    await t.closed;
+    expect((await t.closed).output).toContain("Host key verification failed.");
     const s = await sent(2);
     expect(titles(s)[1]).toBe("CertShell: Host key mismatch on h1");
+});
+
+test("host key message in the user's own output: not a mismatch", async () => {
+    await setup({
+        command: () => [
+            "sh",
+            "-c",
+            "echo 'Host key verification failed.'; exit 255",
+        ],
+    });
+    const t = ctx.connect("host=h1&login=root");
+    await t.closed;
+    const events = ctx.db
+        .query<{ event: string }, []>("SELECT event FROM audit")
+        .all()
+        .map((r) => r.event);
+    expect(events).toContain("session_end");
+    expect(events).not.toContain("host_key_mismatch");
 });
 
 test("hostKeyRejected: exit 255 plus ssh's message", () => {

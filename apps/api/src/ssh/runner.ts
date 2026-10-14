@@ -5,6 +5,7 @@ import { audit } from "../lib/audit";
 import type { Host } from "../lib/hosts";
 import {
     hostKeyRejected,
+    readLog,
     signSession,
     sshArgv,
     type TerminalDeps,
@@ -42,6 +43,7 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
             live.set(key, output);
         };
         let code: number | null = null;
+        let sshErrors = "";
         try {
             const s = await signSession(terminal, user, host, login, ip, {
                 pty: false,
@@ -52,6 +54,7 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
                     sshArgv(terminal, {
                         key: s.key,
                         knownHosts: s.knownHosts,
+                        log: s.log,
                         login,
                         host,
                         remote: script,
@@ -82,6 +85,8 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
                 await Promise.all([pump(proc.stdout), pump(proc.stderr)]);
                 const exit = await proc.exited;
                 clearTimeout(timer);
+                sshErrors = await readLog(s.log);
+                append(sshErrors);
                 terminal.tasks.delete(key);
                 if (timedOut) append("\n[timed out]");
                 else if (ended) append("\n[ended by admin]");
@@ -107,7 +112,7 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
             ],
         );
         live.delete(key);
-        if (hostKeyRejected(code, output))
+        if (hostKeyRejected(code, sshErrors))
             audit(db, {
                 event: "host_key_mismatch",
                 sub: user.sub,
