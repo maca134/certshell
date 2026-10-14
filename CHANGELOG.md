@@ -2,6 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.14.1 - 2026-10-14
+- Sign-in errors (took too long, failed, identity provider down) now show a page with a **Sign in again** button instead of a line of plain text.
+
 ## 1.14.0 - 2026-10-13
 - Phones and tablets: a key tray under the terminal with Esc, Tab, Ctrl, Alt, ^C, ^D, Home, End, PgUp, PgDn and arrows. Ctrl and Alt apply to the next key; tap again to lock them. Arrows repeat when held. In landscape the tray sits to the right of the terminal.
 - Phones and tablets: the pencil key opens a compose line, for keyboard predictions, swipe and voice. Enter sends it.
