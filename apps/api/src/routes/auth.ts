@@ -54,6 +54,18 @@ const LOGIN_EXPIRED_PAGE = signInPage(
     "That sign-in took too long. Start again.",
 );
 
+const LOGIN_FAILED_PAGE = signInPage(
+    "Sign-in failed",
+    "Sign-in failed",
+    "The identity provider didn't confirm who you are.",
+);
+
+const IDP_DOWN_PAGE = signInPage(
+    "Sign-in unavailable",
+    "Sign-in unavailable",
+    "The identity provider can't be reached. Try again shortly.",
+);
+
 export function authRoutes({
     config,
     db,
@@ -71,7 +83,7 @@ export function authRoutes({
             oidcConfig = await getOidc();
         } catch (err) {
             console.warn(`OIDC discovery failed: ${err}`);
-            return c.text("identity provider unavailable", 503);
+            return c.html(IDP_DOWN_PAGE, 503);
         }
         const state = oidc.randomState();
         const verifier = oidc.randomPKCECodeVerifier();
@@ -112,9 +124,9 @@ export function authRoutes({
             claims = tokens.claims();
         } catch (err) {
             console.warn(`login failed: ${err}`);
-            return c.text("login failed", 400);
+            return c.html(LOGIN_FAILED_PAGE, 400);
         }
-        if (!claims) return c.text("login failed", 400);
+        if (!claims) return c.html(LOGIN_FAILED_PAGE, 400);
 
         const groups = Array.isArray(claims.groups)
             ? claims.groups.filter((g): g is string => typeof g === "string")
