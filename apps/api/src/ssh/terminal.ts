@@ -42,6 +42,8 @@ export type TerminalDeps = {
     command?: (args: {
         key: string;
         knownHosts: string;
+        /** `-E`: ssh's own messages go here, apart from the remote output a user controls. */
+        log?: string;
         login: string;
         host: Host;
         remote?: string;
@@ -58,11 +60,13 @@ type TerminalHandlers = {
 const sshCommand: NonNullable<TerminalDeps["command"]> = ({
     key,
     knownHosts,
+    log,
     login,
     host,
     remote,
 }) => [
     "ssh",
+    ...(log === undefined ? [] : ["-E", log]),
     "-i",
     key,
     "-o",
@@ -80,9 +84,14 @@ const sshCommand: NonNullable<TerminalDeps["command"]> = ({
     ...(remote === undefined ? [] : [remote]),
 ];
 
-/** True when ssh refused the host because its key isn't the one pinned at enrollment. */
-export const hostKeyRejected = (code: number | null, output: string) =>
-    code === 255 && output.includes("Host key verification failed.");
+/** True when ssh refused the host because its key isn't the one pinned at enrollment. `log`: ssh's `-E` file. */
+export const hostKeyRejected = (code: number | null, log: string) =>
+    code === 255 && log.includes("Host key verification failed.");
+
+export const readLog = (path: string) =>
+    Bun.file(path)
+        .text()
+        .catch(() => "");
 
 export const sshArgv = (
     deps: TerminalDeps,
@@ -150,6 +159,7 @@ export async function signSession(
             dir,
             key,
             knownHosts: `${dir}/known_hosts`,
+            log: `${dir}/ssh.log`,
         };
     } catch (err) {
         await rm(dir, { recursive: true, force: true });
@@ -165,29 +175,17 @@ export async function openTerminal(
     ip: string,
     handlers: TerminalHandlers,
 ) {
-    const { sessionId, principal, dir, key, knownHosts } = await signSession(
-        deps,
-        user,
-        host,
-        login,
-        ip,
-    );
-    // ssh's own errors come before any shell output; enough to spot a host key mismatch.
-    let head = "";
-    const decoder = new TextDecoder();
+    const { sessionId, principal, dir, key, knownHosts, log } =
+        await signSession(deps, user, host, login, ip);
     let proc: Bun.Subprocess;
     try {
-        proc = Bun.spawn(sshArgv(deps, { key, knownHosts, login, host }), {
+        proc = Bun.spawn(sshArgv(deps, { key, knownHosts, log, login, host }), {
             // ssh forwards TERM to the remote pty; the container has none, so curses apps like top exit.
             env: { ...process.env, TERM: "xterm-256color" },
             terminal: {
                 cols: handlers.cols,
                 rows: handlers.rows,
-                data: (_t, data) => {
-                    if (head.length < 8192)
-                        head += decoder.decode(data, { stream: true });
-                    handlers.onData(data);
-                },
+                data: (_t, data) => handlers.onData(data),
             },
         });
     } catch (err) {
@@ -230,6 +228,13 @@ export async function openTerminal(
         clearTimeout(idle);
         clearTimeout(max);
         proc.terminal?.close();
+        const sshErrors = await readLog(log);
+        if (sshErrors)
+            handlers.onData(
+                new TextEncoder().encode(
+                    sshErrors.replaceAll(/\r?\n/g, "\r\n"),
+                ),
+            );
         await rm(dir, { recursive: true, force: true });
         reason ??= code === 0 ? "exited" : `ssh exited with code ${code}`;
         audit(deps.db, {
@@ -241,7 +246,7 @@ export async function openTerminal(
             reason,
             code,
         });
-        if (hostKeyRejected(code, head))
+        if (hostKeyRejected(code, sshErrors))
             audit(deps.db, {
                 event: "host_key_mismatch",
                 sub: user.sub,
