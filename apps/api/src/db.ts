@@ -125,6 +125,8 @@ export const MIGRATIONS: string[][] = [
             error TEXT
         )`,
     ],
+    // 8: the task list's last run per task; runs are kept forever without RUN_DAYS.
+    ["CREATE INDEX runs_sub_task ON runs(sub, task_id, created_at)"],
 ];
 
 export function migrate(db: Database, migrations = MIGRATIONS) {
