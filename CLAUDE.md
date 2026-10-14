@@ -15,4 +15,6 @@
 - When reporting information to me, be extremely concise and sacrifice grammar for sake of concision.
 - Don't change anything I didn't ask you to change.
 - **Commit per feature/fix/edit** - split work into separate logical commits; never one big commit with everything.
+- **Run `bun run verify` before saying done** - lint, typecheck, build and tests, same as CI minus `bun audit`.
+- **Security review** - any change under `apps/api/src/`, `Dockerfile`, `compose*.yaml` or `.github/workflows/` gets a `security-reviewer` agent pass before the PR.
 - **Never push to `main`** - it is protected by a ruleset (PR required, CI `check` must pass). Branch, push, `gh pr create`; the user merges once green.
