@@ -188,7 +188,9 @@ test("callback rejects wrong state, missing login cookie, bad code", async () =>
     expect(
         (await flow.callback("code=c1&state=evil", flow.loginCookie)).status,
     ).toBe(400);
-    expect((await flow.callback(undefined, "")).status).toBe(400);
+    const expired = await flow.callback(undefined, "");
+    expect(expired.status).toBe(400);
+    expect(await expired.text()).toContain('href="/auth/login"');
     idp.challenge = "mismatch";
     expect((await flow.callback(undefined, flow.loginCookie)).status).toBe(400);
     expect(db.query("SELECT count(*) AS n FROM sessions").get()).toEqual({
