@@ -10,8 +10,14 @@ import { openTerminal, type TerminalDeps } from "../ssh/terminal";
 
 type Env = AppEnv & { Variables: { host: Host; login: string } };
 
-// Bun's 16MB default × the pre-sign queue could exceed the container's memory limit.
-export const websocket = { ...honoWebsocket, maxPayloadLength: 64 * 1024 };
+// Bun's 16MB defaults × the pre-sign queue or slow readers could exceed the container's memory limit.
+// Past backpressureLimit Bun silently drops sends; closing beats garbled terminal output.
+export const websocket = {
+    ...honoWebsocket,
+    maxPayloadLength: 64 * 1024,
+    backpressureLimit: 1024 * 1024,
+    closeOnBackpressureLimit: true,
+};
 
 const termSize = (v: unknown, fallback: number) =>
     Math.min(Math.max(Math.trunc(Number(v)) || fallback, 1), 500);
