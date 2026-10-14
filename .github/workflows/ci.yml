@@ -19,5 +19,8 @@ jobs:
       - run: bun run typecheck
       - run: bun run build
       - run: bun run test
+      - run: bunx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: bun run e2e
       # braces: dev-only (shadcn CLI), no fixed release exists yet.
       - run: bun audit --ignore=GHSA-vfj7-8cjw-p6xm
