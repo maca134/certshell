@@ -276,6 +276,24 @@ test("run: output streams while running", async () => {
     expect((await finished(id)).hosts[0]?.output).toBe("first\nsecond\n");
 });
 
+test("run: a target still running returns only its last 8 KB", async () => {
+    await setup();
+    const id = await startRun(
+        "head -c 20000 /dev/zero | tr '\\0' x; echo END; sleep 1",
+        h1root,
+    );
+    let out: string | undefined;
+    for (let i = 0; i < 40 && !out?.includes("END"); i++) {
+        await Bun.sleep(25);
+        out = ((await (await call("GET", `/runs/${id}`)).json()) as RunDetail)
+            .hosts[0]?.output;
+    }
+    expect(out).toStartWith("[earlier output dropped]\n");
+    expect(out).toEndWith("xEND\n");
+    expect(out?.length).toBe(8 * 1024 + "[earlier output dropped]\n".length);
+    expect((await finished(id)).hosts[0]?.output.length).toBe(20004);
+});
+
 test("run: killed after taskMs", async () => {
     await setup({ taskMs: 300 });
     const run = await finished(await startRun("exec sleep 10", h1root));

@@ -12,6 +12,8 @@ import {
 } from "./terminal";
 
 const MAX_OUTPUT = 256 * 1024;
+/** What a run page poll gets of a target still running; it polls every 1.5s. */
+const LIVE_TAIL = 8 * 1024;
 const TRUNCATED = "[earlier output dropped]\n";
 
 export function taskRunner(db: Database, terminal: TerminalDeps) {
@@ -136,7 +138,11 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
 
     return {
         run,
-        liveOutput: (runId: string, hostId: string, login: string) =>
-            live.get(`${runId}/${hostId}/${login}`),
+        liveOutput: (runId: string, hostId: string, login: string) => {
+            const output = live.get(`${runId}/${hostId}/${login}`);
+            return output && output.length > LIVE_TAIL
+                ? TRUNCATED + output.slice(-LIVE_TAIL)
+                : output;
+        },
     };
 }
