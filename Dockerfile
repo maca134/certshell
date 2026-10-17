@@ -20,7 +20,7 @@ RUN bun install --frozen-lockfile --production --filter api
 
 # Built from source: the v0.21.2 release binary has Go 1.27.1 / x/net 0.59.0 CVEs. Module versions are
 # checked against Go's checksum database. Bump SHOUTRRR/X_NET by hand; Dependabot bumps the Go image.
-FROM --platform=$BUILDPLATFORM golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d AS shoutrrr
+FROM --platform=$BUILDPLATFORM golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e AS shoutrrr
 ARG TARGETOS TARGETARCH
 ARG SHOUTRRR=v0.21.2 X_NET=v0.61.0
 WORKDIR /build
