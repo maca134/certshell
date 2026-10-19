@@ -126,8 +126,8 @@ export async function signSession(
             caPassword: deps.caPassword,
             dir,
             principal,
-            // Some IdPs let users edit their email; a `/` or newline would forge the key ID in target sshd logs.
-            keyId: `${(user.email ?? "").replace(/[/\p{Cc}]/gu, "_")}/${user.sub}/${sessionId}`,
+            // Some IdPs let users edit their email; `/`, spaces or parens would forge key ID / sshd log fields.
+            keyId: `${(user.email ?? "").replace(/[^\w.@+-]/g, "_")}/${user.sub}/${sessionId}`,
             serial,
             pty: opts.pty,
         });
