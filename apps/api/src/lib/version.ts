@@ -1,20 +1,9 @@
 const TAGS_URL =
     "https://api.github.com/repos/maca134/certshell/tags?per_page=100";
 
-const semver = (v: string) =>
-    v
-        .match(/^v?(\d+)\.(\d+)\.(\d+)$/)
-        ?.slice(1)
-        .map(Number);
-
-export function isNewer(a: string, b: string) {
-    const x = semver(a);
-    const y = semver(b);
-    if (!x || !y) return false;
-    for (let i = 0; i < 3; i++)
-        if (x[i] !== y[i]) return (x[i] ?? 0) > (y[i] ?? 0);
-    return false;
-}
+const REL = /^v?\d+\.\d+\.\d+$/;
+export const isNewer = (a: string, b: string) =>
+    REL.test(a) && REL.test(b) && Bun.semver.order(a, b) > 0;
 
 /** Polls GitHub's tags; `latest()` is the newest version above `current`. Failures keep the last answer. */
 export function updateChecker(
