@@ -18,7 +18,9 @@ defines its own Output block, the line goes inside it.
 
 Always on, for every session and sub-agent; there's no off switch.
 
-Adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
+Adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail).
+Copyright (c) 2026 DietrichGebert, MIT License: see the upstream
+[LICENSE](https://github.com/DietrichGebert/ponytail/blob/main/LICENSE).
 
 ## Precedence
 
