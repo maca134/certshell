@@ -145,8 +145,9 @@ Every item, against the whole tree. Skip items for code that doesn't exist.
 7. **Rank and cap.** Severity: CRIT = cert for a login the user shouldn't
    have, CA key exposure, RCE; HIGH = auth/authz bypass, data loss, crash
    any user can trigger; MED = needs unusual config or load, or a real bug
-   with limited reach; LOW = everything else. Keep the top 20; summarise the
-   rest as a count per tag.
+   with limited reach; LOW = everything else. Keep the top 20, with up to 5
+   slots reserved for `cut:` findings (biggest saving first) so severity
+   order can't crowd them out. Summarise the rest as a count per tag.
 
 ## Rationalizations to reject
 
