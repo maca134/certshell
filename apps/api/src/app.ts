@@ -23,6 +23,7 @@ const WEB_DIST = `${import.meta.dir}/../../web/dist`;
 
 const PUBLIC_ROUTES = new Set([
     "GET /healthz",
+    "GET /favicon.svg",
     "GET /auth/login",
     "GET /auth/callback",
     "GET /auth/logout",
