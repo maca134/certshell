@@ -40,6 +40,14 @@ const SEND_TIMEOUT_MS = 30_000;
 /** Failed port-22 checks in a row before a host counts as offline. */
 const DOWN_AFTER = 2;
 
+// One text goes to every service: lookalikes and zero-width spaces stop Slack `<!channel>`/`<url|x>`, `@channel` and markdown links without showing escapes in plain-text ones.
+const defuse = (s: string) =>
+    s
+        .replaceAll("<", "‹")
+        .replaceAll(">", "›")
+        .replace(/(?<!\w)@/g, "@​")
+        .replaceAll("](", "]​(");
+
 const proxyEnv = () =>
     Object.fromEntries(
         Object.entries(process.env).filter(
@@ -213,7 +221,8 @@ export function alerter({
             .get(String(id));
     const hostName = (e: AuditInput) =>
         (e.name as string | undefined) ?? host(e.host)?.name ?? String(e.host);
-    const who = (e: AuditInput) => String(e.email ?? e.sub ?? "someone");
+    const who = (e: AuditInput) =>
+        defuse(String(e.email ?? e.sub ?? "someone"));
 
     function securityMessage(e: AuditInput): Message {
         const lines = [

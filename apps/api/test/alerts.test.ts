@@ -307,6 +307,21 @@ test("terminal event: filtered by host tag or login; empty filter = every termin
     ]);
 });
 
+test("terminal event: mentions and links in the email arrive defused", async () => {
+    await setup();
+    await create({ events: ["terminal"] });
+    audit(ctx.db, {
+        event: "session_start",
+        sub: "u",
+        email: "<!here> @channel [x](https://evil.test)",
+        principal: "ws:h1:root",
+        session: "s1",
+    });
+    expect((await sent(1))[0]?.args[2]).toBe(
+        "CertShell: ‹!here› @​channel [x]​(https://evil.test) opened root@h1",
+    );
+});
+
 test("task_failed: one alert when the last host finishes, only if one failed", async () => {
     await setup({
         command: ({ host, remote }) => ["sh", "-c", remote ?? "", host.id],
