@@ -114,7 +114,7 @@ A task = a saved script + the host logins it runs on, e.g. `apt-get upgrade -y` 
 - Targets run in parallel. Killed after 30 min. Status per target: running → ok (exit 0) / failed (non-zero, ssh error, timeout). stdout + stderr merged; the last 256K characters are kept. The UI polls while a run is going.
 - A run counts once against the per-user sign rate limit.
 - **Detach** (per task): if the connection drops (app restart, or the script cuts it, e.g. a NetBird/VPN or sshd upgrade), sshd closes the session's pipes and a plain script dies of SIGPIPE on its next write. A detached task's script runs under `nohup` in the login's shell, output into a `mktemp` file on the host that `tail -f` streams back, so it finishes regardless; the run still gets the exit code if the connection holds. Logs stay in `/tmp` for after an interrupted run. POSIX tools only.
-- A run keeps a copy of the task's name and script: editing or deleting the task doesn't change past runs. On restart, still-running targets are marked failed.
+- A run keeps a copy of the task's name and script: editing or deleting the task doesn't change past runs. On restart, still-running targets are marked failed, audited as `task_end` failed, and fire `task_failed`.
 
 ### 3.5 Alerts
 
@@ -282,6 +282,7 @@ echo "enrolled: $(hostname)"
 - The app is the CA, so **the audit log is the only record of issuance**. Log logins, every sign (`sub`, email, principal, host, TTL, serial, session) and session start/end, task runs (task, script, targets) and each target's result.
 - `AUDIT_DAYS` / `RUN_DAYS` (opt-in) prune the DB at startup and daily, logging `audit_prune` / `run_prune`. The stdout copy is untouched.
 - Write audit events to stdout as well as SQLite. An attacker in the container can rewrite the DB, not log lines already shipped.
+- A terminal whose `session_start` can't be written is refused: no unaudited sessions.
 - Targets' sshd logs the cert key ID (`email/sub/sessionId`) and serial on every login — an independent record the app can't touch.
 
 ---
