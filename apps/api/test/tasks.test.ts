@@ -315,6 +315,17 @@ test("run: keeps the last 256 KB of output", async () => {
     expect(out?.length).toBe(256 * 1024 + "[earlier output dropped]\n".length);
 });
 
+test("run: output ending mid multibyte char keeps its last bytes", async () => {
+    await setup();
+    const run = await finished(
+        await startRun(
+            "printf 'x\\342\\202'; sleep 0.1; printf '\\254y\\342\\202'",
+            h1root,
+        ),
+    );
+    expect(run.hosts[0]?.output).toBe("x€y�");
+});
+
 test("run: CA failure → failed, not stuck running", async () => {
     await setup({ caKey: "/nonexistent/user_ca" });
     const run = await finished(await startRun("true", h1root));

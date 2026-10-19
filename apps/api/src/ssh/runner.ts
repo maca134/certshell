@@ -83,6 +83,7 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
                     const decoder = new TextDecoder();
                     for await (const chunk of stream)
                         append(decoder.decode(chunk, { stream: true }));
+                    append(decoder.decode());
                 };
                 await Promise.all([pump(proc.stdout), pump(proc.stderr)]);
                 const exit = await proc.exited;
