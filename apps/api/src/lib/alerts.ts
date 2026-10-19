@@ -174,10 +174,14 @@ export function alerter({
         if (error && url) error = error.replaceAll(url, "<url>");
         error &&= error.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>");
         if (error) console.warn(`alert "${row.name}" failed: ${error}`);
-        db.run(
-            "UPDATE alert_channels SET last_sent_at = ?, last_error = ? WHERE id = ?",
-            [Date.now(), error, row.id],
-        );
+        try {
+            db.run(
+                "UPDATE alert_channels SET last_sent_at = ?, last_error = ? WHERE id = ?",
+                [Date.now(), error, row.id],
+            );
+        } catch (err) {
+            console.warn(`alert "${row.name}" status not saved: ${err}`);
+        }
         return error;
     }
 
@@ -368,6 +372,8 @@ export function alerter({
                     }
                 }),
             );
+        } catch (err) {
+            console.warn(`host check failed: ${err}`);
         } finally {
             checking = false;
         }

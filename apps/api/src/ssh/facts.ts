@@ -198,7 +198,9 @@ export function factsCollector(db: Database, terminal: TerminalDeps) {
         running ??= Promise.all(
             Array.from({ length: PARALLEL }, async () => {
                 for (let id = queue.shift(); id; id = queue.shift())
-                    await collect(id);
+                    await collect(id).catch((err) =>
+                        console.warn(`facts for ${id} not saved: ${err}`),
+                    );
             }),
         ).finally(() => {
             running = undefined;

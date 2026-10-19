@@ -192,13 +192,19 @@ export async function openTerminal(
         await rm(dir, { recursive: true, force: true });
         throw err;
     }
-    audit(deps.db, {
-        event: "session_start",
-        sub: user.sub,
-        email: user.email,
-        principal,
-        session: sessionId,
-    });
+    try {
+        audit(deps.db, {
+            event: "session_start",
+            sub: user.sub,
+            email: user.email,
+            principal,
+            session: sessionId,
+        });
+    } catch (err) {
+        proc.kill();
+        await rm(dir, { recursive: true, force: true });
+        throw err;
+    }
 
     let reason: string | undefined;
     // Input can still arrive after a kill or exit; the closed pty would throw on it.
@@ -237,24 +243,28 @@ export async function openTerminal(
             );
         await rm(dir, { recursive: true, force: true });
         reason ??= code === 0 ? "exited" : `ssh exited with code ${code}`;
-        audit(deps.db, {
-            event: "session_end",
-            sub: user.sub,
-            email: user.email,
-            principal,
-            session: sessionId,
-            reason,
-            code,
-        });
-        if (hostKeyRejected(code, sshErrors))
+        try {
             audit(deps.db, {
-                event: "host_key_mismatch",
+                event: "session_end",
                 sub: user.sub,
                 email: user.email,
-                host: host.id,
-                name: host.name,
-                login,
+                principal,
+                session: sessionId,
+                reason,
+                code,
             });
+            if (hostKeyRejected(code, sshErrors))
+                audit(deps.db, {
+                    event: "host_key_mismatch",
+                    sub: user.sub,
+                    email: user.email,
+                    host: host.id,
+                    name: host.name,
+                    login,
+                });
+        } catch (err) {
+            console.warn(`session end not audited: ${err}`);
+        }
         handlers.onExit(reason);
     });
 
