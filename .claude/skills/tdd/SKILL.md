@@ -35,6 +35,8 @@ with one line on what it catches and what it misses, and get them confirmed:
   Browser flows: `apps/web/e2e/`. Repo-level: `test/`. All end in `.test.ts`.
 - Run one file while looping: `bun test <path>` (from the app dir for app
   tests). Typecheck often: `bun run typecheck`.
+- E2E: `bun run e2e` (Playwright). `bun run verify` doesn't run it: run it
+  whenever you touch `apps/web/e2e/` or the flows it covers.
 - No `find`/`grep` in tests; use Bun's `Glob` and built-ins.
 
 ## Real, not mocked
@@ -44,10 +46,13 @@ Use the real thing; the helpers already exist:
 - Server + WS + session + throwaway CA: `startApp()` in `apps/api/test/helpers/app.ts`.
 - OIDC: `startMockIdp()` in `apps/api/test/helpers/mock-idp.ts`.
 - SQLite: `openDb(":memory:")`. `ssh-keygen`: the real binary.
-- Target host: the sshd container in `apps/api/test/ssh-target/`.
+- ssh: swap the command through `startApp`'s terminal deps for a local `sh`
+  that inspects the real cert (`fakeSsh` in `apps/api/test/terminal.test.ts`).
+- Real target host only for sshd-side behaviour: `apps/api/test/ssh-target.test.ts`,
+  skipped unless `SSH_TARGET` is set; its line 2 has the compose command.
 
-Mock only time and outbound alerts (`apps/api/test/fixtures/shoutrrr.ts`).
-Never mock our own modules.
+Fake only those boundaries, time (`setSystemTime`) and outbound alerts
+(`apps/api/test/fixtures/shoutrrr.ts`). Never mock our own modules.
 
 ## Anti-patterns
 
