@@ -105,6 +105,9 @@ test("login returns to a same-origin next, else /", async () => {
         ["//evil.test/x", "/"],
         ["/\\evil.test/x", "/"],
         ["https://evil.test/x", "/"],
+        ["http://", "/"],
+        ["http://[", "/"],
+        ["//%5B", "/"],
     ];
     for (const [next, landing] of cases) {
         const flow = await login(
