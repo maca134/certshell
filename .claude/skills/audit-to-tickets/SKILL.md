@@ -27,15 +27,19 @@ They go to local files (step 8) for the user to file as security advisories.
    already covered by an open issue gets that number, not a new issue.
 4. **Draft tickets.** Merge findings that one fix closes. Order them so a
    ticket comes after anything it depends on (a refactor before the fix that
-   uses it). Each ticket fits one PR.
+   uses it). Each ticket fits one PR. Name its seams: the public boundaries
+   its tests observe (a route, the WebSocket, an exported function), each
+   with one line on what it catches. `cut:` tickets with no behaviour
+   change: the existing tests that must stay green.
 5. **Quiz the user** with the draft, numbered:
 
    ```
    <T>. <title> [<labels>] (findings <N>, <N>) blocked by: <T|none>
+      seams: <seam — what it catches>; …
    ```
 
    Ask: is the granularity right (merge or split?), are the blocking edges
-   right, anything to drop? Iterate until the user approves. Nothing is
+   and seams right, anything to drop? Iterate until the user approves. Nothing is
    published before that.
 6. **Labels.** Create `audit` if missing:
    `gh label create audit --color 5319e7 --description "Found by /project-audit"`.
@@ -66,6 +70,9 @@ Where: path:line
 
 ## What to build
 <the Fix from the report, plus anything the grill decided>
+
+## Seams
+- <seam>: <what it catches>
 
 ## Acceptance criteria
 - [ ] <observable outcome, e.g. "POST /x without session → 401">
