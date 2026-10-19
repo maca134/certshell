@@ -47,6 +47,28 @@ const proxyEnv = () =>
         ),
     ) as Record<string, string>;
 
+const decode = (s: string) => {
+    try {
+        return decodeURIComponent(s);
+    } catch {
+        return s;
+    }
+};
+
+/** Userinfo, path segments and query values of `url`, decoded, longest first. */
+function urlParts(url: string) {
+    try {
+        const u = new URL(url);
+        return [u.username, u.password, ...u.pathname.split("/")]
+            .map(decode)
+            .concat([...u.searchParams.values()])
+            .filter(Boolean)
+            .sort((a, b) => b.length - a.length);
+    } catch {
+        return [];
+    }
+}
+
 export const channelOf = (r: Row): AlertChannel => ({
     id: r.id,
     name: r.name,
@@ -171,7 +193,12 @@ export function alerter({
             error = (err as Error).message;
         }
         // shoutrrr's errors quote the webhook URL, token and all; the URL is write-only (SPEC §3.5).
-        if (error && url) error = error.replaceAll(url, "<url>");
+        if (error && url) {
+            error = error.replaceAll(url, "<url>");
+            // ...and some (telegram, gotify) echo a malformed token on its own.
+            for (const part of urlParts(url))
+                error = error.replaceAll(part, "<redacted>");
+        }
         error &&= error.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>");
         if (error) console.warn(`alert "${row.name}" failed: ${error}`);
         db.run(

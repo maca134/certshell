@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import type { AlertChannel, AlertInput } from "@repo/shared";
@@ -229,6 +229,26 @@ test("failed send: webhook URLs in shoutrrr's error are redacted", async () => {
     const error = 'Post "<url>": dial tcp: lookup failed';
     expect(await res.json()).toEqual({ error });
     expect((await list())[0]?.lastError).toBe(error);
+});
+
+test.each([
+    ["telegram", "telegram://12:SECRETtg@telegram?chats=@c&echo"],
+    ["gotify", "gotify://g.lan/SECRETgo?echo"],
+    ["ntfy query", "ntfy://ntfy.sh/topic?title=SECRET%20nt&echo"],
+])("failed send: %s URL parts echoed alone are redacted", async (_, url) => {
+    await setup();
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+        const id = await create({ url, events: ["host_down"] });
+        expect((await call("POST", `/${id}/test`)).status).toBe(502);
+        const lastError = (await list())[0]?.lastError;
+        expect(lastError).toStartWith("invalid token: ");
+        expect(lastError).not.toContain("SECRET");
+        expect(warn).toHaveBeenCalled();
+        expect(JSON.stringify(warn.mock.calls)).not.toContain("SECRET");
+    } finally {
+        warn.mockRestore();
+    }
 });
 
 test("security events go to channels that picked them", async () => {
