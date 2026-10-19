@@ -59,7 +59,7 @@ cp -r certshell-src/examples/caddy certshell && cd certshell      # or examples/
 cp .env.example .env            # set SSH_DOMAIN, ID_DOMAIN, POCKET_ID_ENCRYPTION_KEY
 
 # Optional but recommended: encrypts the CA key at rest. The container runs as uid 1000.
-mkdir secrets && openssl rand -base64 32 > secrets/ca_password
+mkdir secrets && (umask 077; openssl rand -base64 32 > secrets/ca_password)
 chown 1000:1000 secrets/ca_password && chmod 600 secrets/ca_password
 
 docker compose up -d caddy pocket-id           # or: traefik pocket-id

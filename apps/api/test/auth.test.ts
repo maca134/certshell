@@ -4,7 +4,7 @@ import { createApp } from "../src/app";
 import { loadConfig } from "../src/config";
 import { openDb } from "../src/db";
 import { alerter } from "../src/lib/alerts";
-import { lazyDiscovery } from "../src/lib/oidc";
+import { type GetOidc, lazyDiscovery } from "../src/lib/oidc";
 import { LOGIN_COOKIE, localPath, SESSION_COOKIE } from "../src/routes/auth";
 import { factsCollector } from "../src/ssh/facts";
 import type { TerminalDeps } from "../src/ssh/terminal";
@@ -21,14 +21,11 @@ const config = loadConfig({
 });
 const insecure = { execute: [oidc.allowInsecureRequests] };
 
-let db: ReturnType<typeof openDb>;
-let app: ReturnType<typeof createApp>;
-beforeEach(() => {
-    db = openDb(":memory:");
-    app = createApp({
+const build = (getOidc: GetOidc) =>
+    createApp({
         config,
         db,
-        getOidc: lazyDiscovery(config, insecure),
+        getOidc,
         terminal: {
             db,
             caKey: "",
@@ -45,6 +42,12 @@ beforeEach(() => {
         alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
         facts: factsCollector(db, {} as TerminalDeps),
     });
+
+let db: ReturnType<typeof openDb>;
+let app: ReturnType<typeof createApp>;
+beforeEach(() => {
+    db = openDb(":memory:");
+    app = build(lazyDiscovery(config, insecure));
     app.get("/api/admin/ping", (c) => c.text("pong"));
     idp.nextClaims = {
         sub: "user-1",
@@ -308,30 +311,31 @@ test("IdP down → 503, then retries discovery", async () => {
     const real = lazyDiscovery(config, insecure);
     const flaky = () =>
         ++calls === 1 ? Promise.reject(new Error("down")) : real();
-    app = createApp({
-        config,
-        db,
-        getOidc: flaky,
-        terminal: {
-            db,
-            caKey: "",
-            caPassword: undefined,
-            idleMs: 0,
-            maxMs: 0,
-            taskMs: 0,
-            maxSessions: 0,
-            maxSessionsTotal: 0,
-            live: new Map(),
-            tasks: new Map(),
-            endedAt: new Map(),
-        },
-        alerts: alerter({ db, appUrl: config.appUrl, caPassword: undefined }),
-        facts: factsCollector(db, {} as TerminalDeps),
-    });
+    app = build(flaky);
     const down = await get("/auth/login");
     expect(down.status).toBe(503);
     expect(await down.text()).toContain('href="/auth/login"');
     expect((await get("/auth/login")).status).toBe(302);
+});
+
+test("IdP down at callback → 503 IdP-down page", async () => {
+    const gone = await startMockIdp("cid", "csecret");
+    app = build(
+        lazyDiscovery(
+            loadConfig({
+                APP_URL: "https://ssh.test",
+                OIDC_ISSUER: gone.server.url.href,
+                OIDC_CLIENT_ID: "cid",
+                OIDC_CLIENT_SECRET: "csecret",
+            }),
+            insecure,
+        ),
+    );
+    const flow = await login();
+    gone.server.stop(true);
+    const res = await flow.callback(undefined, flow.loginCookie);
+    expect(res.status).toBe(503);
+    expect(await res.text()).toContain("can't be reached");
 });
 
 test("lazyDiscovery retries after a failure", async () => {
