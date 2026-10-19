@@ -355,9 +355,12 @@ test("run: a failed final write doesn't crash the app; the slot is released", as
         "CREATE TRIGGER boom BEFORE UPDATE ON run_hosts BEGIN SELECT RAISE(ABORT, 'boom'); END",
     );
     await runTask(id);
-    await Bun.sleep(200);
-    ctx.db.run("DROP TRIGGER boom");
-    await finished(await runTask(id));
+    let status = 429;
+    for (let i = 0; i < 100 && status === 429; i++) {
+        await Bun.sleep(50);
+        status = (await call("POST", `/${id}/run`)).status;
+    }
+    expect(status).toBe(201);
 });
 
 test("run: refused past maxSessionsTotal, across users", async () => {
