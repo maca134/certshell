@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import type { AlertChannel, AlertInput } from "@repo/shared";
 import { alerter } from "../src/lib/alerts";
 import { audit } from "../src/lib/audit";
+import { createSession } from "../src/lib/sessions";
+import { SESSION_COOKIE } from "../src/routes/auth";
 import { hostKeyRejected } from "../src/ssh/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 
@@ -326,12 +328,12 @@ test("terminal event: mentions and links in the email arrive defused", async () 
     audit(ctx.db, {
         event: "session_start",
         sub: "u",
-        email: "<!here> @channel [x](https://evil.test)",
+        email: "<!here> _@channel [x](https://evil.test)\nfake\u0007line",
         principal: "ws:h1:root",
         session: "s1",
     });
     expect((await sent(1))[0]?.args[2]).toBe(
-        "CertShell: ‹!here› @​channel [x]​(https://evil.test) opened root@h1",
+        "CertShell: ‹!here› _@\u200bchannel [x]\u200b(https://evil.test) fake line opened root@h1",
     );
 });
 
@@ -382,30 +384,31 @@ test("task_failed: one alert when the last host finishes, only if one failed", a
     );
 });
 
-test("task_failed: mentions and links in the task name arrive defused", async () => {
+test("task_failed: mentions and links in the task name and email arrive defused", async () => {
     await setup({ command: () => ["sh", "-c", "exit 1"] });
     await create({ events: ["task_failed"] });
-    const headers = {
-        cookie: ctx.cookie,
-        origin: APP_URL,
-        "content-type": "application/json",
-    };
-    const res = await ctx.app.request(`${APP_URL}/api/tasks`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
+    const cookie = `${SESSION_COOKIE}=${createSession(ctx.db, {
+        iss: "https://id.test",
+        sub: "user-2",
+        email: "<!channel>\n_@here",
+        groups: ["certshell-admins"],
+    })}`;
+    const { id } = await post(
+        "",
+        {
             name: "<!channel> <https://evil.test|x>",
             script: "true",
             targets: [{ host: "h1", login: "root" }],
-        }),
-    });
-    const { id } = (await res.json()) as { id: number };
-    await ctx.app.request(`${APP_URL}/api/tasks/${id}/run`, {
-        method: "POST",
-        headers,
-    });
-    expect((await sent(1))[0]?.args[2]).toBe(
+        },
+        cookie,
+    );
+    const runId = (await post(`/${id}/run`, {}, cookie)).id;
+    const [s] = await sent(1);
+    expect(s?.args[2]).toBe(
         'CertShell: task "‹!channel› ‹https://evil.test|x›" failed on 1 of 1 host',
+    );
+    expect(s?.body).toBe(
+        `Run by ‹!channel› _@\u200bhere.\nroot@h1: exit 1\nhttps://ssh.test/tasks/runs/${runId}`,
     );
 });
 
