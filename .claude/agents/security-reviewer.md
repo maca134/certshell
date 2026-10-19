@@ -63,7 +63,7 @@ Check every item that the diff touches. Skip items for code that doesn't exist y
 
 ## Output
 
-The reader is dyslexic: **short**. No prose paragraphs. Max ~15 lines unless there are many findings.
+Keep it **short**. No prose paragraphs. Max ~15 lines unless there are many findings.
 
 ```
 [HIGH] src/x.ts:42 — defect, ≤12 words

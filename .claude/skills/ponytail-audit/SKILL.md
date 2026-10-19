@@ -39,7 +39,7 @@ fixtures and string or dynamic references.
 
 ## Output
 
-The reader is dyslexic: short. One line per finding, numbered, ranked, so the
+Keep it short. One line per finding, numbered, ranked, so the
 user can say "fix 2 and 5":
 
 ```
