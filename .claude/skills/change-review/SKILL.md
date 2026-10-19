@@ -1,13 +1,14 @@
 ---
 name: change-review
 description: >
-  Reviews CertShell changes since a fixed point (default `origin/main`) on
-  separate axes run in parallel sub-agents: Standards (CLAUDE.md,
-  CONTRIBUTING.md, code smells), Spec (does it do what the issue / SPEC.md
-  asked), and Security (`security-reviewer`, when sensitive paths changed).
-  Use when the user says "change-review", "/change-review", "review my
-  branch", "review since X", or when `/implement` or `/implement-spec`
-  calls it. Reports findings, applies nothing.
+  Checks a CertShell branch against its issue / SPEC.md and the repo's
+  CLAUDE.md rules, on separate axes run in parallel sub-agents: Standards
+  (CLAUDE.md, CONTRIBUTING.md, code smells), Spec (missing, unasked or wrong
+  vs the issue / SPEC.md), and Security (`security-reviewer`, when sensitive
+  paths changed). Default base `origin/main`. Use when the user says
+  "change-review", "/change-review", "does this match the issue", "review
+  against the spec", "review since X", or when `/implement` or
+  `/implement-spec` calls it. Reports findings, applies nothing.
 ---
 
 Review `git diff <base>...HEAD` on separate axes, side by side:
