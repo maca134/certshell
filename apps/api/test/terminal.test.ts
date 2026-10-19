@@ -160,6 +160,29 @@ test("terminal: process exit closes the socket", async () => {
     expect([code, reason]).toEqual([1000, "exited"]);
 });
 
+test("terminal: a failed session_end audit still closes the socket", async () => {
+    await setup({ command: () => ["sh", "-c", "echo bye"] });
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE INSERT ON audit WHEN NEW.event = 'session_end' BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    const { code, reason } = await ctx.connect("host=h1&login=root").closed;
+    expect([code, reason]).toEqual([1000, "exited"]);
+});
+
+test("terminal: a failed session_start audit leaves no key dir and frees the slot", async () => {
+    await setup({ maxSessions: 1 });
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE INSERT ON audit WHEN NEW.event = 'session_start' BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    expect((await ctx.connect("host=h1&login=root").closed).code).toBe(1011);
+    expect(existsSync(sessionDir)).toBe(false);
+    ctx.db.run("DROP TRIGGER boom");
+    const t = ctx.connect("host=h1&login=root");
+    await t.waitFor("login=root");
+    t.ws.close();
+    await t.closed;
+});
+
 test("terminal: past maxSessions → 1013 until a session ends", async () => {
     await setup({ maxSessions: 1 });
     const first = ctx.connect("host=h1&login=root");
