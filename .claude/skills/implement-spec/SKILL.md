@@ -40,6 +40,23 @@ Sec tickets live in `.audit/`, never on GH, so they're never in the graph.
 Talk to sub-agents in pointers: issue numbers, file paths, commit SHAs,
 the notes dir. Don't paste what they can read.
 
+## Progress
+
+Every message to the user while it runs starts with this panel, plain code
+block, no emoji or table. Bar: one cell per ticket, `█` per merged; omit
+empty rows.
+
+```
+spec #<N>  [██░░░░░░░░░░░░] <merged>/<total> merged
+merged:   #n #n
+merging:  #n
+waiting:  #n            (built, queued for the merger)
+running:  #n #n #n
+queued:   #n #n …
+stuck:    #n — <why>
+then:     review → security pass → PR
+```
+
 ## Steps
 
 1. **Read** every ticket and its edges; print the graph as
