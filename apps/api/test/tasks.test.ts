@@ -317,7 +317,7 @@ test("run: killed after taskMs", async () => {
     expect(run.hosts[0]?.output).toContain("[timed out]");
 });
 
-test("run: keeps the last 256 KB of output", async () => {
+test("run: keeps the last 256K characters of output", async () => {
     await setup();
     const run = await finished(
         await startRun(
