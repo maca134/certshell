@@ -27,7 +27,9 @@ a checklist item) → ask which.
 
 **Sec tickets never leave this machine** until the user says so: local
 branch, no push, no PR (SECURITY.md: the fix would disclose the bug before
-release). Same for any issue whose fix turns out to be a vulnerability.
+release). Same for any issue whose fix turns out to be a vulnerability
+that should stay private: knowing about it could get someone a cert, the
+CA key, a login or a session.
 
 ## Steps
 
@@ -52,8 +54,9 @@ release). Same for any issue whose fix turns out to be a vulnerability.
 6. **Verify.** `bun run verify` must pass. After 3 failed fix attempts,
    stop before pushing: `verify: fail`, and report what fails.
 7. **Vuln gate.** If the review, tests or your own reading show the bug is
-   a vulnerability, switch to sec-ticket rules (local only) and ask the
-   user before anything is pushed.
+   a vulnerability that should stay private (see above), switch to
+   sec-ticket rules (local only) and ask the user before anything is
+   pushed.
 8. **PR** (not for sec tickets): `git push -u origin HEAD`, then
    `gh pr create` with a body: what changed, how it was tested, and
    `Closes #N` when the input was an issue. Never push to `main`. A PR for
