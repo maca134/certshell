@@ -160,3 +160,14 @@ test("admin: oversized body rejected", async () => {
     });
     expect(res.status).toBe(413);
 });
+
+test("static: favicon cached a day", async () => {
+    ctx = await startApp();
+    const get = (path: string, headers: Record<string, string> = {}) =>
+        fetch(`${ctx?.server.url}${path.slice(1)}`, {
+            headers: { cookie: ctx?.cookie ?? "", ...headers },
+        });
+    expect((await get("/favicon.svg")).headers.get("cache-control")).toBe(
+        "public, max-age=86400",
+    );
+});
