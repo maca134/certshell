@@ -25,10 +25,12 @@ A **seam** is the public boundary a test observes: a route
 **Test only at agreed seams.** Before the first test, list the seams, each
 with one line on what it catches and what it misses, and get them confirmed:
 
-- Called directly: ask the user once.
-- Called from `/implement`: it already confirmed them; state them and go.
-- Called from an `/implement-spec` implementer: the seams come from the
-  ticket. No seams in the ticket → stop and report; don't invent them.
+- The invoking prompt or ticket lists seams → they're confirmed; state
+  them and go (`/implement` confirmed them already; `/implement-spec`
+  tickets carry them).
+- Otherwise, called by the user directly → ask them once.
+- Otherwise, inside an `/implement-spec` implementer → stop and report
+  `BLOCKED: no seams in ticket #<n>`; don't invent them.
 
 ## Where tests go
 
@@ -50,10 +52,11 @@ Use the real thing; the helpers already exist:
 - ssh: swap the command through `startApp`'s terminal deps for a local `sh`
   that inspects the real cert (`fakeSsh` in `apps/api/test/terminal.test.ts`).
 - Real target host only for sshd-side behaviour: `apps/api/test/ssh-target.test.ts`,
-  skipped unless `SSH_TARGET` is set; its line 2 has the compose command.
+  skipped unless `SSH_TARGET` is set; its header comment has the compose command.
 
-Fake only those boundaries, time (`setSystemTime`) and outbound alerts
-(`apps/api/test/fixtures/shoutrrr.ts`). Never mock our own modules.
+The only fakes: ssh (above), the OIDC IdP (`startMockIdp`), time
+(`setSystemTime`) and outbound alerts (`apps/api/test/fixtures/shoutrrr.ts`).
+Never mock our own modules.
 
 ## Anti-patterns
 
@@ -68,10 +71,18 @@ Fake only those boundaries, time (`setSystemTime`) and outbound alerts
 
 ## Loop rules
 
-- **Red first.** Write one failing test, watch it fail for the right reason,
-  then write just enough code to pass.
+- **Red first.** Write one failing test, watch it fail for the right reason
+  (its assertion fails, not a compile, import or setup error), then write
+  just enough code to pass.
 - **One slice per cycle**: one seam, one test, the minimal code.
-- **No refactoring in the loop.** Refactor in the review-fix step, after
-  `/change-review`.
+- **No refactoring in the loop.** Called from `/implement` or
+  `/implement-spec`: refactor in their review-fix step, after
+  `/change-review`. Called directly: one refactor pass once everything is
+  green, keeping it green.
 - Security behaviour (authz, input checks, headers, rate limits, audit
   events) gets a test that fails without the check.
+
+## Done when
+
+Every agreed seam has a passing test, `bun run verify` passes, and `bun run e2e`
+passes if you touched `apps/web/e2e/` or the flows it covers.
