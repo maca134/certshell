@@ -177,7 +177,7 @@ export async function openTerminal(
 ) {
     const { sessionId, principal, dir, key, knownHosts, log } =
         await signSession(deps, user, host, login, ip);
-    let proc: Bun.Subprocess;
+    let proc: Bun.Subprocess | undefined;
     try {
         proc = Bun.spawn(sshArgv(deps, { key, knownHosts, log, login, host }), {
             // ssh forwards TERM to the remote pty; the container has none, so curses apps like top exit.
@@ -188,11 +188,6 @@ export async function openTerminal(
                 data: (_t, data) => handlers.onData(data),
             },
         });
-    } catch (err) {
-        await rm(dir, { recursive: true, force: true });
-        throw err;
-    }
-    try {
         audit(deps.db, {
             event: "session_start",
             sub: user.sub,
@@ -201,7 +196,8 @@ export async function openTerminal(
             session: sessionId,
         });
     } catch (err) {
-        proc.kill();
+        proc?.kill();
+        await proc?.exited;
         await rm(dir, { recursive: true, force: true });
         throw err;
     }
