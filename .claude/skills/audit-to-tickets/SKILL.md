@@ -4,7 +4,8 @@ description: >
   Files the findings from the latest `/project-audit` report as GitHub
   issues: a parent issue per audit with one sub-issue per ticket. Use when
   the user says "audit-to-tickets", "/audit-to-tickets", or "file the audit
-  findings". Security findings are never filed.
+  findings". Security findings are never filed; they're written to local
+  ticket files in `.audit/` instead.
 disable-model-invocation: true
 ---
 
@@ -12,6 +13,7 @@ Turn the latest `.audit/*.md` report into GitHub issues on this repo.
 
 The repo is **public** and SECURITY.md says security bugs never go in public
 issues. **Never file a `sec:` finding**, nor put its details in any issue.
+They go to local files (step 8) for the user to file as security advisories.
 
 ## Steps
 
@@ -48,8 +50,12 @@ issues. **Never file a `sec:` finding**, nor put its details in any issue.
    - Blocking: `gh api -X POST repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by -F issue_id=<blocker database id>`;
      if that fails, keep the `Blocked by:` line in the body.
    - Get a database id with `gh api repos/{owner}/{repo}/issues/<n> --jq .id`.
-8. **Write back** each issue number into the matching finding's `Issue:` line
-   (`Issue: #<n>`), so a re-run doesn't double-file.
+8. **Sec tickets.** For each set-aside `sec:` finding, write the ticket body
+   below to `.audit/<report-ts>/<NN>-<slug>.md` (NN = finding number, slug =
+   kebab title). Never overwrite an existing file: the user may have edited it.
+9. **Write back** each issue number, or sec file path, into the matching
+   finding's `Issue:` line (`Issue: #<n>` / `Issue: .audit/<report-ts>/<NN>-<slug>.md`),
+   so a re-run doesn't double-file.
 
 ## Ticket body
 
@@ -76,11 +82,11 @@ No AI-generated note, no attribution lines.
 ```
 parent: #<n>
 <T>. #<n> <title>
-skipped (sec, file via security advisories): <N>, <N> | none
+sec (file via security advisories): .audit/<report-ts>/<NN>-<slug>.md … | none
 already filed: <N> → #<n> | none
 ```
 
 ## Boundaries
 
-Files issues, nothing else: no code changes, no advisories, no closing or
-editing existing issues.
+Files issues and writes sec ticket files, nothing else: no code changes, no
+advisories, no closing or editing existing issues.
