@@ -40,6 +40,15 @@ const SEND_TIMEOUT_MS = 30_000;
 /** Failed port-22 checks in a row before a host counts as offline. */
 const DOWN_AFTER = 2;
 
+// One text goes to every service: lookalikes and zero-width spaces stop Slack `<!channel>`/`<url|x>`, `@channel` and markdown links without showing escapes in plain-text ones.
+const defuse = (s: string) =>
+    s
+        .replaceAll("<", "‹")
+        .replaceAll(">", "›")
+        .replace(/(?!\n)\p{Cc}/gu, " ")
+        .replace(/(?<![A-Za-z0-9])@/g, "@\u200b")
+        .replaceAll("](", "]\u200b(");
+
 const proxyEnv = () =>
     Object.fromEntries(
         Object.entries(process.env).filter(
@@ -255,7 +264,12 @@ export function alerter({
             .get(String(id));
     const hostName = (e: AuditInput) =>
         (e.name as string | undefined) ?? host(e.host)?.name ?? String(e.host);
-    const who = (e: AuditInput) => String(e.email ?? e.sub ?? "someone");
+    // User-set text (task name, IdP-editable email): a newline could forge alert lines, a URL would autolink.
+    const userText = (s: unknown) =>
+        String(s)
+            .replace(/[\n\u2028\u2029]/g, " ")
+            .replaceAll("://", ":/\u200b/");
+    const who = (e: AuditInput) => userText(e.email ?? e.sub ?? "someone");
 
     function securityMessage(e: AuditInput): Message {
         const lines = [
@@ -272,7 +286,7 @@ export function alerter({
                 ),
             );
         if (e.event === "session_kill" || e.event === "user_signout")
-            lines.push(`User: ${e.user}`);
+            lines.push(`User: ${userText(e.user)}`);
         lines.push(new URL("/admin/audit", appUrl).href);
         return {
             title: `CertShell: ${SECURITY_TITLES[e.event]?.(e, hostName(e))}`,
@@ -304,9 +318,9 @@ export function alerter({
             >("SELECT name, email, sub FROM runs WHERE id = ?")
             .get(runId);
         return {
-            title: `CertShell: task "${run?.name}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
+            title: `CertShell: task "${userText(run?.name)}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
             body: [
-                `Run by ${run?.email ?? run?.sub}.`,
+                `Run by ${who({ event: "", email: run?.email, sub: run?.sub })}.`,
                 ...failed.map(
                     (h) =>
                         `${h.login}@${h.host_name}: ${h.exit_code === null ? "didn't finish" : `exit ${h.exit_code}`}`,
@@ -356,6 +370,7 @@ export function alerter({
             };
         } else return;
         if (!msg) return;
+        msg = { title: defuse(msg.title), body: defuse(msg.body) };
         for (const row of rows()) {
             const c = channelOf(row);
             if (c.events.includes(event) && matches(c)) void send(row, msg);
