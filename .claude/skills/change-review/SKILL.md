@@ -2,13 +2,13 @@
 name: change-review
 description: >
   Checks a CertShell branch against its issue / SPEC.md and the repo's
-  CLAUDE.md rules, on separate axes run in parallel sub-agents: Standards
-  (CLAUDE.md, CONTRIBUTING.md, code smells), Spec (missing, unasked or wrong
-  vs the issue / SPEC.md), and Security (`security-reviewer`, when sensitive
-  paths changed). Default base `origin/main`. Use when the user says
-  "change-review", "/change-review", "does this match the issue", "review
-  against the spec", "review since X", or when `/implement` or
-  `/implement-spec` calls it. Reports findings, applies nothing.
+  CLAUDE.md rules. Use when the user says "change-review", "/change-review",
+  "does this match the issue", "review against the spec", "review since X",
+  or when `/implement` or `/implement-spec` calls it. Separate axes in
+  parallel sub-agents: Standards (CLAUDE.md, CONTRIBUTING.md, code smells),
+  Spec (missing, unasked or wrong), Security (`security-reviewer`, when
+  sensitive paths changed). Default base `origin/main`. Not a bug hunt (that's
+  the built-in `/code-review`). Reports findings, applies nothing.
 ---
 
 Review `git diff <base>...HEAD` on separate axes, side by side:
@@ -24,11 +24,13 @@ Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
 
 ## Steps
 
-1. **Pin the base.** Whatever the user named (SHA, branch, tag, `HEAD~3`),
-   else `origin/main`. `git fetch -q origin`, then `git rev-parse <base>`
-   must resolve and `git diff <base>...HEAD` must be non-empty; fail here,
-   not in the sub-agents. If `git status --porcelain` shows changes, say they
-   aren't reviewed (commit first). Note `git log <base>..HEAD --oneline`.
+1. **Pin the range.** Base = whatever the user named (SHA, branch, tag,
+   `HEAD~3`), else `origin/main`. `git fetch -q origin` (if it fails, warn
+   and use local refs). Resolve both ends once: `B=$(git merge-base <base> HEAD)`,
+   `H=$(git rev-parse HEAD)`; every axis reviews `git diff $B..$H`, so all
+   see the same tree. Empty diff or bad ref → fail here, not in the
+   sub-agents. If `git status --porcelain` shows changes, continue and list
+   those paths as not reviewed. Note `git log $B..$H --oneline`.
 2. **Find the spec**, in order:
    - `#N` / `Closes #N` in commit messages or the branch's PR body
      (`gh pr view --json body`): `gh issue view <N>`, plus its parent
@@ -41,20 +43,23 @@ Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
    `Dockerfile`, `compose*.yaml` or `.github/workflows/`.
 4. **Spawn the axes in parallel**: launch all of them in one message and
    wait for every report before writing the output. Each prompt carries the
-   diff command, commit list, its brief below, and its line format from
-   Output pasted in literally (sub-agents can't see this file).
+   diff command with both SHAs, commit list, its brief below, its line
+   format from Output pasted in literally (sub-agents can't see this file),
+   and: "Read-only: edit, stage and commit nothing." Can't spawn sub-agents
+   → run the axes one after another yourself and say isolation was reduced.
 5. **Report** (see Output). Don't merge, dedupe or re-rank across axes.
 
 ## Standards brief
 
 Sources: `CLAUDE.md`, `CONTRIBUTING.md`, the neighbouring code's patterns.
+The list below is a reminder; where it differs from CLAUDE.md, CLAUDE.md wins.
 Skip anything Biome (`bun run lint`) or `tsc` enforces. A documented repo
 rule beats the smells below; where the repo endorses something a smell
 would flag, drop the smell.
 
 Repo rules worth checking by hand:
 
-- Tests come with every feature and fix, in `apps/*/test/` or `apps/web/e2e/`, ending `.test.ts`.
+- Tests come with every feature and fix, in `apps/*/test/` or `apps/web/e2e/`, ending `.test.<ext>`.
 - No `find`/`grep` in tests (Bun `Glob` instead).
 - Comments only where the next reader would otherwise spend several tool calls; a paragraph justifying a workaround means the code is wrong.
 - Nothing changed beyond what was asked.
@@ -76,13 +81,13 @@ Pass the spec contents (issue body, ticket file, or agreed plan) and SPEC.md.
 
 Brief: "Report (a) asked-for requirements missing or partial, (b) behaviour
 in the diff nobody asked for, (c) requirements that look done but are
-wrong. Quote the spec line for each, one line each in the format below.
-Under 400 words."
+wrong. Quote the spec line for each (`spec: none` for unasked behaviour),
+one line each in the format below. Under 400 words."
 
 ## Security axis
 
-Launch the `security-reviewer` agent on `<base>...HEAD`. Pass its findings
-through as they come.
+Launch the `security-reviewer` agent on `$B..$H`. Rewrite each of its
+findings into the Security line format, keeping its severity.
 
 ## Output
 
@@ -91,15 +96,19 @@ through as they come.
 <N>. [hard|judgement] <rule or smell>: <defect>. <fix>. [path:line]
 
 ## Spec
-<N>. [missing|unasked|wrong] <defect>. <fix>. [path:line] (spec: "<quote>")
+<N>. [missing|unasked|wrong] <defect>. <fix>. [path:line] (spec: "<quote>" | none)
 
 ## Security
-<security-reviewer findings | not run: no sensitive paths changed>
+<N>. [CRIT|HIGH|MED|LOW] <defect>. <fix>. [path:line]
+(or: not run: no sensitive paths changed)
 ```
 
-Number findings across the whole report so the user can say "fix 2 and 5".
-End with one line per axis: `<axis>: <count> findings, worst: <N>` (or
-`clean`). Never pick a winner across axes.
+Number findings across the whole report, Security included, so the user
+can say "fix 2 and 5". End with one line per axis:
+`<axis>: <count> findings, worst: #<N>` (or `clean`), where worst is the
+finding number of the most serious one in that axis: `hard` > `judgement`;
+`wrong` > `missing` > `unasked`; CRIT > HIGH > MED > LOW. Never pick a
+winner across axes.
 
 ## Boundaries
 
