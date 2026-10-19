@@ -278,6 +278,23 @@ test.each([
     }
 });
 
+test("failed send: a token straddling the 500-char cut is redacted whole", async () => {
+    await setup();
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+        const id = await create({
+            url: "gotify://g.lan/SECRETpadtoken?echo&pad",
+            events: ["host_down"],
+        });
+        expect((await call("POST", `/${id}/test`)).status).toBe(502);
+        const lastError = (await list())[0]?.lastError;
+        expect(lastError).toEndWith("invalid token: <redacted>");
+        expect(lastError).not.toContain("SECRET");
+    } finally {
+        warn.mockRestore();
+    }
+});
+
 test("failed send: short URL parts are redacted as whole words only", async () => {
     await setup();
     const warn = spyOn(console, "warn").mockImplementation(() => {});

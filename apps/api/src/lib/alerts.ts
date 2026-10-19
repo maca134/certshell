@@ -187,8 +187,7 @@ export function alerter({
                                 l &&
                                 !/^(Reading from STDIN|Read \d+ byte)/.test(l),
                         )
-                        .join(" ")
-                        .slice(0, 500) || `shoutrrr exited ${code}`;
+                        .join(" ") || `shoutrrr exited ${code}`;
         } catch (err) {
             error = (err as Error).message;
         }
@@ -209,7 +208,9 @@ export function alerter({
                               "<redacted>",
                           );
         }
-        error &&= error.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>");
+        error &&= error
+            .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>")
+            .slice(0, 500);
         if (error) console.warn(`alert "${row.name}" failed: ${error}`);
         try {
             db.run(
