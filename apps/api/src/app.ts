@@ -184,7 +184,15 @@ export function createApp({
             },
         }),
     );
-    app.get("/favicon.svg", serveStatic({ root: WEB_DIST }));
+    app.get(
+        "/favicon.svg",
+        serveStatic({
+            root: WEB_DIST,
+            onFound: (_path, c) => {
+                c.header("Cache-Control", "public, max-age=86400");
+            },
+        }),
+    );
     // Client-side routes (apps/web/src/App.tsx) all get the SPA shell.
     for (const path of ["/", "/admin/*", "/ssh/*", "/tasks/*"])
         app.get(path, async (c) => {
