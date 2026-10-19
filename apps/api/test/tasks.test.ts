@@ -375,7 +375,7 @@ test("run: a failed audit → 500 and the ssh slots are released", async () => {
     await finished(await runTask(id));
 });
 
-test("run: a failed final write doesn't crash the app; the slot is released", async () => {
+test("run: a failed final write doesn't crash the app; the slot is released and task_end audited", async () => {
     await setup({ maxSessions: 1 });
     const id = await createTask("true", h1root);
     ctx.db.run(
@@ -390,6 +390,17 @@ test("run: a failed final write doesn't crash the app; the slot is released", as
         status = (await call("POST", `/${id}/run`)).status;
     }
     expect(status).toBe(201);
+    for (
+        let i = 0;
+        i < 50 && !events().some((e) => e.event === "task_end");
+        i++
+    )
+        await Bun.sleep(20);
+    expect(events().find((e) => e.event === "task_end")).toMatchObject({
+        host: "h1",
+        login: "root",
+        status: "ok",
+    });
 });
 
 test("run: refused past maxSessionsTotal, across users", async () => {
