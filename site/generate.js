@@ -19,7 +19,18 @@ export function generate({
         traefik: " behind Traefik (Let's Encrypt)",
         none: "",
     }[proxy];
-    let c = `# CertShell${pid ? " + Pocket ID" : ""}${title}. Setup steps: README.md → Quick start.\nname: certshell\n\nservices:\n`;
+    const proxyImage = { caddy: "caddy:2.11", traefik: "traefik:v3.7" }[proxy];
+    const pinNote = proxyImage
+        ? `# Images use minor tags so \`docker compose pull\` picks up security fixes. To pin by digest
+# (image: ${proxyImage}@sha256:…), also have Renovate/Dependabot bump them, or you stay on old versions.
+`
+        : "";
+    let c = `# CertShell${pid ? " + Pocket ID" : ""}${title}. Setup steps: README.md → Quick start.\n${pinNote}name: certshell\n\nservices:\n`;
+
+    const proxyHardening = `    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+`;
 
     const proxyNet = `    networks:
       default:
@@ -31,8 +42,11 @@ ${pid ? `      ID_DOMAIN: \${ID_DOMAIN}\n` : ""}`;
 
     if (proxy === "caddy") {
         c += `  caddy:
-    image: caddy:2.11
+    image: ${proxyImage}
     restart: unless-stopped
+${proxyHardening}    # Stricter: read-only rootfs. Caddy writes its autosaved config to /config.
+    # read_only: true
+    # tmpfs: ["/config", "/tmp"]
 ${proxyEnv}    volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -42,8 +56,10 @@ ${proxyNet}
         files.Caddyfile = `{$SSH_DOMAIN} {\n\treverse_proxy certshell:3000\n}\n${pid ? "\n{$ID_DOMAIN} {\n\treverse_proxy pocket-id:1411\n}\n" : ""}`;
     } else if (proxy === "traefik") {
         c += `  traefik:
-    image: traefik:v3.7
+    image: ${proxyImage}
     restart: unless-stopped
+${proxyHardening}    # Stricter: read-only rootfs. Traefik only writes acme.json, which is on the letsencrypt volume.
+    # read_only: true
 ${proxyEnv}    command:
       - --providers.file.filename=/etc/traefik/routes.yml
       - --entrypoints.web.address=:80
