@@ -585,6 +585,56 @@ test("delete host: drops host, access and tokens; users lose it", async () => {
     ).toHaveLength(2);
 });
 
+test("host, enroll and alert writes are audited", async () => {
+    await admin();
+    const { id } = await createHost();
+    const before = ctx.db.query("SELECT id FROM audit").all().length;
+    expect(
+        (await call("PATCH", `/api/admin/hosts/${id}`, { name: "web2" }))
+            .status,
+    ).toBe(204);
+    const res = await call("POST", `/api/admin/hosts/${id}/snippet`);
+    const token = tokenOf(((await res.json()) as { snippet: string }).snippet);
+    expect(
+        (
+            await call("PUT", `/api/admin/hosts/${id}/access`, [
+                { login: "root", group: "certshell-admins" },
+            ])
+        ).status,
+    ).toBe(204);
+    expect((await enroll(token, await hostKey())).status).toBe(204);
+    const alert = {
+        name: "ops",
+        url: "ntfy://ntfy.sh/topic",
+        events: ["terminal"],
+        tags: [],
+        logins: [],
+    };
+    const created = await call("POST", "/api/admin/alerts", alert);
+    const alertId = ((await created.json()) as { id: number }).id;
+    expect(
+        (await call("PUT", `/api/admin/alerts/${alertId}`, alert)).status,
+    ).toBe(204);
+    expect((await call("DELETE", `/api/admin/alerts/${alertId}`)).status).toBe(
+        204,
+    );
+    expect(
+        ctx.db
+            .query<{ event: string }, []>("SELECT event FROM audit ORDER BY id")
+            .all()
+            .slice(before)
+            .map((r) => r.event),
+    ).toEqual([
+        "host_update",
+        "enroll_snippet",
+        "access_update",
+        "enroll",
+        "alert_create",
+        "alert_update",
+        "alert_delete",
+    ]);
+});
+
 test("removal snippet deletes exactly the files the enroll script writes", async () => {
     const snippet = renderSnippet({
         appUrl: "https://x",
