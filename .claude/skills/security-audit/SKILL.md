@@ -66,8 +66,7 @@ Nothing found: `No findings. Ship.`
 
 ## Grill
 
-After the report, grill the user on the findings. Skip this when run as a
-sub-agent (e.g. by `/audit-fix`): return the list only.
+After the report, grill the user on the findings.
 
 The decisions are the user's calls on findings: real bug or §3.3 accepted
 risk, severity, fix the code or update SPEC.md, which of several fixes.
