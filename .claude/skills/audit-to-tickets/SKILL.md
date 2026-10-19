@@ -4,24 +4,27 @@ description: >
   Files the findings from the latest `/project-audit` report as GitHub
   issues: a parent issue per audit with one sub-issue per ticket. Use when
   the user says "audit-to-tickets", "/audit-to-tickets", or "file the audit
-  findings". Security findings are never filed; they're written to local
-  ticket files in `.audit/` instead.
+  findings". Private security findings are never filed; they're written to
+  local ticket files in `.audit/` instead.
 disable-model-invocation: true
 ---
 
 Turn the latest `.audit/*.md` report into GitHub issues on this repo.
 
-The repo is **public** and SECURITY.md says security bugs never go in public
-issues. **Never file a `sec:` finding**, nor put its details in any issue.
-They go to local files (step 8) for the user to file as security advisories.
+The repo is **public**. A `sec:` finding with `Disclosure: private`
+(knowing about it could get someone a cert, the CA key, a login or a
+session) is **never filed**, nor its details put in any issue: it goes to a local file
+(step 8) for the user to file as a security advisory. A `sec:` finding with
+no `Disclosure:` line counts as private. `Disclosure: public` ones are filed
+like any other finding.
 
 ## Steps
 
 1. **Read** the newest `.audit/*.md`. Parse each `## <N>. [<SEV>] <area>:<tag> <title>`
-   heading with its `Status:`, `Issue:` and `Where:` lines.
+   heading with its `Status:`, `Issue:`, `Disclosure:` and `Where:` lines.
 2. **Select** findings with `Status:` `confirmed`, `spec` or `cut` and
-   `Issue: none`. Set aside every `sec:` finding. If the report has no
-   statuses yet, stop: the user hasn't finished the `/project-audit` grill.
+   `Issue: none`. Set aside every private `sec:` finding. If the report
+   has no statuses yet, stop: the user hasn't finished the `/project-audit` grill.
 3. **Dedupe.** `gh issue list --state open --label audit --limit 200` and
    `gh issue list --state open --search "<path>"` per finding. A finding
    already covered by an open issue gets that number, not a new issue.
@@ -54,9 +57,9 @@ They go to local files (step 8) for the user to file as security advisories.
    - Blocking: `gh api -X POST repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by -F issue_id=<blocker database id>`;
      if that fails, keep the `Blocked by:` line in the body.
    - Get a database id with `gh api repos/{owner}/{repo}/issues/<n> --jq .id`.
-8. **Sec tickets.** For each set-aside `sec:` finding, write the ticket body
-   below to `.audit/<report-ts>/<NN>-<slug>.md` (NN = finding number, slug =
-   kebab title). Never overwrite an existing file: the user may have edited it.
+8. **Sec tickets.** For each set-aside private `sec:` finding, write the
+   ticket body below to `.audit/<report-ts>/<NN>-<slug>.md` (NN = finding
+   number, slug = kebab title). Never overwrite an existing file: the user may have edited it.
 9. **Write back** each issue number, or sec file path, into the matching
    finding's `Issue:` line (`Issue: #<n>` / `Issue: .audit/<report-ts>/<NN>-<slug>.md`),
    so a re-run doesn't double-file.

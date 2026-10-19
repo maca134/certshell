@@ -186,6 +186,7 @@ same header and footer, and per finding:
 
 Status: open
 Issue: none
+Disclosure: private|public
 Where: path:line[, path:line…]
 
 **What this is:** <the code and what it's for, one or two sentences>
@@ -195,8 +196,8 @@ Where: path:line[, path:line…]
 **Variants:** <other locations, or none>
 ```
 
-Keep the heading, `Status:` and `Issue:` lines exactly in this shape:
-`/audit-to-tickets` parses them.
+`Disclosure:` only on `sec:` findings. Keep the heading, `Status:`, `Issue:`
+and `Disclosure:` lines exactly in this shape: `/audit-to-tickets` parses them.
 
 ## Grill
 
@@ -204,7 +205,10 @@ After the report, grill the user on the findings.
 
 The decisions are the user's calls on findings: real bug or §3.3 accepted
 risk, severity, fix the code or update SPEC.md, cut it or keep it, which of
-several fixes, whether a cut is worth the churn.
+several fixes, whether a cut is worth the churn, and for each `sec:` finding
+whether it's private (advisory) or public (issue). Recommend **private** when
+knowing about it could get someone a cert, the CA key, a login or a
+session; otherwise public.
 
 One question per finding, never a bundle of findings. Each question stands
 alone: its body restates the finding (what, where, the concrete impact) so
@@ -237,8 +241,8 @@ Finding _facts_ is your job, never the user's. When a frontier question needs a 
 
 The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding.
 
-Then set every finding's `Status:` in the report file and re-emit the chat
-list with each marked:
+Then set every finding's `Status:` (and each `sec:` finding's `Disclosure:`)
+in the report file and re-emit the chat list with each marked:
 
 - `confirmed`: real, fix it.
 - `accepted`: real, accepted risk (§3.3) or not worth fixing.

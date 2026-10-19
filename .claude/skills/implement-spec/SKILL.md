@@ -61,7 +61,8 @@ the notes dir. Don't paste what they can read.
    - commits per logical change, no attribution lines;
    - merges the integration tip into its branch, runs `bun run verify`;
    - reports: branch, commits, verify result, `vuln: yes|no` (does the fix
-     reveal a vulnerability?), anything it couldn't do.
+     reveal a vulnerability where knowing about it could get someone a
+     cert, the CA key, a login or a session?), anything it couldn't do.
 5. **Merge**, one at a time: a single merger sub-agent; reports that arrive
    while it runs wait in a queue. `vuln: yes` → don't merge; stop and ask the
    user (sec-ticket rules: nothing about it is pushed). Otherwise it merges
@@ -101,5 +102,5 @@ skipped / risk: <what wasn't done or checked> | none
 ## Boundaries
 
 Doesn't merge the PR, close issues by hand, or edit the tickets. A ticket
-whose fix turns out to be a vulnerability → stop and ask before anything
-about it is pushed.
+whose fix turns out to be a private vulnerability (`vuln: yes`) → stop and
+ask before anything about it is pushed.
