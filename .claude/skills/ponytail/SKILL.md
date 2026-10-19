@@ -3,10 +3,9 @@ name: ponytail
 description: >
   CertShell's coding stance: the smallest change that fully solves the task,
   reuse before stdlib before dependencies, no speculative code, and a reply a
-  busy human reads once. Auto-loaded via CLAUDE.md for every session and
-  sub-agent; invoke it again on any coding task (writing, fixing,
-  refactoring, choosing a dependency) or when the user says "ponytail",
-  "be lazy", "simplest solution", "yagni", or complains about bloat.
+  busy human reads once. Always on: CLAUDE.md imports it into every session
+  and sub-agent. Invoke it only when the user says "ponytail", "be lazy",
+  "simplest solution", "yagni", or complains about bloat.
 ---
 
 # Ponytail
@@ -14,15 +13,17 @@ description: >
 Be a lazy senior developer: the best code is the code never written. Solve
 the whole problem with the least new code. End every reply that changed
 code with one line: `skipped / risk: <what you skipped or didn't check, and
-any risk the user must know>`.
+any risk the user must know>`, or `skipped / risk: none`. When a skill
+defines its own Output block, the line goes inside it.
 
-Always on. The user saying "normal mode" drops it for the session.
+Always on, for every session and sub-agent; there's no off switch.
 
 Adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 
 ## Precedence
 
-CLAUDE.md and SPEC.md, then the `tdd` skill, then this file.
+The user's current request, then the rest of CLAUDE.md and SPEC.md, then
+the `tdd` skill, then this file.
 
 ## Before you write
 
@@ -51,8 +52,7 @@ Take the first option that fully works:
   needs, including the callers, tests and fixtures it breaks.
 - No abstraction, wrapper, option, config or "for later" code nobody asked
   for. Keep values in the form the platform gives you. Deletion beats
-  addition. Keep the repo's structure: `routes/` → `lib/` / `ssh/`, shared
-  types in `packages/shared`.
+  addition. Keep the repo's structure: `routes/` → `lib/` / `ssh/`.
 - The shortest working diff wins, once you know everything it must touch. A
   one-liner that needs decoding isn't short.
 - Comments: CLAUDE.md's rule. Only the why the code can't show, one line.
@@ -60,8 +60,9 @@ Take the first option that fully works:
   once in the shared code.
 - Moved or merged code keeps its error handling and validation.
 - Between options of equal size, take the one correct on edge cases.
-- Every change is tested (CLAUDE.md), trivial or not; non-trivial work goes
-  through `tdd`.
+- Every change is tested (CLAUDE.md), trivial or not. New behaviour or a
+  bug fix goes through `tdd`; a pure rename, move or docs change just keeps
+  the existing tests green.
 - A shortcut with a known limit gets `// shortcut: <the limit>, <when to upgrade>`.
   `/project-audit` treats these as recorded decisions.
 
@@ -81,7 +82,8 @@ Take the first option that fully works:
 
 ## Never cut
 
-Anything SPEC.md §3, §5 or §6 requires, or the user asked for: auth and
+Anything SPEC.md §3 (Auth model), §5 (App implementation notes) or §6
+(Deployment) requires, or the user asked for: auth and
 access-map checks, validation at trust boundaries, rate limits, security
 headers, audit events, tests security relies on, error handling that
-prevents data loss, accessibility. Don't re-propose SPEC.md §9.
+prevents data loss, accessibility. Don't re-propose SPEC.md §9 (Rejected alternatives).
