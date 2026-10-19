@@ -51,6 +51,17 @@ test("new DB: every step applied", () => {
     ]);
 });
 
+test("admin users' unexpired-signs count reads an index, not a scan of signs", () => {
+    const plan = openDb(":memory:")
+        .query<{ detail: string }, []>(
+            "EXPLAIN QUERY PLAN SELECT sub, count(*) AS n FROM signs WHERE created_at > 0 GROUP BY sub",
+        )
+        .all()
+        .map((r) => r.detail)
+        .join("\n");
+    expect(plan).toContain("USING INDEX signs_created");
+});
+
 test("v1.0.0 DB: upgrades in place, data kept; migrating again is a no-op", () => {
     const db = v1Db();
     expect(version(db)).toBe(0);
