@@ -155,6 +155,21 @@ test("tasks: invalid input and targets the user can't reach are refused", async 
     expect(count("tasks")).toEqual({ n: 0 });
 });
 
+test("tasks: at most 100 per user", async () => {
+    await setup();
+    for (let i = 0; i < 100; i++)
+        ctx.db.run(
+            "INSERT INTO tasks (sub, name, script, targets) VALUES ('user-1', 't', 'true', '[]')",
+        );
+    const res = await call("POST", "", {
+        name: "t",
+        script: "true",
+        targets: h1root,
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "at most 100 tasks" });
+});
+
 test("tasks: duplicate targets are saved once", async () => {
     await setup();
     await createTask("true", [...h1root, ...h1root]);
