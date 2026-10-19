@@ -55,17 +55,13 @@ const decode = (s: string) => {
     }
 };
 
-/** Userinfo, plus path segments and query values of 8+ chars (token-like), of `url`, decoded, longest first. */
+/** Userinfo, hostname, path segments and query values of `url`, decoded, longest first. */
 function urlParts(url: string) {
     try {
         const u = new URL(url);
-        const long = (s: string) => s.length >= 8;
-        return [u.username, u.password]
+        return [u.username, u.password, u.hostname, ...u.pathname.split("/")]
             .map(decode)
-            .concat(
-                u.pathname.split("/").map(decode).filter(long),
-                [...u.searchParams.values()].filter(long),
-            )
+            .concat([...u.searchParams.values()])
             .filter(Boolean)
             .sort((a, b) => b.length - a.length);
     } catch {
@@ -200,8 +196,18 @@ export function alerter({
         if (error && url) {
             error = error.replaceAll(url, "<url>");
             // ...and some (telegram, gotify) echo a malformed token on its own.
+            // Short parts (a topic, "1") only as whole words, so they don't shred the message.
             for (const part of urlParts(url))
-                error = error.replaceAll(part, "<redacted>");
+                error =
+                    part.length >= 8
+                        ? error.replaceAll(part, "<redacted>")
+                        : error.replace(
+                              new RegExp(
+                                  `(?<!\\w)${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\w)`,
+                                  "g",
+                              ),
+                              "<redacted>",
+                          );
         }
         error &&= error.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>");
         if (error) console.warn(`alert "${row.name}" failed: ${error}`);

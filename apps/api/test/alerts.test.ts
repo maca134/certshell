@@ -260,6 +260,8 @@ test.each([
     ["telegram", "telegram://12:SECRETtg@telegram?chats=@c&echo"],
     ["gotify", "gotify://g.lan/SECRETgo?echo"],
     ["ntfy query", "ntfy://ntfy.sh/topic?title=SECRET%20nt&echo"],
+    ["pushbullet host", "pushbullet://SECRETpbtoken?echo"],
+    ["short ntfy topic", "ntfy://ntfy.sh/SECRETx?echo"],
 ])("failed send: %s URL parts echoed alone are redacted", async (_, url) => {
     await setup();
     const warn = spyOn(console, "warn").mockImplementation(() => {});
@@ -276,12 +278,12 @@ test.each([
     }
 });
 
-test("failed send: short URL parts aren't redacted out of the error", async () => {
+test("failed send: short URL parts are redacted as whole words only", async () => {
     await setup();
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
         const id = await create({
-            url: "ntfy://ntfy.sh/SECRETtopic?title=token&echo",
+            url: "ntfy://ntfy.sh/SECRETtopic?title=to&echo",
             events: ["host_down"],
         });
         expect((await call("POST", `/${id}/test`)).status).toBe(502);
