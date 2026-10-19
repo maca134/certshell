@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { generate, installCommand } from "../site/generate.js";
 import { highlight } from "../site/highlight.js";
@@ -105,6 +105,15 @@ describe("site one-command install", () => {
         const first = await Bun.file(pw).text();
         await run(script, dir);
         expect(await Bun.file(pw).text()).toBe(first);
+        rmSync(dir, { recursive: true });
+    });
+
+    test("CA password is owner-only even when chown fails", async () => {
+        const { script } = generate({});
+        const dir = mkdtempSync(`${tmpdir()}/certshell-`);
+        await run(`chown() { return 1; }\n${script}`, dir);
+        const { mode } = statSync(`${dir}/certshell/secrets/ca_password`);
+        expect(mode & 0o777).toBe(0o600);
         rmSync(dir, { recursive: true });
     });
 
