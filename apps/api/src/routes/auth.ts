@@ -23,10 +23,13 @@ const cookieOpts = {
 } as const;
 
 /** Same-origin path + query from untrusted input, else "/". */
-function localPath(next: string | undefined) {
+export function localPath(next: string | undefined) {
     const base = "http://local";
     const url = URL.parse(next ?? "/", base);
-    return url?.origin === base ? url.pathname + url.search : "/";
+    // "/.//evil.test" normalises to "//evil.test", which a browser reads as another host.
+    return url?.origin === base && !url.pathname.startsWith("//")
+        ? url.pathname + url.search
+        : "/";
 }
 
 const signInPage = (

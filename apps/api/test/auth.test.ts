@@ -5,7 +5,7 @@ import { loadConfig } from "../src/config";
 import { openDb } from "../src/db";
 import { alerter } from "../src/lib/alerts";
 import { lazyDiscovery } from "../src/lib/oidc";
-import { LOGIN_COOKIE, SESSION_COOKIE } from "../src/routes/auth";
+import { LOGIN_COOKIE, localPath, SESSION_COOKIE } from "../src/routes/auth";
 import { factsCollector } from "../src/ssh/facts";
 import type { TerminalDeps } from "../src/ssh/terminal";
 import { startMockIdp } from "./helpers/mock-idp";
@@ -370,4 +370,14 @@ test("client-side routes serve the SPA shell", async () => {
     }
     expect((await get("/nope", cookie)).status).toBe(404);
     expect((await get("/administrator", cookie)).status).toBe(404);
+});
+
+test("localPath alone rejects paths that normalise to //host", () => {
+    for (const next of [
+        "/.//evil.test/x",
+        "/a/..//evil.test/x",
+        "/%2e//evil.test/x",
+    ])
+        expect(localPath(next)).toBe("/");
+    expect(localPath("/ssh/h1/root?a=1")).toBe("/ssh/h1/root?a=1");
 });
