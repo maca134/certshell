@@ -1,8 +1,8 @@
 ---
-name: change-review
+name: review-code
 description: >
   Checks a CertShell branch against its issue / SPEC.md and the repo's
-  CLAUDE.md rules. Use when the user says "change-review", "/change-review",
+  CLAUDE.md rules. Use when the user says "review-code", "/review-code",
   "does this match the issue", "review against the spec", "review since X",
   or when `/implement` or `/implement-spec` calls it. Separate axes in
   parallel sub-agents: Standards (CLAUDE.md, CONTRIBUTING.md, code smells),

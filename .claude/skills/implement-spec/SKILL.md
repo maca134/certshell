@@ -71,7 +71,7 @@ the notes dir. Don't paste what they can read.
 6. **Advance.** Each merge can widen the frontier: launch implementers for
    newly unblocked tickets, keeping the max of 3. Stop when the frontier is
    empty; tickets left unmerged are **stuck**.
-7. **Review.** Run the `change-review` skill on the integration branch
+7. **Review.** Run the `review-code` skill on the integration branch
    against `origin/main`. One implementer sub-agent, in its own worktree on
    the integration tip like any ticket, fixes every `hard`, `missing`,
    `wrong` and security finding (and the rest unless they contradict a

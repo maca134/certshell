@@ -79,7 +79,7 @@ Never mock our own modules.
 - **One slice per cycle**: one seam, one test, the minimal code.
 - **No refactoring in the loop.** Called from `/implement` or
   `/implement-spec`: refactor in their review-fix step, after
-  `/change-review`. Called directly: one refactor pass once everything is
+  `/review-code`. Called directly: one refactor pass once everything is
   green, keeping it green.
 - Security behaviour (authz, input checks, headers, rate limits, audit
   events) gets a test that fails without the check.

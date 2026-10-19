@@ -42,7 +42,7 @@ release). Same for any issue whose fix turns out to be a vulnerability.
    test files as you go; full suite once at the end.
 4. **Commit** per logical change (test + code for one slice can share a
    commit). No attribution lines.
-5. **Review.** Run the `change-review` skill against `origin/main`. Fix every
+5. **Review.** Run the `review-code` skill against `origin/main`. Fix every
    `hard`, `missing`, `wrong` and security finding; fix `judgement` and
    `unasked` ones unless they contradict the ticket, and list any you skip.
    Fixes are extra commits. The Security axis covered the earlier commits;
