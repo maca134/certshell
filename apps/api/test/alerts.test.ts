@@ -48,6 +48,19 @@ const call = (method: string, path: string, body?: unknown) =>
         body: body === undefined ? undefined : JSON.stringify(body),
     });
 
+const post = async (path: string, body: unknown, cookie = ctx.cookie) =>
+    (await (
+        await ctx.app.request(`${APP_URL}/api/tasks${path}`, {
+            method: "POST",
+            headers: {
+                cookie,
+                origin: APP_URL,
+                "content-type": "application/json",
+            },
+            body: JSON.stringify(body),
+        })
+    ).json()) as { id: number | string };
+
 const input = (over: Partial<AlertInput> = {}): AlertInput => ({
     name: "ops",
     url: "ntfy://ntfy.sh/secret-topic",
@@ -330,32 +343,19 @@ test("task_failed: one alert when the last host finishes, only if one failed", a
         root: "certshell-admins",
     });
     await create({ events: ["task_failed"] });
-    const task = async (script: string) => {
-        const r = await ctx.app.request(`${APP_URL}/api/tasks`, {
-            method: "POST",
-            headers: {
-                cookie: ctx.cookie,
-                origin: APP_URL,
-                "content-type": "application/json",
-            },
-            body: JSON.stringify({
+    const task = async (script: string) =>
+        (
+            await post("", {
                 name: "Upgrade",
                 script,
                 targets: [
                     { host: "h1", login: "root" },
                     { host: "h2", login: "root" },
                 ],
-            }),
-        });
-        return ((await r.json()) as { id: number }).id;
-    };
-    const run = async (id: number) => {
-        const r = await ctx.app.request(`${APP_URL}/api/tasks/${id}/run`, {
-            method: "POST",
-            headers: { cookie: ctx.cookie, origin: APP_URL },
-        });
-        return ((await r.json()) as { id: string }).id;
-    };
+            })
+        ).id;
+    const run = async (id: number | string) =>
+        String((await post(`/${id}/run`, {})).id);
 
     const done = async (runId: string) => {
         for (let i = 0; i < 100; i++) {
