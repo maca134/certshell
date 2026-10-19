@@ -20,6 +20,10 @@
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.15",
-        "@playwright/mcp": "0.0.83"
+        "@playwright/mcp": "0.0.83",
+        "wrangler": "4.147.0"
+    },
+    "overrides": {
+        "sharp": "0.35.5"
     }
 }

@@ -22,7 +22,8 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
       - run: bun test ./test/site.test.ts
       - run: cp README.md docs/pocket-id.md apps/web/public/favicon.svg site/ && mkdir site/docs && cp -r docs/media site/docs/
-      - run: bunx wrangler@4 deploy
+      - run: bun install --frozen-lockfile
+      - run: bun run wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
