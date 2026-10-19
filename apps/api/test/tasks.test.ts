@@ -334,6 +334,32 @@ test("run: refused past maxSessions until running targets end", async () => {
     await finished(await runTask(quick));
 });
 
+test("run: a failed audit → 500 and the ssh slots are released", async () => {
+    await setup({ maxSessions: 2 });
+    const id = await createTask("true", [
+        ...h1root,
+        { host: "h2", login: "root" },
+    ]);
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE INSERT ON audit WHEN NEW.event = 'task_run' BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    expect((await call("POST", `/${id}/run`)).status).toBe(500);
+    ctx.db.run("DROP TRIGGER boom");
+    await finished(await runTask(id));
+});
+
+test("run: a failed final write doesn't crash the app; the slot is released", async () => {
+    await setup({ maxSessions: 1 });
+    const id = await createTask("true", h1root);
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE UPDATE ON run_hosts BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    await runTask(id);
+    await Bun.sleep(200);
+    ctx.db.run("DROP TRIGGER boom");
+    await finished(await runTask(id));
+});
+
 test("run: refused past maxSessionsTotal, across users", async () => {
     await setup({ maxSessionsTotal: 2 });
     const slow = await startRun("sleep 0.3", [
