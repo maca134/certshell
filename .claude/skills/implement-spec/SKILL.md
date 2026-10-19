@@ -81,6 +81,7 @@ spec: #<N> <title> · branch: <name>
 done: #n, #n … · stuck: #n — <why> | none
 review: fixed <n> · skipped: <finding — why> | none
 verify: pass · pr: <url>
+skipped / risk: <what wasn't done or checked> | none
 ```
 
 ## Boundaries

@@ -56,6 +56,7 @@ built: <ticket title>
 branch: <name> · commits: <n> · verify: pass
 review: <fixed n> · skipped: <finding — why> | none
 pr: <url> | local only (sec)
+skipped / risk: <what wasn't done or checked> | none
 ```
 
 ## Boundaries
