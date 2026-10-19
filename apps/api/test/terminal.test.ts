@@ -298,7 +298,7 @@ test("terminal: input that arrives after ssh exited is dropped, not thrown", asy
     await rm(root, { recursive: true, force: true });
 });
 
-test("terminal: '/' and control chars in email can't forge the cert key ID", async () => {
+test("terminal: email chars outside [\\w.@+-] can't forge the cert key ID", async () => {
     await setup({
         command: ({ key }) => [
             "sh",
@@ -310,13 +310,13 @@ test("terminal: '/' and control chars in email can't forge the cert key ID", asy
     const token = createSession(ctx.db, {
         iss: "https://id.test",
         sub: "user-1",
-        email: "v@x/victim/s\nKey ID",
+        email: '"v (serial 1)"@x/victim/s\nKey ID',
         groups: ["admins"],
     });
     const t = ctx.connect("host=h1&login=root", {
         cookie: `${SESSION_COOKIE}=${token}`,
     });
-    await t.waitFor('Key ID: "v@x_victim_s_Key ID/user-1/');
+    await t.waitFor('Key ID: "_v__serial_1__@x_victim_s_Key_ID/user-1/');
     t.ws.close();
 });
 
