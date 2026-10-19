@@ -5,7 +5,8 @@ description: >
   scans the entire tree instead of a diff: a ranked list of vulnerabilities and
   spec violations. Use when the user says "security audit", "audit for
   security", "is this secure", "find vulns", "security-audit", or
-  "/security-audit". One-shot report, does not apply fixes.
+  "/security-audit". Report, then grills the user on findings that need their
+  call. Does not apply fixes.
 ---
 
 security-reviewer, repo-wide. Scan the whole tree instead of a diff. Rank
@@ -63,8 +64,27 @@ net: <C> crit, <H> high, <M> med, <L> low.
 
 Nothing found: `No findings. Ship.`
 
+## Grill
+
+After the report, interview the user relentlessly until every finding is
+settled. Skip this when run as a sub-agent (e.g. by `/audit-fix`): return the
+list only.
+
+- Questions: anything only the user can decide. Real bug or §3.3 accepted
+  risk, severity, fix the code or update SPEC.md, which of several fixes.
+- Order: map which decisions depend on others. A decision that changes other
+  findings (e.g. a SPEC trust assumption) goes first.
+- Rounds: ask every question whose prerequisites are settled in one numbered
+  batch, each with your recommended answer. Word it so "yes" accepts the
+  recommendation. Then wait for replies.
+- Facts vs decisions: look up facts (code, SPEC, git history) yourself, with a
+  sub-agent if needed. Only decisions go to the user.
+- Done when no open questions remain and nothing is silently assumed. Re-emit
+  the list with each finding marked `confirmed`, `accepted`, `dropped` or
+  `spec`, and get the user to confirm it.
+
 ## Boundaries
 
 Security only. Over-engineering, style and performance are out of scope —
 route them to ponytail-audit or a normal review. Lists findings, applies
-nothing. One-shot.
+nothing.
