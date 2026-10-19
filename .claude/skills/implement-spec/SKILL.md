@@ -65,7 +65,10 @@ the notes dir. Don't paste what they can read.
 7. **Review.** All tickets merged → run the `change-review` skill on the
    integration branch against `origin/main`. One implementer sub-agent fixes
    every `hard`, `missing`, `wrong` and security finding (and the rest
-   unless they contradict a ticket), commits, runs verify.
+   unless they contradict a ticket), commits, runs verify. If its commits
+   touch `apps/api/src/`, `Dockerfile`, `compose*.yaml` or
+   `.github/workflows/`, run the `security-reviewer` agent on just those
+   commits and fix what it finds.
 8. **Ready.** `bun run verify` on the integration branch passes →
    `gh pr ready`. Never push to `main`; the user merges.
 9. **Clean up** every implementer worktree and its local branch.

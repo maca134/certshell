@@ -41,7 +41,9 @@ release). Same for any issue whose fix turns out to be a vulnerability.
 5. **Review.** Run the `change-review` skill against `origin/main`. Fix every
    `hard`, `missing`, `wrong` and security finding; fix `judgement` and
    `unasked` ones unless they contradict the ticket, and list any you skip.
-   Fixes are extra commits.
+   Fixes are extra commits. If they touch `apps/api/src/`, `Dockerfile`,
+   `compose*.yaml` or `.github/workflows/`, run the `security-reviewer`
+   agent on just those commits and fix what it finds.
 6. **Verify.** `bun run verify` must pass. Don't report done otherwise.
 7. **PR** (not for sec tickets): `git push -u origin HEAD`, then
    `gh pr create` with a body: what changed, how it was tested, and
