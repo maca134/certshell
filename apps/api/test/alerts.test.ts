@@ -276,6 +276,21 @@ test.each([
     }
 });
 
+test("failed send: short URL parts aren't redacted out of the error", async () => {
+    await setup();
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+        const id = await create({
+            url: "ntfy://ntfy.sh/SECRETtopic?title=token&echo",
+            events: ["host_down"],
+        });
+        expect((await call("POST", `/${id}/test`)).status).toBe(502);
+        expect((await list())[0]?.lastError).toBe("invalid token: <redacted>");
+    } finally {
+        warn.mockRestore();
+    }
+});
+
 test("security events go to channels that picked them", async () => {
     await setup();
     await create({ name: "sec" });

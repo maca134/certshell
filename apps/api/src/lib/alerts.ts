@@ -55,13 +55,17 @@ const decode = (s: string) => {
     }
 };
 
-/** Userinfo, path segments and query values of `url`, decoded, longest first. */
+/** Userinfo, plus path segments and query values of 8+ chars (token-like), of `url`, decoded, longest first. */
 function urlParts(url: string) {
     try {
         const u = new URL(url);
-        return [u.username, u.password, ...u.pathname.split("/")]
+        const long = (s: string) => s.length >= 8;
+        return [u.username, u.password]
             .map(decode)
-            .concat([...u.searchParams.values()])
+            .concat(
+                u.pathname.split("/").map(decode).filter(long),
+                [...u.searchParams.values()].filter(long),
+            )
             .filter(Boolean)
             .sort((a, b) => b.length - a.length);
     } catch {
