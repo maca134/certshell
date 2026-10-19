@@ -38,8 +38,10 @@ Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
    SPEC.md is always context for the Spec axis.
 3. **Security axis needed?** Yes if the diff touches `apps/api/src/`,
    `Dockerfile`, `compose*.yaml` or `.github/workflows/`.
-4. **Spawn the axes in parallel**, foreground, in one message. Each prompt
-   carries the diff command, commit list, and its brief below.
+4. **Spawn the axes in parallel**: launch all of them in one message and
+   wait for every report before writing the output. Each prompt carries the
+   diff command, commit list, its brief below, and its line format from
+   Output pasted in literally (sub-agents can't see this file).
 5. **Report** (see Output). Don't merge, dedupe or re-rank across axes.
 
 ## Standards brief
@@ -65,7 +67,7 @@ Middle Man, Refused Bequest (Fowler, _Refactoring_ ch. 3). Name the smell,
 quote the hunk, give the fix.
 
 Brief: "Report every breach of a repo rule (`hard`, cite file + rule) and
-every smell (`judgement`). Use the finding format given. Under 400 words."
+every smell (`judgement`), one line each in the format below. Under 400 words."
 
 ## Spec brief
 
@@ -73,8 +75,8 @@ Pass the spec contents (issue body, ticket file, or agreed plan) and SPEC.md.
 
 Brief: "Report (a) asked-for requirements missing or partial, (b) behaviour
 in the diff nobody asked for, (c) requirements that look done but are
-wrong. Quote the spec line for each. Use the finding format given. Under
-400 words."
+wrong. Quote the spec line for each, one line each in the format below.
+Under 400 words."
 
 ## Security axis
 
