@@ -1,4 +1,4 @@
-// Fake `shoutrrr send`: appends what it got to the log file in argv[2]. A URL with "fail" in it fails like shoutrrr does; "leak" fails quoting a webhook URL; "echo" fails quoting its SECRET… parts on their own, like telegram/gotify.
+// Fake `shoutrrr send`: appends what it got to the log file in argv[2]. A URL with "fail" in it fails like shoutrrr does; "leak" fails quoting a webhook URL; "echo" fails quoting its SECRET… parts on their own, like telegram/gotify; with "pad", from char 490.
 import { appendFileSync } from "node:fs";
 
 const [, , log, ...args] = process.argv;
@@ -15,7 +15,9 @@ if (url.includes("leak")) {
 }
 if (url.includes("echo")) {
     console.error(
-        `invalid token: ${decodeURIComponent(url)
+        `${url.includes("pad") ? "x".repeat(475) : ""}invalid token: ${decodeURIComponent(
+            url,
+        )
             .match(/SECRET[\w ]*/g)
             ?.join(" ")}`,
     );

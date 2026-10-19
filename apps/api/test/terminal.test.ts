@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname } from "node:path";
@@ -169,13 +169,35 @@ test("terminal: a failed session_end audit still closes the socket", async () =>
     expect([code, reason]).toEqual([1000, "exited"]);
 });
 
-test("terminal: a failed session_start audit leaves no key dir and frees the slot", async () => {
-    await setup({ maxSessions: 1 });
+// Linux only: true while a process whose argv contains `marker` exists.
+const running = (marker: string) =>
+    readdirSync("/proc").some((pid) => {
+        try {
+            return readFileSync(`/proc/${pid}/cmdline`, "utf8").includes(
+                marker,
+            );
+        } catch {
+            return false;
+        }
+    });
+
+test("terminal: a failed session_start audit leaves no key dir or ssh process and frees the slot", async () => {
+    const marker = `600.${crypto.getRandomValues(new Uint32Array(1))[0]}`;
+    let sleeper = true;
+    await setup({
+        maxSessions: 1,
+        command: (args) => {
+            const argv = fakeSsh.command(args);
+            return sleeper ? ["sleep", marker] : argv;
+        },
+    });
     ctx.db.run(
         "CREATE TRIGGER boom BEFORE INSERT ON audit WHEN NEW.event = 'session_start' BEGIN SELECT RAISE(ABORT, 'boom'); END",
     );
     expect((await ctx.connect("host=h1&login=root").closed).code).toBe(1011);
     expect(existsSync(sessionDir)).toBe(false);
+    expect(running(marker)).toBe(false);
+    sleeper = false;
     ctx.db.run("DROP TRIGGER boom");
     const t = ctx.connect("host=h1&login=root");
     await t.waitFor("login=root");

@@ -135,18 +135,22 @@ export function taskRunner(db: Database, terminal: TerminalDeps) {
             append("\n[failed to start]");
         }
         const status: RunStatus = code === 0 ? "ok" : "failed";
-        db.run(
-            "UPDATE run_hosts SET status = ?, exit_code = ?, output = ?, finished_at = ? WHERE run_id = ? AND host_id = ? AND login = ?",
-            [
-                status,
-                code,
-                (dropped ? TRUNCATED : "") + output,
-                Date.now(),
-                runId,
-                host.id,
-                login,
-            ],
-        );
+        try {
+            db.run(
+                "UPDATE run_hosts SET status = ?, exit_code = ?, output = ?, finished_at = ? WHERE run_id = ? AND host_id = ? AND login = ?",
+                [
+                    status,
+                    code,
+                    (dropped ? TRUNCATED : "") + output,
+                    Date.now(),
+                    runId,
+                    host.id,
+                    login,
+                ],
+            );
+        } catch (err) {
+            console.warn(`task result for ${key} not saved: ${err}`);
+        }
         live.delete(key);
         if (hostKeyRejected(code, sshErrors))
             audit(db, {

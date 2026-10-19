@@ -16,7 +16,16 @@ await ensureCa("/data/ca", process.env.CA_NAME || "certshell", caPassword);
 
 const db = openDb("/data/app.sqlite");
 prune(db, config);
-setInterval(() => prune(db, config), 24 * 60 * 60_000);
+setInterval(
+    () => {
+        try {
+            prune(db, config);
+        } catch (err) {
+            console.warn(`prune failed: ${err}`);
+        }
+    },
+    24 * 60 * 60_000,
+);
 
 let latestVersion: (() => string | undefined) | undefined;
 if (config.updateCheck && config.version !== "dev") {

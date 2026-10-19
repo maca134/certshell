@@ -55,11 +55,11 @@ const decode = (s: string) => {
     }
 };
 
-/** Userinfo, path segments and query values of `url`, decoded, longest first. */
+/** Userinfo, hostname, path segments and query values of `url`, decoded, longest first. */
 function urlParts(url: string) {
     try {
         const u = new URL(url);
-        return [u.username, u.password, ...u.pathname.split("/")]
+        return [u.username, u.password, u.hostname, ...u.pathname.split("/")]
             .map(decode)
             .concat([...u.searchParams.values()])
             .filter(Boolean)
@@ -187,8 +187,7 @@ export function alerter({
                                 l &&
                                 !/^(Reading from STDIN|Read \d+ byte)/.test(l),
                         )
-                        .join(" ")
-                        .slice(0, 500) || `shoutrrr exited ${code}`;
+                        .join(" ") || `shoutrrr exited ${code}`;
         } catch (err) {
             error = (err as Error).message;
         }
@@ -196,10 +195,22 @@ export function alerter({
         if (error && url) {
             error = error.replaceAll(url, "<url>");
             // ...and some (telegram, gotify) echo a malformed token on its own.
+            // Short parts (a topic, "1") only as whole words, so they don't shred the message.
             for (const part of urlParts(url))
-                error = error.replaceAll(part, "<redacted>");
+                error =
+                    part.length >= 8
+                        ? error.replaceAll(part, "<redacted>")
+                        : error.replace(
+                              new RegExp(
+                                  `(?<!\\w)${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\w)`,
+                                  "g",
+                              ),
+                              "<redacted>",
+                          );
         }
-        error &&= error.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>");
+        error &&= error
+            .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>")
+            .slice(0, 500);
         if (error) console.warn(`alert "${row.name}" failed: ${error}`);
         try {
             db.run(
