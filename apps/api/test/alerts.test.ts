@@ -382,6 +382,33 @@ test("task_failed: one alert when the last host finishes, only if one failed", a
     );
 });
 
+test("task_failed: mentions and links in the task name arrive defused", async () => {
+    await setup({ command: () => ["sh", "-c", "exit 1"] });
+    await create({ events: ["task_failed"] });
+    const headers = {
+        cookie: ctx.cookie,
+        origin: APP_URL,
+        "content-type": "application/json",
+    };
+    const res = await ctx.app.request(`${APP_URL}/api/tasks`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+            name: "<!channel> <https://evil.test|x>",
+            script: "true",
+            targets: [{ host: "h1", login: "root" }],
+        }),
+    });
+    const { id } = (await res.json()) as { id: number };
+    await ctx.app.request(`${APP_URL}/api/tasks/${id}/run`, {
+        method: "POST",
+        headers,
+    });
+    expect((await sent(1))[0]?.args[2]).toBe(
+        'CertShell: task "‹!channel› ‹https://evil.test|x›" failed on 1 of 1 host',
+    );
+});
+
 test("reboot: alerted when host facts first show the flag, not again until it clears", async () => {
     let reboot = "1";
     await setup({ command: () => ["sh", "-c", `echo reboot=${reboot}`] });

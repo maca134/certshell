@@ -271,9 +271,9 @@ export function alerter({
             >("SELECT name, email, sub FROM runs WHERE id = ?")
             .get(runId);
         return {
-            title: `CertShell: task "${run?.name}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
+            title: `CertShell: task "${defuse(String(run?.name))}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
             body: [
-                `Run by ${run?.email ?? run?.sub}.`,
+                `Run by ${defuse(String(run?.email ?? run?.sub))}.`,
                 ...failed.map(
                     (h) =>
                         `${h.login}@${h.host_name}: ${h.exit_code === null ? "didn't finish" : `exit ${h.exit_code}`}`,
