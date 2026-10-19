@@ -230,6 +230,20 @@ test("refresh all while one is running adds to its queue: no host dropped", asyn
     expect([...new Set(seen)].sort()).toEqual(["h1:root", "h2:root"]);
 });
 
+test("a failed facts write doesn't stop the queue", async () => {
+    await setup({ command: () => ["sh", "-c", "echo os=x"] });
+    await setLogin("h1", "root");
+    await setLogin("h2", "root");
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE INSERT ON host_facts WHEN NEW.host_id = 'h1' BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    await ctx.facts.collectAll(["h1", "h2"]);
+    expect((await list()).map((r) => [r.hostId, r.facts?.os])).toEqual([
+        ["h1", undefined],
+        ["h2", "x"],
+    ]);
+});
+
 test("deleting a host drops its facts", async () => {
     await setup();
     await setLogin("h1", "root");
