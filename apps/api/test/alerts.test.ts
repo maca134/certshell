@@ -176,6 +176,15 @@ test("update without url keeps it; with url replaces it; delete", async () => {
     });
     expect((await call("POST", `/${id}/test`)).status).toBe(204);
     expect((await sent(2))[1]?.url).toBe("discord://token@channel");
+    expect(
+        ctx.db
+            .query<{ data: string }, []>(
+                "SELECT data FROM audit WHERE event = 'alert_update'",
+            )
+            .all()
+            .map((r) => r.data)
+            .join("\n"),
+    ).not.toContain("token@channel");
 
     expect((await call("DELETE", `/${id}`)).status).toBe(204);
     expect(await list()).toEqual([]);
