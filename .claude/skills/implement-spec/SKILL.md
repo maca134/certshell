@@ -3,8 +3,8 @@ name: implement-spec
 description: >
   Builds a whole parent GH issue's sub-issues on one integration branch,
   running up to 3 implementer sub-agents in parallel worktrees in
-  `blocked_by` order, then reviews and opens one PR. Use when the user says
-  "implement-spec #N", "/implement-spec".
+  `blocked_by` order, then reviews and opens one PR. User-invoked only:
+  `/implement-spec #N`.
 disable-model-invocation: true
 ---
 
@@ -17,13 +17,15 @@ Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
 
 A parent issue `#N` (e.g. the `Audit <date>` parent from `/audit-to-tickets`).
 
-- Tickets: `gh api repos/{owner}/{repo}/issues/<N>/sub_issues`, open ones only.
+- Tickets: `gh api --paginate repos/{owner}/{repo}/issues/<N>/sub_issues --jq '.[] | select(.state == "open")'`.
 - Edges: `gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by`
   per ticket; fall back to the body's `## Blocked by` section.
 - Spec: the parent body plus SPEC.md.
 
 The tickets are a **task graph**, not a list. The **frontier** is every open
-ticket whose blockers are all done on the integration branch.
+ticket whose blockers are all done: merged into the integration branch, or a
+closed issue. A blocker outside this parent that's still open → report it,
+don't start that ticket. A cycle → print it and stop.
 
 Every ticket must name its seams (`## Seams` or equivalent). List the
 tickets without them up front and ask the user to add them or name them
@@ -40,11 +42,14 @@ the notes dir. Don't paste what they can read.
 
 1. **Read** every ticket and its edges; print the graph as
    `#n <title> ← blocked by #m, #k` and the first frontier.
-2. **Explore** (optional). One sub-agent reads the code and docs the tickets
-   need and writes notes to `<scratchpad>/spec-<N>/notes/`. Implementers
-   read those instead of re-exploring.
-3. **Integration branch**: `git fetch -q origin && git switch -c spec/<N>-<slug> origin/main`,
-   push it.
+2. **Explore** when 3+ tickets touch the same files, or the tickets need
+   docs outside the repo. One sub-agent reads the code and docs and writes
+   notes to `<scratchpad>/spec-<N>/notes/`. Implementers read those instead
+   of re-exploring.
+3. **Integration branch**: `git fetch -q origin`, then
+   `git switch -c spec/<N>-<slug> origin/main` and push it. The branch
+   already exists (a re-run after a stop) → switch to it; tickets already
+   merged into it count as done.
 4. **Implement.** One background sub-agent per frontier ticket, max 3 at a
    time, each with `isolation: "worktree"`. Each implementer:
    - checks its worktree is on the integration branch tip, resets onto it if not;
@@ -53,26 +58,32 @@ the notes dir. Don't paste what they can read.
      stop and report, don't invent);
    - commits per logical change, no attribution lines;
    - merges the integration tip into its branch, runs `bun run verify`;
-   - reports: branch, commits, verify result, anything it couldn't do.
-5. **Merge.** As each implementer reports, a merger sub-agent merges its
-   branch into the integration branch, fixing only trivial conflicts
-   (imports, adjacent hunks), then runs `bun run verify`. A non-trivial
-   conflict or a failed verify → stop and ask the user. Push. After the
-   first merge, open a draft PR: `gh pr create --draft`, body lists every
-   ticket as `Closes #n` plus `Part of #N`.
+   - reports: branch, commits, verify result, `vuln: yes|no` (does the fix
+     reveal a vulnerability?), anything it couldn't do.
+5. **Merge**, one at a time: a single merger sub-agent; reports that arrive
+   while it runs wait in a queue. `vuln: yes` → don't merge; stop and ask the
+   user (sec-ticket rules: nothing about it is pushed). Otherwise it merges
+   the branch into the integration branch, fixing only trivial conflicts
+   (imports, adjacent hunks), runs `bun run verify`, and pushes. A
+   non-trivial conflict or a failed verify → stop and ask the user.
 6. **Advance.** Each merge can widen the frontier: launch implementers for
-   newly unblocked tickets, keeping the max of 3.
-7. **Review.** All tickets merged → run the `change-review` skill on the
-   integration branch against `origin/main`. One implementer sub-agent, in
-   its own worktree on the integration tip like any ticket, fixes
-   every `hard`, `missing`, `wrong` and security finding (and the rest
-   unless they contradict a ticket), commits, runs verify. If its commits
-   touch `apps/api/src/`, `Dockerfile`, `compose*.yaml` or
-   `.github/workflows/`, run the `security-reviewer` agent on just those
-   commits and fix what it finds. The merger merges it as in step 5.
-8. **Ready.** `bun run verify` on the integration branch passes →
-   `gh pr ready`. Never push to `main`; the user merges.
-9. **Clean up** every implementer worktree and its local branch.
+   newly unblocked tickets, keeping the max of 3. Stop when the frontier is
+   empty; tickets left unmerged are **stuck**.
+7. **Review.** Run the `change-review` skill on the integration branch
+   against `origin/main`. One implementer sub-agent, in its own worktree on
+   the integration tip like any ticket, fixes every `hard`, `missing`,
+   `wrong` and security finding (and the rest unless they contradict a
+   ticket), commits, runs verify. If its commits touch `apps/api/src/`,
+   `Dockerfile`, `compose*.yaml` or `.github/workflows/`, run the
+   `security-reviewer` agent on just those commits and fix what it finds.
+   The merger merges it as in step 5.
+8. **PR.** Only now, after review and the security pass (CLAUDE.md: before
+   the PR). `bun run verify` on the integration branch passes →
+   `gh pr create`, body: `Part of #N` plus `Closes #n` for each **merged**
+   ticket only. Any stuck ticket → `--draft`, and the body lists the stuck
+   ones. Never push to `main`; the user merges.
+9. **Clean up** the worktrees and local branches of merged tickets. Keep
+   stuck tickets' branches and name them in the output.
 
 ## Output
 
@@ -80,7 +91,8 @@ the notes dir. Don't paste what they can read.
 spec: #<N> <title> · branch: <name>
 done: #n, #n … · stuck: #n — <why> | none
 review: fixed <n> · skipped: <finding — why> | none
-verify: pass · pr: <url>
+verify: pass | fail · pr: <url> (ready | draft) | not opened: <why>
+kept branches: <branch — #n> | none
 skipped / risk: <what wasn't done or checked> | none
 ```
 
