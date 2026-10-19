@@ -25,8 +25,8 @@ const cookieOpts = {
 /** Same-origin path + query from untrusted input, else "/". */
 function localPath(next: string | undefined) {
     const base = "http://local";
-    const url = new URL(next ?? "/", base);
-    return url.origin === base ? url.pathname + url.search : "/";
+    const url = URL.parse(next ?? "/", base);
+    return url?.origin === base ? url.pathname + url.search : "/";
 }
 
 const signInPage = (
