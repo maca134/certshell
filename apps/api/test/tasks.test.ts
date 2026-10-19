@@ -355,9 +355,11 @@ test("run: a failed final write doesn't crash the app; the slot is released", as
         "CREATE TRIGGER boom BEFORE UPDATE ON run_hosts BEGIN SELECT RAISE(ABORT, 'boom'); END",
     );
     await runTask(id);
+    // Polling the run route would spend signLimit (10/min); the key dir goes just before the failed write.
+    while (!keys[0] || existsSync(dirname(keys[0]))) await Bun.sleep(20);
     let status = 429;
-    for (let i = 0; i < 100 && status === 429; i++) {
-        await Bun.sleep(50);
+    for (let i = 0; i < 5 && status === 429; i++) {
+        await Bun.sleep(20);
         status = (await call("POST", `/${id}/run`)).status;
     }
     expect(status).toBe(201);
