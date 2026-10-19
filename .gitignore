@@ -15,3 +15,4 @@ apps/web/skills-lock.json
 .wrangler/
 .claude/settings.local.json
 .audit/
+.claude/worktrees/
