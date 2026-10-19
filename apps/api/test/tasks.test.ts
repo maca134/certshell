@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname } from "node:path";
 import {
@@ -377,13 +378,42 @@ test("tasks: last run shown even with 50+ newer runs of other tasks", async () =
     expect(runs).toHaveLength(50);
 });
 
-test("targets still running at startup are marked failed", async () => {
-    await setup();
+test("targets still running at startup are failed, audited and alerted once per run", async () => {
+    const dir = await mkdtemp(`${tmpdir()}/tasks-`);
+    ctx = await startApp(
+        { command: fakeSsh },
+        ["admins"],
+        { OIDC_ADMIN_GROUP: "admins" },
+        undefined,
+        {
+            shoutrrr: [
+                process.execPath,
+                `${import.meta.dir}/fixtures/shoutrrr.ts`,
+                `${dir}/sent`,
+            ],
+        },
+    );
+    const channel = await ctx.app.request(`${APP_URL}/api/admin/alerts`, {
+        method: "POST",
+        headers: {
+            cookie: ctx.cookie,
+            origin: APP_URL,
+            "content-type": "application/json",
+        },
+        body: JSON.stringify({
+            name: "ops",
+            url: "ntfy://ntfy.sh/topic",
+            events: ["task_failed"],
+            tags: [],
+            logins: [],
+        }),
+    });
+    expect(channel.status).toBe(201);
     ctx.db.run(
-        "INSERT INTO runs (id, task_id, sub, email, name, script, created_at) VALUES ('r1', 1, 'user-1', null, 't', 'x', 0)",
+        "INSERT INTO runs (id, task_id, sub, email, name, script, created_at) VALUES ('r1', 1, 'user-1', null, 't', 'x', 0), ('r2', 1, 'user-1', 'a@b.c', 't', 'x', 0)",
     );
     ctx.db.run(
-        "INSERT INTO run_hosts (run_id, host_id, host_name, login, status, output) VALUES ('r1', 'h1', 'h1', 'root', 'running', 'partial')",
+        "INSERT INTO run_hosts (run_id, host_id, host_name, login, status, output) VALUES ('r1', 'h1', 'h1', 'root', 'running', 'partial'), ('r1', 'h2', 'h2', 'root', 'running', ''), ('r2', 'h1', 'h1', 'root', 'running', '')",
     );
     taskRoutes({
         config: loadConfig({
@@ -402,6 +432,54 @@ test("targets still running at startup are marked failed", async () => {
         status: "failed",
         output: "partial\n[interrupted: app restarted]",
     });
+    expect(
+        events()
+            .filter((e) => e.event === "task_end")
+            .map(({ ts: _, ...e }) => e),
+    ).toEqual([
+        {
+            event: "task_end",
+            sub: "user-1",
+            email: null,
+            run: "r1",
+            host: "h1",
+            login: "root",
+            status: "failed",
+            code: null,
+        },
+        {
+            event: "task_end",
+            sub: "user-1",
+            email: null,
+            run: "r1",
+            host: "h2",
+            login: "root",
+            status: "failed",
+            code: null,
+        },
+        {
+            event: "task_end",
+            sub: "user-1",
+            email: "a@b.c",
+            run: "r2",
+            host: "h1",
+            login: "root",
+            status: "failed",
+            code: null,
+        },
+    ]);
+    const log = Bun.file(`${dir}/sent`);
+    for (
+        let i = 0;
+        i < 100 &&
+        (await log.text().catch(() => "")).trim().split("\n").length < 2;
+        i++
+    )
+        await Bun.sleep(30);
+    await Bun.sleep(100);
+    const sent = (await log.text()).trim().split("\n");
+    await rm(dir, { recursive: true, force: true });
+    expect(sent).toHaveLength(2);
 });
 
 test("detach: saved per task; a run wraps the script, keeps output and exit code", async () => {
