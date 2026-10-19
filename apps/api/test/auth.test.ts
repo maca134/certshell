@@ -87,6 +87,7 @@ async function loggedIn() {
 test("public routes need no session", async () => {
     expect((await get("/healthz")).status).toBe(200);
     expect((await get("/auth/login")).status).toBe(302);
+    expect((await get("/favicon.svg")).headers.get("location")).toBeNull();
 });
 
 test("no session → 401 on /api, redirect to login elsewhere", async () => {
