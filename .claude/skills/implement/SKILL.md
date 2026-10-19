@@ -3,7 +3,7 @@ name: implement
 description: >
   Builds one already-decided piece of CertShell work (a GH issue, a local sec
   ticket, or the plan agreed in this chat) test-first, reviews it, and opens
-  a PR. Use when the user says "implement #N", "/implement".
+  a PR. User-invoked only: `/implement <#N | ticket path | "the plan">`.
 disable-model-invocation: true
 ---
 
@@ -29,8 +29,10 @@ release). Same for any issue whose fix turns out to be a vulnerability.
 
 ## Steps
 
-1. **Branch.** On `main` → `git fetch -q origin && git switch -c <type>/<slug> origin/main`
-   (`fix/`, `feat/`, `docs/`, `skills/` …). Already on a feature branch → stay.
+1. **Branch.** `git fetch -q origin` first. On `main` →
+   `git switch -c <type>/<slug> origin/main` (`fix/`, `feat/`, `docs/`,
+   `skills/` …). On a branch already made for this ticket → stay. Any other
+   branch → ask.
 2. **Seams.** Read the code the ticket touches. Propose the seams (one line
    each: what it catches, what it misses) and ask the user once. Seams
    already written in the ticket → state them and go.
@@ -41,21 +43,28 @@ release). Same for any issue whose fix turns out to be a vulnerability.
 5. **Review.** Run the `change-review` skill against `origin/main`. Fix every
    `hard`, `missing`, `wrong` and security finding; fix `judgement` and
    `unasked` ones unless they contradict the ticket, and list any you skip.
-   Fixes are extra commits. If they touch `apps/api/src/`, `Dockerfile`,
-   `compose*.yaml` or `.github/workflows/`, run the `security-reviewer`
-   agent on just those commits and fix what it finds.
-6. **Verify.** `bun run verify` must pass. Don't report done otherwise.
-7. **PR** (not for sec tickets): `git push -u origin HEAD`, then
+   Fixes are extra commits. The Security axis covered the earlier commits;
+   if the fix commits touch `apps/api/src/`, `Dockerfile`, `compose*.yaml`
+   or `.github/workflows/`, run the `security-reviewer` agent on just the
+   fix commits and fix what it finds.
+6. **Verify.** `bun run verify` must pass. After 3 failed fix attempts,
+   stop before pushing: `verify: fail`, and report what fails.
+7. **Vuln gate.** If the review, tests or your own reading show the bug is
+   a vulnerability, switch to sec-ticket rules (local only) and ask the
+   user before anything is pushed.
+8. **PR** (not for sec tickets): `git push -u origin HEAD`, then
    `gh pr create` with a body: what changed, how it was tested, and
-   `Closes #N`. Never push to `main`.
+   `Closes #N` when the input was an issue. Never push to `main`. A PR for
+   the branch already exists → push, report its URL. Push or `gh` fails →
+   stop and report the error.
 
 ## Output
 
 ```
 built: <ticket title>
-branch: <name> · commits: <n> · verify: pass
+branch: <name> · commits: <n> · verify: pass | fail
 review: <fixed n> · skipped: <finding — why> | none
-pr: <url> | local only (sec)
+pr: <url> | local only (sec) | not opened: <why>
 skipped / risk: <what wasn't done or checked> | none
 ```
 
