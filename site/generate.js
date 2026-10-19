@@ -21,7 +21,7 @@ export function generate({
     }[proxy];
     const proxyImage = { caddy: "caddy:2.11", traefik: "traefik:v3.7" }[proxy];
     const pinNote = proxyImage
-        ? `# Images use minor tags so \`docker compose pull\` picks up security fixes. To pin by digest
+        ? `# Images use major/minor tags so \`docker compose pull\` picks up security fixes. To pin by digest
 # (image: ${proxyImage}@sha256:…), also have Renovate/Dependabot bump them, or you stay on old versions.
 `
         : "";
