@@ -10,7 +10,9 @@ disable-model-invocation: true
 Build work that's already decided. Don't reopen the plan: no new design, no
 alternative approach. If the input is unclear, ask; don't redesign.
 
-Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
+Adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
+Copyright (c) 2026 Matt Pocock, MIT License: see the upstream
+[LICENSE](https://github.com/mattpocock/skills/blob/main/LICENSE).
 
 ## Input
 

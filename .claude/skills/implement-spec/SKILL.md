@@ -11,7 +11,9 @@ disable-model-invocation: true
 Turn a parent issue and its sub-issues into one integration branch and one
 PR, every ticket done.
 
-Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
+Adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
+Copyright (c) 2026 Matt Pocock, MIT License: see the upstream
+[LICENSE](https://github.com/mattpocock/skills/blob/main/LICENSE).
 
 ## Input
 

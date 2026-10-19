@@ -9,7 +9,9 @@ description: >
 
 The red → green loop, plus the rules that make its tests worth keeping.
 
-Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
+Adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
+Copyright (c) 2026 Matt Pocock, MIT License: see the upstream
+[LICENSE](https://github.com/mattpocock/skills/blob/main/LICENSE).
 
 ## A good test
 

@@ -20,7 +20,9 @@ Review `git diff <base>...HEAD` on separate axes, side by side:
 A change can pass one axis and fail another. Each axis runs in its own
 sub-agent so one can't mask the other.
 
-Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
+Adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
+Copyright (c) 2026 Matt Pocock, MIT License: see the upstream
+[LICENSE](https://github.com/mattpocock/skills/blob/main/LICENSE).
 
 ## Steps
 
