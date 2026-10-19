@@ -206,6 +206,11 @@ The decisions are the user's calls on findings: real bug or §3.3 accepted
 risk, severity, fix the code or update SPEC.md, cut it or keep it, which of
 several fixes, whether a cut is worth the churn.
 
+One question per finding, never a bundle of findings. Each question stands
+alone: its body restates the finding (what, where, the concrete impact) so
+the user never has to scroll back to the report, and lists the choices as
+(a)/(b)/(c).
+
 Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
 
 Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled: the questions you can ask _now_ without guessing at answers you haven't heard yet. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round.
