@@ -18,3 +18,7 @@
 - **Run `bun run verify` before saying done** - lint, typecheck, build and tests, same as CI minus `bun audit`.
 - **Security review** - any change under `apps/api/src/`, `Dockerfile`, `compose*.yaml` or `.github/workflows/` gets a `security-reviewer` agent pass before the PR.
 - **Never push to `main`** - it is protected by a ruleset (PR required, CI `check` must pass). Branch, push, `gh pr create`; the user merges once green.
+
+## Coding stance
+
+@.claude/skills/ponytail/SKILL.md
