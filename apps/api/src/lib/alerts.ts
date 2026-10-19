@@ -45,8 +45,9 @@ const defuse = (s: string) =>
     s
         .replaceAll("<", "‹")
         .replaceAll(">", "›")
-        .replace(/(?<!\w)@/g, "@​")
-        .replaceAll("](", "]​(");
+        .replace(/(?!\n)\p{Cc}/gu, " ")
+        .replace(/(?<![A-Za-z0-9])@/g, "@\u200b")
+        .replaceAll("](", "]\u200b(");
 
 const proxyEnv = () =>
     Object.fromEntries(
@@ -221,8 +222,9 @@ export function alerter({
             .get(String(id));
     const hostName = (e: AuditInput) =>
         (e.name as string | undefined) ?? host(e.host)?.name ?? String(e.host);
+    // An IdP-editable email with a newline could forge alert lines.
     const who = (e: AuditInput) =>
-        defuse(String(e.email ?? e.sub ?? "someone"));
+        String(e.email ?? e.sub ?? "someone").replaceAll("\n", " ");
 
     function securityMessage(e: AuditInput): Message {
         const lines = [
@@ -271,9 +273,9 @@ export function alerter({
             >("SELECT name, email, sub FROM runs WHERE id = ?")
             .get(runId);
         return {
-            title: `CertShell: task "${defuse(String(run?.name))}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
+            title: `CertShell: task "${run?.name}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
             body: [
-                `Run by ${defuse(String(run?.email ?? run?.sub))}.`,
+                `Run by ${who({ event: "", email: run?.email, sub: run?.sub })}.`,
                 ...failed.map(
                     (h) =>
                         `${h.login}@${h.host_name}: ${h.exit_code === null ? "didn't finish" : `exit ${h.exit_code}`}`,
@@ -323,6 +325,7 @@ export function alerter({
             };
         } else return;
         if (!msg) return;
+        msg = { title: defuse(msg.title), body: defuse(msg.body) };
         for (const row of rows()) {
             const c = channelOf(row);
             if (c.events.includes(event) && matches(c)) void send(row, msg);
