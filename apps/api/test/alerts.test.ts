@@ -307,6 +307,22 @@ test("terminal event: filtered by host tag or login; empty filter = every termin
     ]);
 });
 
+test("terminal channel: at most 20 sends a minute", async () => {
+    await setup();
+    await create({ events: ["terminal"] });
+    for (let i = 0; i < 21; i++)
+        audit(ctx.db, {
+            event: "session_start",
+            sub: "u",
+            email: "a@b.c",
+            principal: "ws:h1:root",
+            session: `s${i}`,
+        });
+    await sent(20);
+    await Bun.sleep(100);
+    expect((await readSent()).length).toBe(20);
+});
+
 test("task_failed: one alert when the last host finishes, only if one failed", async () => {
     await setup({
         command: ({ host, remote }) => ["sh", "-c", remote ?? "", host.id],
