@@ -66,15 +66,6 @@ import {
 import { Fleet } from "./Fleet";
 import { cleanTag } from "./tags";
 
-const VIEWS = [
-    "hosts",
-    "fleet",
-    "users",
-    "sessions",
-    "alerts",
-    "audit",
-] as const;
-
 export const noFill = { autoComplete: "off", "data-lpignore": "true" };
 
 const RTF = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -119,14 +110,13 @@ export function Admin() {
     useEffect(() => {
         reloadUsers();
     }, [reloadUsers, view]);
-    if (!(VIEWS as readonly string[]).includes(view))
-        return <Redirect to="/hosts" replace />;
     if (view === "hosts") return <Hosts users={users} />;
     if (view === "users") return <Users users={users} reload={reloadUsers} />;
     if (view === "sessions") return <Sessions />;
     if (view === "alerts") return <Alerts />;
     if (view === "fleet") return <Fleet />;
-    return <Audit />;
+    if (view === "audit") return <Audit />;
+    return <Redirect to="/hosts" replace />;
 }
 
 export function Empty({
