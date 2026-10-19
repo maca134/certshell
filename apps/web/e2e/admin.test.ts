@@ -242,6 +242,13 @@ test("sidebar switches to users and audit", async ({ page, isMobile }) => {
     await expect(page.getByText("login", { exact: true })).toBeVisible();
 });
 
+test("unknown admin view redirects to hosts", async ({ page }) => {
+    await openAdmin(page);
+    await page.goto("/admin/nope");
+    await expect(page).toHaveURL("/admin/hosts");
+    await expect(page.getByRole("button", { name: "Edit web1" })).toBeVisible();
+});
+
 test("sessions: lists open terminals, ends one at a time", async ({
     page,
     isMobile,
