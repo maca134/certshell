@@ -205,6 +205,22 @@ test("test send: URL only in env, message on stdin, nothing else of ours in env"
     }
 });
 
+test("a failed status write doesn't crash the app; the channel keeps sending", async () => {
+    await setup();
+    const id = await create();
+    await sent(1);
+    await Bun.sleep(100);
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE UPDATE ON alert_channels BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    await create({ name: "two" });
+    await sent(3);
+    await Bun.sleep(100);
+    ctx.db.run("DROP TRIGGER boom");
+    expect((await call("POST", `/${id}/test`)).status).toBe(204);
+    await sent(4);
+});
+
 test("failed send → 502 with shoutrrr's error, kept as lastError", async () => {
     await setup();
     const id = await create({ url: "ntfy://fail", events: ["host_down"] });
