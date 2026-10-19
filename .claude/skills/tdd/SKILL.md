@@ -25,7 +25,8 @@ A **seam** is the public boundary a test observes: a route
 **Test only at agreed seams.** Before the first test, list the seams, each
 with one line on what it catches and what it misses, and get them confirmed:
 
-- Called from `/implement` or directly: ask the user once.
+- Called directly: ask the user once.
+- Called from `/implement`: it already confirmed them; state them and go.
 - Called from an `/implement-spec` implementer: the seams come from the
   ticket. No seams in the ticket → stop and report; don't invent them.
 
@@ -70,6 +71,7 @@ Fake only those boundaries, time (`setSystemTime`) and outbound alerts
 - **Red first.** Write one failing test, watch it fail for the right reason,
   then write just enough code to pass.
 - **One slice per cycle**: one seam, one test, the minimal code.
-- **No refactoring in the loop.** That's `/change-review`'s job.
+- **No refactoring in the loop.** Refactor in the review-fix step, after
+  `/change-review`.
 - Security behaviour (authz, input checks, headers, rate limits, audit
   events) gets a test that fails without the check.
