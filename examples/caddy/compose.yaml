@@ -1,4 +1,6 @@
 # CertShell + Pocket ID behind Caddy (automatic HTTPS). Setup steps: README.md → Quick start.
+# Images use minor tags so `docker compose pull` picks up security fixes. To pin by digest
+# (image: caddy:2.11@sha256:…), also have Renovate/Dependabot bump them, or you stay on old versions.
 name: certshell
 
 services:
