@@ -161,7 +161,7 @@ test("admin: oversized body rejected", async () => {
     expect(res.status).toBe(413);
 });
 
-test("static: favicon cached a day", async () => {
+test("static: favicon cached a day, SPA shell revalidates by ETag", async () => {
     ctx = await startApp();
     const get = (path: string, headers: Record<string, string> = {}) =>
         fetch(`${ctx?.server.url}${path.slice(1)}`, {
@@ -170,4 +170,11 @@ test("static: favicon cached a day", async () => {
     expect((await get("/favicon.svg")).headers.get("cache-control")).toBe(
         "public, max-age=86400",
     );
+    const shell = await get("/");
+    const tag = shell.headers.get("etag");
+    expect(shell.headers.get("cache-control")).toBe("no-cache");
+    expect(tag).toBeTruthy();
+    const again = await get("/ssh/h1/root", { "if-none-match": tag ?? "" });
+    expect(again.status).toBe(304);
+    expect(again.headers.get("cache-control")).toBe("no-cache");
 });

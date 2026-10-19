@@ -3,6 +3,7 @@ import type { Me } from "@repo/shared";
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { getCookie } from "hono/cookie";
+import { etag } from "hono/etag";
 import type { Config } from "./config";
 import type { Alerter } from "./lib/alerts";
 import { accessibleHosts, reachable } from "./lib/hosts";
@@ -195,7 +196,7 @@ export function createApp({
     );
     // Client-side routes (apps/web/src/App.tsx) all get the SPA shell.
     for (const path of ["/", "/admin/*", "/ssh/*", "/tasks/*"])
-        app.get(path, async (c) => {
+        app.get(path, etag(), async (c) => {
             c.header("Cache-Control", "no-cache");
             return c.html(await Bun.file(`${WEB_DIST}/index.html`).text());
         });
