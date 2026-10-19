@@ -222,9 +222,12 @@ export function alerter({
             .get(String(id));
     const hostName = (e: AuditInput) =>
         (e.name as string | undefined) ?? host(e.host)?.name ?? String(e.host);
-    // An IdP-editable email with a newline could forge alert lines.
-    const who = (e: AuditInput) =>
-        String(e.email ?? e.sub ?? "someone").replaceAll("\n", " ");
+    // User-set text (task name, IdP-editable email): a newline could forge alert lines, a URL would autolink.
+    const userText = (s: unknown) =>
+        String(s)
+            .replace(/[\n\u2028\u2029]/g, " ")
+            .replaceAll("://", ":/\u200b/");
+    const who = (e: AuditInput) => userText(e.email ?? e.sub ?? "someone");
 
     function securityMessage(e: AuditInput): Message {
         const lines = [
@@ -241,7 +244,7 @@ export function alerter({
                 ),
             );
         if (e.event === "session_kill" || e.event === "user_signout")
-            lines.push(`User: ${e.user}`);
+            lines.push(`User: ${userText(e.user)}`);
         lines.push(new URL("/admin/audit", appUrl).href);
         return {
             title: `CertShell: ${SECURITY_TITLES[e.event]?.(e, hostName(e))}`,
@@ -273,7 +276,7 @@ export function alerter({
             >("SELECT name, email, sub FROM runs WHERE id = ?")
             .get(runId);
         return {
-            title: `CertShell: task "${run?.name}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
+            title: `CertShell: task "${userText(run?.name)}" failed on ${failed.length} of ${hosts.length} host${hosts.length === 1 ? "" : "s"}`,
             body: [
                 `Run by ${who({ event: "", email: run?.email, sub: run?.sub })}.`,
                 ...failed.map(

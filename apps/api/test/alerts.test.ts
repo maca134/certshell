@@ -333,7 +333,7 @@ test("terminal event: mentions and links in the email arrive defused", async () 
         session: "s1",
     });
     expect((await sent(1))[0]?.args[2]).toBe(
-        "CertShell: ‹!here› _@\u200bchannel [x]\u200b(https://evil.test) fake line opened root@h1",
+        "CertShell: ‹!here› _@\u200bchannel [x]\u200b(https:/\u200b/evil.test) fake line opened root@h1",
     );
 });
 
@@ -390,13 +390,13 @@ test("task_failed: mentions and links in the task name and email arrive defused"
     const cookie = `${SESSION_COOKIE}=${createSession(ctx.db, {
         iss: "https://id.test",
         sub: "user-2",
-        email: "<!channel>\n_@here",
+        email: "<!channel>\n_@here\u2028https://evil.test",
         groups: ["certshell-admins"],
     })}`;
     const { id } = await post(
         "",
         {
-            name: "<!channel> <https://evil.test|x>",
+            name: "<!channel> <https://evil.test|x> https://evil.test/login",
             script: "true",
             targets: [{ host: "h1", login: "root" }],
         },
@@ -405,10 +405,10 @@ test("task_failed: mentions and links in the task name and email arrive defused"
     const runId = (await post(`/${id}/run`, {}, cookie)).id;
     const [s] = await sent(1);
     expect(s?.args[2]).toBe(
-        'CertShell: task "‹!channel› ‹https://evil.test|x›" failed on 1 of 1 host',
+        'CertShell: task "‹!channel› ‹https:/\u200b/evil.test|x› https:/\u200b/evil.test/login" failed on 1 of 1 host',
     );
     expect(s?.body).toBe(
-        `Run by ‹!channel› _@\u200bhere.\nroot@h1: exit 1\nhttps://ssh.test/tasks/runs/${runId}`,
+        `Run by ‹!channel› _@\u200bhere https:/\u200b/evil.test.\nroot@h1: exit 1\nhttps://ssh.test/tasks/runs/${runId}`,
     );
 });
 
