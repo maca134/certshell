@@ -105,6 +105,8 @@ test("login returns to a same-origin next, else /", async () => {
         ["/ssh/h1/root.x?a=1", "/ssh/h1/root.x?a=1"],
         ["//evil.test/x", "/"],
         ["/\\evil.test/x", "/"],
+        ["/.//evil.test/x", "/"],
+        ["/a/..//evil.test/x", "/"],
         ["https://evil.test/x", "/"],
         ["http://", "/"],
         ["http://[", "/"],
