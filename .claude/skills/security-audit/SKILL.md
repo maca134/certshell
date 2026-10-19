@@ -66,22 +66,40 @@ Nothing found: `No findings. Ship.`
 
 ## Grill
 
-After the report, interview the user relentlessly until every finding is
-settled. Skip this when run as a sub-agent (e.g. by `/audit-fix`): return the
-list only.
+After the report, grill the user on the findings. Skip this when run as a
+sub-agent (e.g. by `/audit-fix`): return the list only.
 
-- Questions: anything only the user can decide. Real bug or §3.3 accepted
-  risk, severity, fix the code or update SPEC.md, which of several fixes.
-- Order: map which decisions depend on others. A decision that changes other
-  findings (e.g. a SPEC trust assumption) goes first.
-- Rounds: ask every question whose prerequisites are settled in one numbered
-  batch, each with your recommended answer. Word it so "yes" accepts the
-  recommendation. Then wait for replies.
-- Facts vs decisions: look up facts (code, SPEC, git history) yourself, with a
-  sub-agent if needed. Only decisions go to the user.
-- Done when no open questions remain and nothing is silently assumed. Re-emit
-  the list with each finding marked `confirmed`, `accepted`, `dropped` or
-  `spec`, and get the user to confirm it.
+The decisions are the user's calls on findings: real bug or §3.3 accepted
+risk, severity, fix the code or update SPEC.md, which of several fixes.
+
+Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
+
+Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled: the questions you can ask _now_ without guessing at answers you haven't heard yet. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round.
+
+Format a round like so:
+
+```
+❓ **Q1** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
+
+➡️ <your recommended answer>
+
+---
+
+❓ **Q2** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
+
+➡️ <your recommended answer>
+```
+
+Word each question so "yes" accepts your recommended answer.
+
+Each round the user answers reshapes the tree: settled decisions push the frontier outward and unblock questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
+
+Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it; don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report; ask the rest of the frontier now. The _decisions_ are the user's: put each to them and wait.
+
+The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding.
+
+Then re-emit the list with each finding marked `confirmed`, `accepted`,
+`dropped` or `spec`.
 
 ## Boundaries
 
