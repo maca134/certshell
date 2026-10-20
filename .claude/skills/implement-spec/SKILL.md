@@ -62,7 +62,8 @@ then:     review → security pass → PR
 1. **Read** every ticket and its edges; print the graph as
    `#n <title> ← blocked by #m, #k` and the first frontier.
 2. **Explore** when 3+ tickets touch the same files, or the tickets need
-   docs outside the repo. One sub-agent reads the code and docs and writes
+   docs outside the repo. One `general-purpose` sub-agent (Explore can't
+   write files) reads the code and docs and writes
    notes to `<scratchpad>/spec-<N>/notes/`. Implementers read those instead
    of re-exploring.
 3. **Integration branch**: `git fetch -q origin`, then
