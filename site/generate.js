@@ -165,7 +165,7 @@ ${proxy === "none" ? `    ports: ["127.0.0.1:1411:1411"]\n` : ""}    volumes: ["
         );
     if (caPassword)
         setup.push(
-            "mkdir -p secrets && (test -f secrets/ca_password || openssl rand -base64 32 > secrets/ca_password)",
+            "mkdir -p secrets && (umask 077; test -f secrets/ca_password || openssl rand -base64 32 > secrets/ca_password)",
             "chown 1000:1000 secrets/ca_password && chmod 600 secrets/ca_password",
         );
     if (pid)

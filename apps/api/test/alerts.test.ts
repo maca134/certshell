@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import type { AlertChannel, AlertInput } from "@repo/shared";
@@ -191,6 +191,15 @@ test("update without url keeps it; with url replaces it; delete", async () => {
     });
     expect((await call("POST", `/${id}/test`)).status).toBe(204);
     expect((await sent(2))[1]?.url).toBe("discord://token@channel");
+    expect(
+        ctx.db
+            .query<{ data: string }, []>(
+                "SELECT data FROM audit WHERE event = 'alert_update'",
+            )
+            .all()
+            .map((r) => r.data)
+            .join("\n"),
+    ).not.toContain("token@channel");
 
     expect((await call("DELETE", `/${id}`)).status).toBe(204);
     expect(await list()).toEqual([]);
@@ -220,6 +229,22 @@ test("test send: URL only in env, message on stdin, nothing else of ours in env"
     }
 });
 
+test("a failed status write doesn't crash the app; the channel keeps sending", async () => {
+    await setup();
+    const id = await create();
+    await sent(1);
+    await Bun.sleep(100);
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE UPDATE ON alert_channels BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    await create({ name: "two" });
+    await sent(3);
+    await Bun.sleep(100);
+    ctx.db.run("DROP TRIGGER boom");
+    expect((await call("POST", `/${id}/test`)).status).toBe(204);
+    await sent(4);
+});
+
 test("failed send → 502 with shoutrrr's error, kept as lastError", async () => {
     await setup();
     const id = await create({ url: "ntfy://fail", events: ["host_down"] });
@@ -244,6 +269,60 @@ test("failed send: webhook URLs in shoutrrr's error are redacted", async () => {
     const error = 'Post "<url>": dial tcp: lookup failed';
     expect(await res.json()).toEqual({ error });
     expect((await list())[0]?.lastError).toBe(error);
+});
+
+test.each([
+    ["telegram", "telegram://12:SECRETtg@telegram?chats=@c&echo"],
+    ["gotify", "gotify://g.lan/SECRETgo?echo"],
+    ["ntfy query", "ntfy://ntfy.sh/topic?title=SECRET%20nt&echo"],
+    ["pushbullet host", "pushbullet://SECRETpbtoken?echo"],
+    ["short ntfy topic", "ntfy://ntfy.sh/SECRETx?echo"],
+])("failed send: %s URL parts echoed alone are redacted", async (_, url) => {
+    await setup();
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+        const id = await create({ url, events: ["host_down"] });
+        expect((await call("POST", `/${id}/test`)).status).toBe(502);
+        const lastError = (await list())[0]?.lastError;
+        expect(lastError).toStartWith("invalid token: ");
+        expect(lastError).not.toContain("SECRET");
+        expect(warn).toHaveBeenCalled();
+        expect(JSON.stringify(warn.mock.calls)).not.toContain("SECRET");
+    } finally {
+        warn.mockRestore();
+    }
+});
+
+test("failed send: a token straddling the 500-char cut is redacted whole", async () => {
+    await setup();
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+        const id = await create({
+            url: "gotify://g.lan/SECRETpadtoken?echo&pad",
+            events: ["host_down"],
+        });
+        expect((await call("POST", `/${id}/test`)).status).toBe(502);
+        const lastError = (await list())[0]?.lastError;
+        expect(lastError).toEndWith("invalid token: <redacted>");
+        expect(lastError).not.toContain("SECRET");
+    } finally {
+        warn.mockRestore();
+    }
+});
+
+test("failed send: short URL parts are redacted as whole words only", async () => {
+    await setup();
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+        const id = await create({
+            url: "ntfy://ntfy.sh/SECRETtopic?title=to&echo",
+            events: ["host_down"],
+        });
+        expect((await call("POST", `/${id}/test`)).status).toBe(502);
+        expect((await list())[0]?.lastError).toBe("invalid token: <redacted>");
+    } finally {
+        warn.mockRestore();
+    }
 });
 
 test("security events go to channels that picked them", async () => {
@@ -320,6 +399,22 @@ test("terminal event: filtered by host tag or login; empty filter = every termin
         "ntfy://x/prod CertShell: a@b.c opened root@h1",
         "ntfy://x/root CertShell: a@b.c opened root@h1",
     ]);
+});
+
+test("terminal channel: at most 20 sends a minute", async () => {
+    await setup();
+    await create({ events: ["terminal"] });
+    for (let i = 0; i < 21; i++)
+        audit(ctx.db, {
+            event: "session_start",
+            sub: "u",
+            email: "a@b.c",
+            principal: "ws:h1:root",
+            session: `s${i}`,
+        });
+    await sent(20);
+    await Bun.sleep(100);
+    expect((await readSent()).length).toBe(20);
 });
 
 test("terminal event: mentions and links in the email arrive defused", async () => {

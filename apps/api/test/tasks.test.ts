@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname } from "node:path";
 import {
@@ -154,6 +155,21 @@ test("tasks: invalid input and targets the user can't reach are refused", async 
     expect(count("tasks")).toEqual({ n: 0 });
 });
 
+test("tasks: at most 100 per user", async () => {
+    await setup();
+    for (let i = 0; i < 100; i++)
+        ctx.db.run(
+            "INSERT INTO tasks (sub, name, script, targets) VALUES ('user-1', 't', 'true', '[]')",
+        );
+    const res = await call("POST", "", {
+        name: "t",
+        script: "true",
+        targets: h1root,
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "at most 100 tasks" });
+});
+
 test("tasks: duplicate targets are saved once", async () => {
     await setup();
     await createTask("true", [...h1root, ...h1root]);
@@ -301,7 +317,7 @@ test("run: killed after taskMs", async () => {
     expect(run.hosts[0]?.output).toContain("[timed out]");
 });
 
-test("run: keeps the last 256 KB of output", async () => {
+test("run: keeps the last 256K characters of output", async () => {
     await setup();
     const run = await finished(
         await startRun(
@@ -313,6 +329,17 @@ test("run: keeps the last 256 KB of output", async () => {
     expect(out).toStartWith("[earlier output dropped]\n");
     expect(out).toEndWith("xEND\n");
     expect(out?.length).toBe(256 * 1024 + "[earlier output dropped]\n".length);
+});
+
+test("run: output ending mid multibyte char keeps its last bytes", async () => {
+    await setup();
+    const run = await finished(
+        await startRun(
+            "printf 'x\\342\\202'; sleep 0.1; printf '\\254y\\342\\202'",
+            h1root,
+        ),
+    );
+    expect(run.hosts[0]?.output).toBe("x€y�");
 });
 
 test("run: CA failure → failed, not stuck running", async () => {
@@ -332,6 +359,48 @@ test("run: refused past maxSessions until running targets end", async () => {
     expect((await call("POST", `/${quick}/run`)).status).toBe(429);
     await finished(slow);
     await finished(await runTask(quick));
+});
+
+test("run: a failed audit → 500 and the ssh slots are released", async () => {
+    await setup({ maxSessions: 2 });
+    const id = await createTask("true", [
+        ...h1root,
+        { host: "h2", login: "root" },
+    ]);
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE INSERT ON audit WHEN NEW.event = 'task_run' BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    expect((await call("POST", `/${id}/run`)).status).toBe(500);
+    ctx.db.run("DROP TRIGGER boom");
+    await finished(await runTask(id));
+});
+
+test("run: a failed final write doesn't crash the app; the slot is released and task_end audited", async () => {
+    await setup({ maxSessions: 1 });
+    const id = await createTask("true", h1root);
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE UPDATE ON run_hosts BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    await runTask(id);
+    // Polling the run route would spend signLimit (10/min); the key dir goes just before the failed write.
+    while (!keys[0] || existsSync(dirname(keys[0]))) await Bun.sleep(20);
+    let status = 429;
+    for (let i = 0; i < 5 && status === 429; i++) {
+        await Bun.sleep(20);
+        status = (await call("POST", `/${id}/run`)).status;
+    }
+    expect(status).toBe(201);
+    for (
+        let i = 0;
+        i < 50 && !events().some((e) => e.event === "task_end");
+        i++
+    )
+        await Bun.sleep(20);
+    expect(events().find((e) => e.event === "task_end")).toMatchObject({
+        host: "h1",
+        login: "root",
+        status: "ok",
+    });
 });
 
 test("run: refused past maxSessionsTotal, across users", async () => {
@@ -377,13 +446,42 @@ test("tasks: last run shown even with 50+ newer runs of other tasks", async () =
     expect(runs).toHaveLength(50);
 });
 
-test("targets still running at startup are marked failed", async () => {
-    await setup();
+test("targets still running at startup are failed, audited and alerted once per run", async () => {
+    const dir = await mkdtemp(`${tmpdir()}/tasks-`);
+    ctx = await startApp(
+        { command: fakeSsh },
+        ["admins"],
+        { OIDC_ADMIN_GROUP: "admins" },
+        undefined,
+        {
+            shoutrrr: [
+                process.execPath,
+                `${import.meta.dir}/fixtures/shoutrrr.ts`,
+                `${dir}/sent`,
+            ],
+        },
+    );
+    const channel = await ctx.app.request(`${APP_URL}/api/admin/alerts`, {
+        method: "POST",
+        headers: {
+            cookie: ctx.cookie,
+            origin: APP_URL,
+            "content-type": "application/json",
+        },
+        body: JSON.stringify({
+            name: "ops",
+            url: "ntfy://ntfy.sh/topic",
+            events: ["task_failed"],
+            tags: [],
+            logins: [],
+        }),
+    });
+    expect(channel.status).toBe(201);
     ctx.db.run(
-        "INSERT INTO runs (id, task_id, sub, email, name, script, created_at) VALUES ('r1', 1, 'user-1', null, 't', 'x', 0)",
+        "INSERT INTO runs (id, task_id, sub, email, name, script, created_at) VALUES ('r1', 1, 'user-1', null, 't', 'x', 0), ('r2', 1, 'user-1', 'a@b.c', 't', 'x', 0)",
     );
     ctx.db.run(
-        "INSERT INTO run_hosts (run_id, host_id, host_name, login, status, output) VALUES ('r1', 'h1', 'h1', 'root', 'running', 'partial')",
+        "INSERT INTO run_hosts (run_id, host_id, host_name, login, status, output) VALUES ('r1', 'h1', 'h1', 'root', 'running', 'partial'), ('r1', 'h2', 'h2', 'root', 'running', ''), ('r2', 'h1', 'h1', 'root', 'running', '')",
     );
     taskRoutes({
         config: loadConfig({
@@ -402,6 +500,54 @@ test("targets still running at startup are marked failed", async () => {
         status: "failed",
         output: "partial\n[interrupted: app restarted]",
     });
+    expect(
+        events()
+            .filter((e) => e.event === "task_end")
+            .map(({ ts: _, ...e }) => e),
+    ).toEqual([
+        {
+            event: "task_end",
+            sub: "user-1",
+            email: null,
+            run: "r1",
+            host: "h1",
+            login: "root",
+            status: "failed",
+            code: null,
+        },
+        {
+            event: "task_end",
+            sub: "user-1",
+            email: null,
+            run: "r1",
+            host: "h2",
+            login: "root",
+            status: "failed",
+            code: null,
+        },
+        {
+            event: "task_end",
+            sub: "user-1",
+            email: "a@b.c",
+            run: "r2",
+            host: "h1",
+            login: "root",
+            status: "failed",
+            code: null,
+        },
+    ]);
+    const log = Bun.file(`${dir}/sent`);
+    for (
+        let i = 0;
+        i < 100 &&
+        (await log.text().catch(() => "")).trim().split("\n").length < 2;
+        i++
+    )
+        await Bun.sleep(30);
+    await Bun.sleep(100);
+    const sent = (await log.text()).trim().split("\n");
+    await rm(dir, { recursive: true, force: true });
+    expect(sent).toHaveLength(2);
 });
 
 test("detach: saved per task; a run wraps the script, keeps output and exit code", async () => {

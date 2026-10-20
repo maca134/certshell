@@ -126,8 +126,8 @@ export async function signSession(
             caPassword: deps.caPassword,
             dir,
             principal,
-            // Some IdPs let users edit their email; a `/` or newline would forge the key ID in target sshd logs.
-            keyId: `${(user.email ?? "").replace(/[/\p{Cc}]/gu, "_")}/${user.sub}/${sessionId}`,
+            // Some IdPs let users edit their email; `/`, spaces or parens would forge key ID / sshd log fields.
+            keyId: `${(user.email ?? "").replace(/[^\w.@+-]/g, "_")}/${user.sub}/${sessionId}`,
             serial,
             pty: opts.pty,
         });
@@ -177,7 +177,7 @@ export async function openTerminal(
 ) {
     const { sessionId, principal, dir, key, knownHosts, log } =
         await signSession(deps, user, host, login, ip);
-    let proc: Bun.Subprocess;
+    let proc: Bun.Subprocess | undefined;
     try {
         proc = Bun.spawn(sshArgv(deps, { key, knownHosts, log, login, host }), {
             // ssh forwards TERM to the remote pty; the container has none, so curses apps like top exit.
@@ -188,17 +188,19 @@ export async function openTerminal(
                 data: (_t, data) => handlers.onData(data),
             },
         });
+        audit(deps.db, {
+            event: "session_start",
+            sub: user.sub,
+            email: user.email,
+            principal,
+            session: sessionId,
+        });
     } catch (err) {
+        proc?.kill();
+        await proc?.exited;
         await rm(dir, { recursive: true, force: true });
         throw err;
     }
-    audit(deps.db, {
-        event: "session_start",
-        sub: user.sub,
-        email: user.email,
-        principal,
-        session: sessionId,
-    });
 
     let reason: string | undefined;
     // Input can still arrive after a kill or exit; the closed pty would throw on it.
@@ -237,24 +239,28 @@ export async function openTerminal(
             );
         await rm(dir, { recursive: true, force: true });
         reason ??= code === 0 ? "exited" : `ssh exited with code ${code}`;
-        audit(deps.db, {
-            event: "session_end",
-            sub: user.sub,
-            email: user.email,
-            principal,
-            session: sessionId,
-            reason,
-            code,
-        });
-        if (hostKeyRejected(code, sshErrors))
+        try {
             audit(deps.db, {
-                event: "host_key_mismatch",
+                event: "session_end",
                 sub: user.sub,
                 email: user.email,
-                host: host.id,
-                name: host.name,
-                login,
+                principal,
+                session: sessionId,
+                reason,
+                code,
             });
+            if (hostKeyRejected(code, sshErrors))
+                audit(deps.db, {
+                    event: "host_key_mismatch",
+                    sub: user.sub,
+                    email: user.email,
+                    host: host.id,
+                    name: host.name,
+                    login,
+                });
+        } catch (err) {
+            console.warn(`session end not audited: ${err}`);
+        }
         handlers.onExit(reason);
     });
 

@@ -127,7 +127,10 @@ export function authRoutes({
             claims = tokens.claims();
         } catch (err) {
             console.warn(`login failed: ${err}`);
-            return c.html(LOGIN_FAILED_PAGE, 400);
+            // openid-client rethrows network failures as TypeError
+            return err instanceof TypeError
+                ? c.html(IDP_DOWN_PAGE, 503)
+                : c.html(LOGIN_FAILED_PAGE, 400);
         }
         if (!claims) return c.html(LOGIN_FAILED_PAGE, 400);
 

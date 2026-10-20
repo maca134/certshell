@@ -209,41 +209,49 @@ export function taskRoutes({
             return c.json({ error: "too many sessions open" }, 429);
 
         const runId = crypto.randomUUID();
-        db.transaction(() => {
-            db.run(
-                "INSERT INTO runs (id, task_id, sub, email, name, script, detach, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    runId,
-                    task.id,
-                    user.sub,
-                    user.email,
-                    task.name,
-                    task.script,
-                    task.detach,
-                    Date.now(),
-                ],
-            );
-            for (const { host, login } of targets)
+        try {
+            db.transaction(() => {
                 db.run(
-                    "INSERT INTO run_hosts (run_id, host_id, host_name, login, status) VALUES (?, ?, ?, ?, 'running')",
-                    [runId, host.id, host.name, login],
+                    "INSERT INTO runs (id, task_id, sub, email, name, script, detach, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        runId,
+                        task.id,
+                        user.sub,
+                        user.email,
+                        task.name,
+                        task.script,
+                        task.detach,
+                        Date.now(),
+                    ],
                 );
-        })();
-        audit(db, {
-            event: "task_run",
-            sub: user.sub,
-            email: user.email,
-            ip,
-            run: runId,
-            task: task.id,
-            script: task.script,
-            detach: !!task.detach,
-            targets: targets.map(({ host, login }) => `${host.id}:${login}`),
-        });
+                for (const { host, login } of targets)
+                    db.run(
+                        "INSERT INTO run_hosts (run_id, host_id, host_name, login, status) VALUES (?, ?, ?, ?, 'running')",
+                        [runId, host.id, host.name, login],
+                    );
+            })();
+            audit(db, {
+                event: "task_run",
+                sub: user.sub,
+                email: user.email,
+                ip,
+                run: runId,
+                task: task.id,
+                script: task.script,
+                detach: !!task.detach,
+                targets: targets.map(
+                    ({ host, login }) => `${host.id}:${login}`,
+                ),
+            });
+        } catch (err) {
+            for (const _ of targets) sshLimit.release(user.sub);
+            throw err;
+        }
         const remote = task.detach ? detached(task.script) : task.script;
         for (const { host, login } of targets)
             void runner
                 .run(user, ip, runId, host, login, remote)
+                .catch((err) => console.warn(`task end not saved: ${err}`))
                 .finally(() => sshLimit.release(user.sub));
         return c.json({ id: runId }, 201);
     });

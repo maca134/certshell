@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname } from "node:path";
@@ -160,6 +160,51 @@ test("terminal: process exit closes the socket", async () => {
     expect([code, reason]).toEqual([1000, "exited"]);
 });
 
+test("terminal: a failed session_end audit still closes the socket", async () => {
+    await setup({ command: () => ["sh", "-c", "echo bye"] });
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE INSERT ON audit WHEN NEW.event = 'session_end' BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    const { code, reason } = await ctx.connect("host=h1&login=root").closed;
+    expect([code, reason]).toEqual([1000, "exited"]);
+});
+
+// Linux only: true while a process whose argv contains `marker` exists.
+const running = (marker: string) =>
+    readdirSync("/proc").some((pid) => {
+        try {
+            return readFileSync(`/proc/${pid}/cmdline`, "utf8").includes(
+                marker,
+            );
+        } catch {
+            return false;
+        }
+    });
+
+test("terminal: a failed session_start audit leaves no key dir or ssh process and frees the slot", async () => {
+    const marker = `600.${crypto.getRandomValues(new Uint32Array(1))[0]}`;
+    let sleeper = true;
+    await setup({
+        maxSessions: 1,
+        command: (args) => {
+            const argv = fakeSsh.command(args);
+            return sleeper ? ["sleep", marker] : argv;
+        },
+    });
+    ctx.db.run(
+        "CREATE TRIGGER boom BEFORE INSERT ON audit WHEN NEW.event = 'session_start' BEGIN SELECT RAISE(ABORT, 'boom'); END",
+    );
+    expect((await ctx.connect("host=h1&login=root").closed).code).toBe(1011);
+    expect(existsSync(sessionDir)).toBe(false);
+    expect(running(marker)).toBe(false);
+    sleeper = false;
+    ctx.db.run("DROP TRIGGER boom");
+    const t = ctx.connect("host=h1&login=root");
+    await t.waitFor("login=root");
+    t.ws.close();
+    await t.closed;
+});
+
 test("terminal: past maxSessions → 1013 until a session ends", async () => {
     await setup({ maxSessions: 1 });
     const first = ctx.connect("host=h1&login=root");
@@ -298,7 +343,7 @@ test("terminal: input that arrives after ssh exited is dropped, not thrown", asy
     await rm(root, { recursive: true, force: true });
 });
 
-test("terminal: '/' and control chars in email can't forge the cert key ID", async () => {
+test("terminal: email chars outside [\\w.@+-] can't forge the cert key ID", async () => {
     await setup({
         command: ({ key }) => [
             "sh",
@@ -310,13 +355,13 @@ test("terminal: '/' and control chars in email can't forge the cert key ID", asy
     const token = createSession(ctx.db, {
         iss: "https://id.test",
         sub: "user-1",
-        email: "v@x/victim/s\nKey ID",
+        email: '"v (serial 1)"@x/victim/s\nKey ID',
         groups: ["admins"],
     });
     const t = ctx.connect("host=h1&login=root", {
         cookie: `${SESSION_COOKIE}=${token}`,
     });
-    await t.waitFor('Key ID: "v@x_victim_s_Key ID/user-1/');
+    await t.waitFor('Key ID: "_v__serial_1__@x_victim_s_Key_ID/user-1/');
     t.ws.close();
 });
 
