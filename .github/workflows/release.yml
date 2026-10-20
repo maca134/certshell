@@ -1,6 +1,6 @@
 name: release
 
-# Tag vX.Y.Z → push ghcr.io/<owner>/certshell:{X.Y.Z,X.Y,X,latest}. Manual run builds without pushing.
+# Tag vX.Y.Z → push ghcr.io/<owner>/certshell:{X.Y.Z,X.Y,X,latest}, then a GitHub release from its CHANGELOG section. Manual run builds without pushing.
 on:
   push:
     tags: ["v*.*.*"]
@@ -59,3 +59,21 @@ jobs:
           build-args: VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  notes:
+    needs: image
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # The tag's CHANGELOG section; fails if there isn't one.
+      - run: |
+          awk -v v="## ${GITHUB_REF_NAME#v} " 'index($0, v) == 1 {f=1; next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          test -s notes.md
+          gh release create "$GITHUB_REF_NAME" --verify-tag --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
