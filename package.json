@@ -16,6 +16,7 @@
         "test": "bun run --filter api --filter web test && bun test ./test",
         "verify": "bun run lint && bun run typecheck && bun run build && bun run test",
         "e2e": "bun run --filter web e2e",
+        "verify:full": "bun run verify && bun run e2e",
         "media": "bun run --filter web media"
     },
     "devDependencies": {

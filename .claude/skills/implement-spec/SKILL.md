@@ -98,7 +98,8 @@ then:     review → security pass → PR
    `security-reviewer` agent on just those commits and fix what it finds.
    The merger merges it as in step 5.
 8. **PR.** Only now, after review and the security pass (CLAUDE.md: before
-   the PR). `bun run verify` on the integration branch passes →
+   the PR). `bun run verify:full` (verify + e2e, as CI) on the integration
+   branch passes →
    `gh pr create`, body: `Part of #N` plus `Closes #n` for each **merged**
    ticket only. Any stuck ticket → `--draft`, and the body lists the stuck
    ones. Never push to `main`; the user merges.
