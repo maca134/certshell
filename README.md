@@ -6,7 +6,7 @@
 
 A browser SSH terminal for your servers. You log in with your identity provider (OIDC), and the app signs a short-lived SSH certificate for each session. No SSH keys to hand out, rotate or revoke.
 
-![CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, list hosts that need a reboot, tag a host](docs/media/demo.gif)
+![CertShell demo: filter hosts by tag, open a terminal and search it, run a task on several hosts and open the one whose output differs, list hosts that need a reboot, edit an alert channel](docs/media/demo.gif)
 
 **Website & setup generator: [certshell.dev](https://certshell.dev)**
 
@@ -90,6 +90,8 @@ Already have a reverse proxy? Drop the `caddy`/`traefik` service, publish `certs
 2. **Enroll snippet** → copy it and run it as root on the host. It's valid for 10 minutes and one use.
 3. Under the host, **Allow** an IdP group a login (e.g. `ops` → `root`).
 
+<img src="docs/media/crop-enroll.png" alt="The enroll dialog with a one-time snippet to run as root on the host" width="536">
+
 Host requirements: Linux, FreeBSD or OPNsense, OpenSSH ≥ 7.3, `curl` (FreeBSD: `pkg install curl`), and reachable on port 22 from the app. Tasks run in the login's shell, so a login whose shell is csh/tcsh (possible on FreeBSD) needs csh-syntax scripts. The host must reach `https://ssh.example.com` only while enrolling.
 
 The script writes the CA public key, adds `sshd_config.d/50-certshell.conf` (in `/etc/ssh`, or `/usr/local/etc/ssh` on OPNsense), checks sshd loads it (if `sshd_config` doesn't include `sshd_config.d/*.conf`, as on FreeBSD, it adds that `Include` as the first line, keeping a backup at `sshd_config.certshell.bak`), records the host key with the app, and reloads sshd. If it fails before the host key is recorded, a first enroll removes what it wrote. The app pins that host key, so a different machine at the same address is refused.
@@ -104,29 +106,44 @@ The script writes the CA public key, adds `sshd_config.d/50-certshell.conf` (in 
 
 - **Hosts** lists every host + login the access map gives you. A dot shows whether the host's port 22 is reachable from the app. Click a login to open a terminal.
 - **Search the scrollback** with the search button or Ctrl+Shift+F. Enter finds the next match, Shift+Enter the previous one, Esc closes.
+- **Full screen** with the button next to Search, where the browser allows it (not Safari on iPhone).
 - **Multi-line pastes** ask before running, unless the shell has bracketed paste on (then nothing runs until you press Enter).
+- **Phones and tablets** get a key tray under the terminal (to the right in landscape): Esc, Tab, Ctrl, Alt, ^C, ^D, Home, End, PgUp, PgDn and arrows. Ctrl and Alt apply to the next key; tap again to lock them. Arrows repeat when held. The pencil opens a compose line for predictions, swipe and voice; Enter sends it.
 - Terminals close after 30 minutes idle, and always after 8 hours.
+- When your sign-in ends, a **Session ended** popup asks you to sign in again. Open terminals keep running, and you come back to the page you were on.
+
+![Terminal scrollback search with a match highlighted](docs/media/crop-terminal-search.png)
+
+<img src="docs/media/mobile-terminal.png" alt="A terminal on a phone, with the key tray under it" width="260">
 
 ### Tasks
 
 A task is a saved script plus the host logins it runs on, e.g. `apt-get upgrade -y` on every web server.
 
 - **Tasks → New task**: a name, the script, then tick hosts and pick a login on each. Only host logins the access map gives you are offered, and that is checked again on every run.
-- **Run** starts every host at once. Each host shows ok or failed, its exit code and its output (the last 256 KB). **Run again** repeats it.
+- **Run** starts every host at once. Each host shows ok or failed, its exit code and its output (the last 256 KB; the last 8 KB while it's still running). **Run again** repeats it. Scripts are syntax highlighted in the editor and on the run page.
 - **Group by output** puts hosts with the same exit code and output together, biggest group first. Every other group shows a diff against the biggest one. On by default when at least two hosts match; **By host** lists each host instead.
 - The script runs in the login's shell without a terminal, so prompts get no input: use `-y` and similar. Runs are killed after 30 minutes.
 - **Keep running if the connection drops**: turn on for scripts that can cut their own connection (VPN, sshd, firewall or network changes). The script then finishes even if the app loses the connection, and its output also goes to a log file in `/tmp` on the host.
 - Tasks and runs are private to the user who made them. Limits: 100 tasks, 50 hosts per task, 16 KB per script. A run keeps its own copy of the script, so editing a task doesn't change past runs.
 
+![A task run: one host's output shown as a diff against the other three](docs/media/crop-task-diff.png)
+
 ### Admin
 
 Members of `OIDC_ADMIN_GROUP` get an **Admin** section:
 
-- **Hosts**: add, enroll, edit and delete hosts, and edit the access map ([Adding a host](#adding-a-host)).
+- **Hosts**: add, enroll, edit and delete hosts, and edit the access map ([Adding a host](#adding-a-host)). **Edit** also sets the host's tags, suggesting tags already in use.
+
+  <img src="docs/media/crop-host-tags.png" alt="Editing a host's tags, with a suggestion" width="536">
 - **Fleet**: each host's OS, uptime, pending updates (and how many are security), reboot-needed flag and `/` disk use, with counts on top (need a reboot, have updates, disk ≥ 90%, not collected). Click a count to list those hosts, then **New task on these hosts**. Turn it on per host by setting a **facts login** under **Hosts → Edit**: CertShell logs in as it every 6 hours with a no-terminal cert and runs a fixed read-only script. That login needs no access rule. Update counts come from the host's own package cache, so they're as fresh as its last `apt update` (or equivalent).
+
+  ![Fleet counts: need a reboot, have updates, disk at least 90%, not collected](docs/media/crop-fleet-counts.png)
 - **Users**: everyone who has signed in, with their groups as of their last sign-in. **Sign out & end sessions** closes their terminals, stops their running tasks and signs them out of CertShell. Disable them at the IdP too, or they can sign straight back in.
 - **Sessions**: open terminals right now. End any one of them.
 - **Alerts**: send notifications through [shoutrrr](https://github.com/nicholas-fedor/shoutrrr/blob/main/docs/services/overview.md) (ntfy, Gotify, Discord, Slack, Telegram, email, webhooks, …). Add a channel with its shoutrrr URL and pick events: a task run with a failed host, a host offline or back online (port 22 checked every minute), a host newly needing a reboot (from **Fleet**), security changes (hosts, access, enrollment, alert channels, sessions ended by an admin, a host key mismatch), or a terminal opened (optionally only on hosts with certain tags, or for certain logins). The URL is never shown again after saving, and is stored encrypted when `ca_password` is set. **Send test** checks a channel.
+
+  <img src="docs/media/alerts-edit.png" alt="Editing an alert channel: events, and terminal alerts limited to hosts tagged prod" width="536">
 - **Audit**: logins, every cert signed, terminal start/end, task runs, host and access map changes, enrollments. The same events go to stdout.
 
 ## Configuration
