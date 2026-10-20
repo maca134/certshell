@@ -394,3 +394,4 @@ Don't re-propose these without new information.
 - CA rotation: hosts' `TrustedUserCAKeys` accepts multiple keys, so an overlap rotation via re-running the snippet is possible.
 - Hardware-backed CA key (YubiKey PIV / TPM via PKCS#11, `ssh-keygen -D`): usable in place, not exfiltratable.
 - Single-user passkey mode (no IdP): [docs/no-oidc-mode.md](docs/no-oidc-mode.md). Build if users ask; bundling Pocket ID covers it meanwhile.
+- Hardened mode (separate signer holds the CA, signs only against a fresh IdP login): [docs/hardened-mode.md](docs/hardened-mode.md). Parked: needs Fleet dropped first, and the access-map design question in that doc settled.
