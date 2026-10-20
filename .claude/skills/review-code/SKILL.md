@@ -88,7 +88,8 @@ one line each in the format below. Under 400 words."
 
 ## Security axis
 
-Launch the `security-reviewer` agent on `$B..$H`. Rewrite each of its
+Launch the `security-reviewer` agent on `$B..$H`, naming the directory
+where `$H` is checked out so it can run the tests. Rewrite each of its
 findings into the Security line format, keeping its severity.
 
 ## Output

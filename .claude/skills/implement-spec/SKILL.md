@@ -100,7 +100,8 @@ then:     review → security pass → PR
    `wrong` and security finding (and the rest unless they contradict a
    ticket), commits, runs verify. If its commits touch `apps/api/src/`,
    `Dockerfile`, `compose*.yaml` or `.github/workflows/`, run the
-   `security-reviewer` agent on just those commits and fix what it finds.
+   `security-reviewer` agent on just those commits, pointing it at the
+   fixer's worktree path so it can run the tests, and fix what it finds.
    The merger merges it as in step 5.
 8. **PR.** Only now, after review and the security pass (CLAUDE.md: before
    the PR). `bun run verify:full` (verify + e2e, as CI) on the integration
