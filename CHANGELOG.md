@@ -2,6 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.15.1 - 2026-10-20
+- Removed: the terminal's **Pop out** button, until it works more smoothly.
+
 ## 1.15.0 - 2026-10-20
 - Terminal: a **Pop out** button (Chrome and Edge on desktop) moves the terminal into a small always-on-top window. The session stays connected. Close the window to bring the terminal back.
 - Fixed: someone who can edit their email at the identity provider could add spaces or brackets to fake fields in target hosts' sshd logs. Certificate key IDs now keep only letters, digits and `_ . @ + -` from the email.
