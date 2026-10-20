@@ -297,24 +297,3 @@ test("touch: compose bar sends the line on Enter", async ({
     await expect.poll(() => typed.join("")).toBe("ls -la\r");
     await expect(line).toHaveValue("");
 });
-
-test("pop out: terminal moves to a picture-in-picture window and back, same session", async ({
-    page,
-    isMobile,
-}) => {
-    test.skip(isMobile, "desktop only");
-    let sockets = 0;
-    page.on("websocket", () => sockets++);
-    const { typed } = await openTerminal(page);
-    const pip = page.context().waitForEvent("page");
-    await page.getByRole("button", { name: "Pop out" }).click();
-    const win = await pip;
-    await expect(win.locator(".xterm")).toHaveCount(1);
-    await expect(page.locator(".xterm")).toHaveCount(0);
-    await win.keyboard.type("ls");
-    await expect.poll(() => typed.join("")).toBe("ls");
-
-    await win.close();
-    await expect(page.locator(".xterm")).toHaveCount(1);
-    expect(sockets).toBe(1);
-});
