@@ -10,6 +10,7 @@ import {
     ChevronUp,
     Maximize,
     Minimize,
+    PictureInPicture2,
     RotateCw,
     Search,
     X,
@@ -53,6 +54,17 @@ const THEME: ITheme = {
     brightWhite: "#fafafa",
 };
 
+declare global {
+    interface Window {
+        documentPictureInPicture?: {
+            requestWindow(size?: {
+                width: number;
+                height: number;
+            }): Promise<Window>;
+        };
+    }
+}
+
 type Status = { state: "connecting" | "connected" | "closed"; reason?: string };
 
 export function TerminalView({
@@ -77,6 +89,34 @@ export function TerminalView({
     const side = useSideLayout() && TOUCH;
     const [tray, setTray] = useState(true);
     const [composing, setComposing] = useState(false);
+    const [pip, setPip] = useState<Window>();
+
+    useEffect(() => () => pip?.close(), [pip]);
+
+    const popOut = async () => {
+        const el = ref.current;
+        const home = el?.parentElement;
+        if (!el || !home || !window.documentPictureInPicture) return;
+        const win = await window.documentPictureInPicture.requestWindow({
+            width: 720,
+            height: 420,
+        });
+        for (const { cssRules, ownerNode } of document.styleSheets) {
+            if (ownerNode?.parentNode !== document.head) continue;
+            const style = win.document.createElement("style");
+            style.textContent = Array.from(cssRules, (r) => r.cssText).join("");
+            win.document.head.append(style);
+        }
+        win.document.title = document.title;
+        win.document.body.style.cssText = `margin:0;height:100vh;display:flex;background:${THEME.background}`;
+        win.document.body.append(el);
+        win.addEventListener("pagehide", () => {
+            home.prepend(el);
+            setPip(undefined);
+        });
+        setPip(win);
+        termRef.current?.focus();
+    };
 
     useEffect(() => {
         const sync = () => setFull(!!document.fullscreenElement);
@@ -196,7 +236,7 @@ export function TerminalView({
                 if (
                     n &&
                     !term.modes.bracketedPasteMode &&
-                    !confirm(
+                    !(el.ownerDocument.defaultView ?? window).confirm(
                         `This paste runs ${n} command${n === 1 ? "" : "s"} straight away. Paste anyway?`,
                     )
                 ) {
@@ -252,6 +292,18 @@ export function TerminalView({
                     >
                         <Search />
                     </Button>
+                    {window.documentPictureInPicture && (
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground"
+                            aria-label={pip ? "Bring back" : "Pop out"}
+                            title={pip ? "Bring back" : "Pop out"}
+                            onClick={() => (pip ? pip.close() : popOut())}
+                        >
+                            <PictureInPicture2 />
+                        </Button>
+                    )}
                     {document.fullscreenEnabled && (
                         <Button
                             variant="ghost"
