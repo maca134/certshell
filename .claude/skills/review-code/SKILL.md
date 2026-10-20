@@ -67,6 +67,7 @@ Repo rules worth checking by hand:
 - Nothing changed beyond what was asked.
 - One logical change per commit.
 - Design change → SPEC.md updated in the same branch.
+- Tests wait on a side effect (a row, a file, a closed socket), never by polling a rate-limited route.
 
 Smells (always `judgement`, never `hard`): Mysterious Name, Duplicated
 Code, Feature Envy, Data Clumps, Primitive Obsession, Repeated Switches,
