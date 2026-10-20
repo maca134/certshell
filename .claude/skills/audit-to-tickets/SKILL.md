@@ -33,7 +33,11 @@ like any other finding.
    uses it). Each ticket fits one PR. Name its seams: the public boundaries
    its tests observe (a route, the WebSocket, an exported function), each
    with one line on what it catches. `cut:` tickets with no behaviour
-   change: the existing tests that must stay green.
+   change: the existing tests that must stay green. Config/CI tickets with
+   no test seam: `none — check: <how to verify>`. Every ticket has a Seams
+   section; `/implement-spec` won't start one without it.
+   Check each `Where:` path and line on `origin/main`
+   (`git show origin/main:<path>`); fix or drop stale ones.
 5. **Quiz the user** with the draft, numbered:
 
    ```
@@ -75,7 +79,7 @@ Where: path:line
 <the Fix from the report, plus anything the grill decided>
 
 ## Seams
-- <seam>: <what it catches>
+- <seam>: <what it catches> | none — check: <how to verify>
 
 ## Acceptance criteria
 - [ ] <observable outcome, e.g. "POST /x without session → 401">
