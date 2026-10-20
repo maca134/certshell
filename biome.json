@@ -10,7 +10,7 @@
         "includes": [
             "**",
             "!**/.claude/skills",
-            "!**/.claude/worktrees",
+            "!.claude/worktrees",
             "!**/skills-lock.json"
         ]
     },
