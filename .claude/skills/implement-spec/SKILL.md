@@ -81,6 +81,7 @@ then:     review → security pass → PR
    - reports: branch, commits, verify result, `vuln: yes|no` (does the fix
      reveal a vulnerability where knowing about it could get someone a
      cert, the CA key, a login or a session?), anything it couldn't do.
+     Security review runs at step 7; it doesn't report its absence.
 5. **Merge**, one at a time: a single merger sub-agent; reports that arrive
    while it runs wait in a queue. `vuln: yes` → don't merge; stop and ask the
    user (sec-ticket rules: nothing about it is pushed). Otherwise it merges
