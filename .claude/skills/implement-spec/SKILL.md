@@ -82,11 +82,14 @@ then:     review → security pass → PR
      reveal a vulnerability where knowing about it could get someone a
      cert, the CA key, a login or a session?), anything it couldn't do.
      Security review runs at step 7; it doesn't report its absence.
-5. **Merge**, one at a time: a single merger sub-agent; reports that arrive
-   while it runs wait in a queue. `vuln: yes` → don't merge; stop and ask the
-   user (sec-ticket rules: nothing about it is pushed). Otherwise it merges
-   the branch into the integration branch, fixing only trivial conflicts
-   (imports, adjacent hunks), runs `bun run verify`, and pushes. A
+5. **Merge**, one at a time: one merger sub-agent call per branch; reports
+   that arrive while it runs wait in a queue, never sent to a running merger
+   (a message that lands after it finishes is lost). `vuln: yes` → don't
+   merge; stop and ask the user (sec-ticket rules: nothing about it is
+   pushed). Otherwise it merges the branch into the integration branch,
+   fixing only trivial conflicts (imports, adjacent hunks), runs
+   `bun run verify`, and pushes. After each report, check
+   `git rev-parse origin/<integration>` is the merge it reported. A
    non-trivial conflict or a failed verify → stop and ask the user.
 6. **Advance.** Each merge can widen the frontier: launch implementers for
    newly unblocked tickets, keeping the max of 3. Stop when the frontier is
