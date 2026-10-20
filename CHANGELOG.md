@@ -2,6 +2,19 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.15.0 - 2026-10-20
+- Terminal: a **Pop out** button (Chrome and Edge on desktop) moves the terminal into a small always-on-top window. The session stays connected. Close the window to bring the terminal back.
+- Fixed: someone who can edit their email at the identity provider could add spaces or brackets to fake fields in target hosts' sshd logs. Certificate key IDs now keep only letters, digits and `_ . @ + -` from the email.
+- Alerts: task names, emails and other user-set text can no longer ping people (`@everyone`, mentions) or post clickable links.
+- Alerts: errors now hide more of a channel's URL (hostname, and tokens in the path or query).
+- Tasks: hosts still running when the app restarts are now logged as `task_end` in the audit log and trigger the failed-task alert.
+- Tasks: a host's output no longer loses its last character when the output ends partway through a multi-byte character.
+- Sign-in: when the identity provider can't be reached on the way back from sign-in, the "provider down" page is shown instead of an error.
+- Sign-in: a malformed return address after sign-in now goes to the host list instead of an error. The favicon no longer resets a sign-in in progress.
+- A failed database write no longer crashes the app (tasks, alerts, Fleet, audit log). A terminal whose start or end can't be audited is closed.
+- Terminal: at most 190 ssh sessions in total (was 200), leaving room for the app's other ssh processes.
+- Install script and README: `ca_password` is created readable by its owner only.
+
 ## 1.14.2 - 2026-10-14
 - Fixed: anyone with access to a host could fake a **Host key mismatch** alert by printing ssh's message in a terminal or task and exiting with code 255. The check now reads only ssh's own messages.
 - Terminal: a browser that falls too far behind on output (for example `cat` of a big file over a slow link) is now disconnected instead of silently missing part of the output.
