@@ -218,3 +218,11 @@ describe("site SEO", () => {
         );
     });
 });
+
+test("site and README only reference docs/media files that exist", async () => {
+    for (const page of ["site/index.html", "README.md"]) {
+        const refs = (await read(page)).match(/docs\/media\/[\w.-]+/g) ?? [];
+        for (const ref of refs)
+            expect(await Bun.file(`${root}/${ref}`).exists()).toBe(true);
+    }
+});
