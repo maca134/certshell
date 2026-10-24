@@ -550,6 +550,26 @@ test("targets still running at startup are failed, audited and alerted once per 
     expect(sent).toHaveLength(2);
 });
 
+test("detach: refused for Windows targets, on save and on run", async () => {
+    await setup();
+    const taskId = await createTask("echo hi", h1root);
+    const body = {
+        name: "t",
+        script: "echo hi",
+        targets: h1root,
+        detach: true,
+    };
+    expect((await call("PUT", `/${taskId}`, body)).status).toBe(204);
+    ctx.db.run("UPDATE hosts SET os = 'windows' WHERE id = 'h1'");
+    const res = await call("POST", "", body);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+        error: "detach isn't supported on Windows hosts",
+    });
+    expect((await call("POST", `/${taskId}/run`)).status).toBe(400);
+    expect(count("runs")).toEqual({ n: 0 });
+});
+
 test("detach: saved per task; a run wraps the script, keeps output and exit code", async () => {
     await setup();
     const res = await call("POST", "", {

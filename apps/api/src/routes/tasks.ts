@@ -67,6 +67,11 @@ export function taskRoutes({
         return [...targets.values()];
     }
 
+    // detached() needs sh and nohup.
+    const DETACH_WINDOWS = "detach isn't supported on Windows hosts";
+    const anyWindows = (targets: { host: Host }[]) =>
+        targets.some((t) => t.host.os === "windows");
+
     async function parseTask(c: Context<AppEnv>) {
         const input = await jsonBody(c);
         if (!validName(input?.name)) return "invalid name";
@@ -75,6 +80,7 @@ export function taskRoutes({
         if (typeof targets === "string") return targets;
         if (input.detach !== undefined && typeof input.detach !== "boolean")
             return "invalid detach";
+        if (input.detach && anyWindows(targets)) return DETACH_WINDOWS;
         return {
             name: input.name,
             script: input.script,
@@ -203,6 +209,8 @@ export function taskRoutes({
         // Access is checked again: groups or the access map may have changed since the task was saved.
         const targets = resolveTargets(JSON.parse(task.targets), user.groups);
         if (typeof targets === "string") return c.json({ error: targets }, 403);
+        if (task.detach && anyWindows(targets))
+            return c.json({ error: DETACH_WINDOWS }, 400);
         if (!signLimit(user.sub))
             return c.json({ error: "too many sessions, slow down" }, 429);
         if (!sshLimit.acquire(user.sub, targets.length))
