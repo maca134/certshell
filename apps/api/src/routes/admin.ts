@@ -54,10 +54,11 @@ export function adminRoutes({
                     tags: string;
                     access: string;
                     factsLogin: string | null;
+                    os: "windows" | null;
                 },
                 []
             >(
-                `SELECT id, name, address, host_key IS NOT NULL AS enrolled, tags, facts_login AS factsLogin,
+                `SELECT id, name, address, host_key IS NOT NULL AS enrolled, tags, facts_login AS factsLogin, os,
                    (SELECT json_group_array(json_object('login', login, 'group', grp) ORDER BY login, grp)
                     FROM access WHERE host_id = h.id) AS access
                  FROM hosts h ORDER BY name`,

@@ -34,6 +34,7 @@ const adminHosts: AdminHost[] = [
         address: "10.0.1.11",
         enrolled: true,
         factsLogin: "root",
+        os: null,
         tags: ["edge", "prod", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -46,6 +47,7 @@ const adminHosts: AdminHost[] = [
         address: "10.0.1.12",
         enrolled: true,
         factsLogin: "root",
+        os: null,
         tags: ["prod", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -58,6 +60,7 @@ const adminHosts: AdminHost[] = [
         address: "10.0.2.21",
         enrolled: true,
         factsLogin: "root",
+        os: null,
         tags: ["db", "prod"],
         access: [
             { login: "postgres", group: "dba" },
@@ -70,6 +73,7 @@ const adminHosts: AdminHost[] = [
         address: "10.0.3.11",
         enrolled: true,
         factsLogin: "root",
+        os: null,
         tags: ["docker", "staging", "web"],
         access: [
             { login: "deploy", group: "web" },
@@ -82,6 +86,7 @@ const adminHosts: AdminHost[] = [
         address: "10.0.3.40",
         enrolled: true,
         factsLogin: "root",
+        os: null,
         tags: ["dev", "docker"],
         access: [{ login: "ci", group: "ops" }],
     },
@@ -91,6 +96,7 @@ const adminHosts: AdminHost[] = [
         address: "10.0.3.31",
         enrolled: true,
         factsLogin: "root",
+        os: null,
         tags: ["backup"],
         access: [{ login: "root", group: "ops" }],
     },
@@ -100,6 +106,7 @@ const adminHosts: AdminHost[] = [
         address: "10.0.3.50",
         enrolled: false,
         factsLogin: null,
+        os: null,
         tags: [],
         access: [],
     },
@@ -518,6 +525,8 @@ const alerts: AlertChannel[] = [
 const snippet: EnrollSnippet = {
     snippet:
         "echo 'Authorization: Bearer 7f3c…' | curl -fsS -H @- 'https://ssh.example.com/api/enroll' | sh",
+    windows:
+        "'Authorization: Bearer 7f3c…' | curl.exe -fsS -H '@-' 'https://ssh.example.com/api/enroll?os=windows' | Out-String | Invoke-Expression",
     expiresAt: Math.floor(now / 1000) + 15 * 60,
 };
 

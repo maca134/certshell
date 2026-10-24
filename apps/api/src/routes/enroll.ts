@@ -1,5 +1,11 @@
 import type { Database } from "bun:sqlite";
-import { type EnrollSnippet, RELOAD_SSHD, SSH_DIR_SH, sq } from "@repo/shared";
+import {
+    type EnrollSnippet,
+    psq,
+    RELOAD_SSHD,
+    SSH_DIR_SH,
+    sq,
+} from "@repo/shared";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Config } from "../config";
@@ -65,6 +71,75 @@ main "$@"
 `;
 }
 
+/** The Windows counterpart of renderSnippet, for OpenSSH for Windows. Wrapped in `& { }` for the same reason. */
+export function renderWindowsSnippet(opts: {
+    appUrl: string;
+    hostId: string;
+    caPub: string;
+    token: string;
+}) {
+    return String.raw`& {
+$ErrorActionPreference = 'Stop'
+$APP_URL = ${psq(opts.appUrl)}
+$HOST_ID = ${psq(opts.hostId)}
+$CA_PUB = ${psq(opts.caPub)}
+$TOKEN = ${psq(opts.token)}
+$dir = "$env:ProgramData\ssh"
+$conf = "$dir\sshd_config.d\50-certshell.conf"
+$caFile = "$dir\certshell_user_ca.pub"
+$principals = "$dir\certshell_principals.ps1"
+$main = "$dir\sshd_config"
+$sshd = (Get-CimInstance Win32_Service -Filter "Name='sshd'").PathName.Trim('"')
+$ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+function fwd($p) { $p -replace '\\', '/' }
+function save($path, $lines) { [IO.File]::WriteAllText($path, (@($lines) + '') -join [char]10) }
+function check { & $sshd -t; if ($LASTEXITCODE) { throw "sshd -t failed" } }
+function loaded { [bool]((& $sshd -T) -match '^trustedusercakeys .*/certshell_user_ca\.pub$') }
+
+# A failed first enroll leaves nothing behind; a failed re-enroll keeps the working config.
+$first = -not (Test-Path $conf)
+try {
+  New-Item -ItemType Directory -Force "$dir\sshd_config.d" | Out-Null
+  save $caFile $CA_PUB
+  # -File passes %u as a plain string: never parsed as PowerShell. A login with a space would arrive as extra args.
+  save $principals ('param([string]$u) if (-not $args.Count -and $u -cmatch ''^[a-z_][a-z0-9_-]{0,31}$'') { "ws:' + $HOST_ID + ':$u" }')
+  save $conf @(
+    "TrustedUserCAKeys $(fwd $caFile)",
+    "AuthorizedPrincipalsCommand $(fwd $ps) -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $(fwd $principals) %u",
+    'AuthorizedPrincipalsCommandUser SYSTEM'
+  )
+  # sshd checks only powershell.exe's ACL, not the script's, which runs as SYSTEM: don't trust what it inherits.
+  foreach ($f in $caFile, $principals, $conf) {
+    icacls $f /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' '*S-1-5-11:RX' | Out-Null
+    if ($LASTEXITCODE) { throw "icacls $f failed" }
+  }
+  check
+  if (-not (loaded)) {
+    Copy-Item -Force $main "$main.certshell.bak"
+    # Relative: OpenSSH for Windows 9.5 loads nothing from an absolute Include glob.
+    [IO.File]::WriteAllText($main, "Include sshd_config.d/*.conf" + [char]10 + [IO.File]::ReadAllText("$main.certshell.bak"))
+    $ok = $false
+    try { check; $ok = loaded } catch {}
+    if (-not $ok) {
+      Copy-Item -Force "$main.certshell.bak" $main
+      throw "could not load $conf via an Include in $main; $main restored"
+    }
+    "added Include sshd_config.d/*.conf to $main (backup: $main.certshell.bak)"
+  }
+  $hostKey = "$dir\ssh_host_ed25519_key.pub"
+  if (-not (Test-Path $hostKey)) { throw "sshd has no ssh_host_ed25519_key HostKey" }
+  "Authorization: Bearer $TOKEN" | curl.exe -fsS -X POST "$APP_URL/api/enroll?os=windows" -H '@-' --data-binary "@$hostKey"
+  if ($LASTEXITCODE) { throw "enroll request failed" }
+} catch {
+  if ($first) { Remove-Item -Force -ErrorAction SilentlyContinue $conf, $caFile, $principals }
+  throw
+}
+Restart-Service sshd
+"enrolled: $env:COMPUTERNAME"
+}
+`;
+}
+
 export function issueSnippet(
     db: Database,
     config: Config,
@@ -82,6 +157,7 @@ export function issueSnippet(
     );
     return {
         snippet: `echo ${sq(`Authorization: Bearer ${token}`)} | curl -fsS -H @- ${sq(`${config.appUrl.origin}/api/enroll`)} | sh`,
+        windows: `${psq(`Authorization: Bearer ${token}`)} | curl.exe -fsS -H '@-' ${psq(`${config.appUrl.origin}/api/enroll?os=windows`)} | Out-String | Invoke-Expression`,
         expiresAt,
     };
 }
@@ -110,8 +186,12 @@ export function enrollRoute({
                 )
                 .get(hashToken(token), now());
         if (!token || !row) return c.text("invalid or expired token\n", 401);
+        const render =
+            c.req.query("os") === "windows"
+                ? renderWindowsSnippet
+                : renderSnippet;
         return c.text(
-            renderSnippet({
+            render({
                 appUrl: config.appUrl.origin,
                 hostId: row.host_id,
                 caPub: (await Bun.file(caPubPath).text()).trim(),
@@ -139,14 +219,17 @@ export function enrollRoute({
                 .get(hashToken(token));
             if (!row || row.expires_at <= now())
                 return c.text("invalid or expired token\n", 401);
-            db.run("UPDATE hosts SET host_key = ? WHERE id = ?", [
+            const os = c.req.query("os") === "windows" ? "windows" : null;
+            db.run("UPDATE hosts SET host_key = ?, os = ? WHERE id = ?", [
                 hostKey,
+                os,
                 row.host_id,
             ]);
             audit(db, {
                 event: "enroll",
                 host: row.host_id,
                 host_key: hostKey,
+                os: os ?? undefined,
                 ip: c.var.ip,
             });
             return c.body(null, 204);
