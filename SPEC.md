@@ -113,7 +113,7 @@ A task = a saved script + the host logins it runs on, e.g. `apt-get upgrade -y` 
 - Per target: the §3.2 flow, but the cert is `-O clear` only (**no `permit-pty`**): it runs the script, no terminal, no forwarding. `ssh` gets the script as its last argv element (the login's shell runs it), stdin `/dev/null`, so prompts read EOF instead of hanging.
 - Targets run in parallel. Killed after 30 min. Status per target: running → ok (exit 0) / failed (non-zero, ssh error, timeout). stdout + stderr merged; the last 256K characters are kept. The UI polls while a run is going.
 - A run counts once against the per-user sign rate limit.
-- **Detach** (per task): if the connection drops (app restart, or the script cuts it, e.g. a NetBird/VPN or sshd upgrade), sshd closes the session's pipes and a plain script dies of SIGPIPE on its next write. A detached task's script runs under `nohup` in the login's shell, output into a `mktemp` file on the host that `tail -f` streams back, so it finishes regardless; the run still gets the exit code if the connection holds. Logs stay in `/tmp` for after an interrupted run. POSIX tools only.
+- **Detach** (per task): if the connection drops (app restart, or the script cuts it, e.g. a NetBird/VPN or sshd upgrade), sshd closes the session's pipes and a plain script dies of SIGPIPE on its next write. A detached task's script runs under `nohup` in the login's shell, output into a `mktemp` file on the host that `tail -f` streams back, so it finishes regardless; the run still gets the exit code if the connection holds. Logs stay in `/tmp` for after an interrupted run. POSIX tools only, so refused (on save and on run) for Windows targets.
 - A run keeps a copy of the task's name and script: editing or deleting the task doesn't change past runs. On restart, still-running targets are marked failed, audited as `task_end` failed, and fire `task_failed`.
 
 ### 3.5 Alerts
@@ -237,6 +237,13 @@ echo "enrolled: $(hostname)"
 - A failed first enroll removes the drop-in and CA pubkey it wrote; a failed re-enroll leaves the existing ones.
 - Removing a host (UI): the app drops it (no more certs for `ws:<hostId>:*`) and shows a root snippet that deletes the drop-in + CA pubkey and reloads sshd. No token: it only takes trust away. The snippet feeds its script to `sh` as `printf` arguments, so it pastes into csh/tcsh too (root's shell on FreeBSD and OPNsense; csh can't end a heredoc).
 - Homelab: bake into the Proxmox LXC golden template for zero-touch enrollment on clone.
+
+### 4.2 Windows hosts
+
+- The enroll dialog also shows a PowerShell one-liner (same token): `'Authorization: Bearer <token>' | curl.exe -fsS -H '@-' '<APP_URL>/api/enroll?os=windows' | Out-String | Invoke-Expression`, run as Administrator. `?os=windows` on the GET serves the PowerShell script (wrapped in `& { … }`, values single-quoted for PowerShell); on the POST it sets `hosts.os = 'windows'`. A POST without it sets `os` back to NULL, so a re-enroll from sh makes the host a sh host again.
+- Same files under `C:\ProgramData\ssh` (writable by SYSTEM and Administrators only). `AuthorizedPrincipalsCommand` is `powershell.exe … -File certshell_principals.ps1 %u` as `SYSTEM`; `-File` passes `%u` as a string, never parsed as PowerShell. (`cmd /c echo` exits 1 with no output under sshd.) OpenSSH for Windows lowercases `%u`, which matches the app's login rule.
+- The `Include` is relative (`sshd_config.d/*.conf`): OpenSSH for Windows 9.5 loads nothing from an absolute Include glob. Same backup/restore and first-enroll rollback as §4.1. Then `Restart-Service sshd`; open sessions stay up.
+- `os` picks the removal snippet (PowerShell: delete the three files, restart sshd) and the facts script (§3.6: `WINDOWS_FACTS_SCRIPT`, passed as `powershell -EncodedCommand` so it runs from PowerShell or cmd as the login's shell; no update counts, as a Windows Update search can take minutes).
 
 ---
 
@@ -372,7 +379,7 @@ Operator steps: README → Quick start.
 
 - Small trusted group; access managed as IdP groups + the app's access map.
 - An OIDC provider that emits a `groups` claim, where users cannot change their own group membership.
-- Targets are Linux, FreeBSD or OPNsense, OpenSSH ≥ 7.3 (`Include`), with `curl` (not in FreeBSD base; the admin installs it), reachable on `:22` from the app. Tasks run in the login's shell: sh-syntax scripts need a POSIX login shell (not csh/tcsh).
+- Targets are Linux, FreeBSD, OPNsense or Windows (OpenSSH for Windows, §4.2), OpenSSH ≥ 7.3 (`Include`), with `curl` (not in FreeBSD base; the admin installs it), reachable on `:22` from the app. Tasks run in the login's shell: sh-syntax scripts need a POSIX login shell (not csh/tcsh).
 - May be internet-exposed behind an HTTPS reverse proxy; §3.3 is accepted on that basis.
 - Break-glass SSH stays offline, **not** signed by this CA, with no dependency on this app.
 
