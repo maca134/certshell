@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import type { HostFactsRow } from "@repo/shared";
-import { parseFacts } from "../src/ssh/facts";
+import { parseFacts, WINDOWS_FACTS_SCRIPT } from "../src/ssh/facts";
 import type { TerminalDeps } from "../src/ssh/terminal";
 import { APP_URL, startApp } from "./helpers/app";
 
@@ -113,6 +113,27 @@ test("refresh runs the real script via sh -s as the system user, with a no-PTY c
     ]);
     expect(JSON.parse(audits[0]?.data ?? "{}").principal).toBe("ws:h1:facts");
 }, 30_000);
+
+test("Windows host: the PowerShell facts script, encoded on the command line", async () => {
+    let remote = "";
+    await setup({
+        command: (a) => {
+            remote = a.remote ?? "";
+            return ["sh", "-c", "echo os=Windows; echo disk=12"];
+        },
+    });
+    ctx.db.run("UPDATE hosts SET os = 'windows' WHERE id = 'h1'");
+    await setLogin("h1", "facts");
+    expect((await call("POST", "/facts/h1/refresh")).status).toBe(204);
+    const [, encoded] =
+        remote.match(
+            /^powershell -NoProfile -NonInteractive -EncodedCommand (\S+)$/,
+        ) ?? [];
+    expect(Buffer.from(encoded ?? "", "base64").toString("utf16le")).toBe(
+        WINDOWS_FACTS_SCRIPT,
+    );
+    expect((await list())[0]?.facts).toEqual({ os: "Windows", disk: 12 });
+});
 
 test("BSD uptime: from kern.boottime's sec, not its usec", async () => {
     const dir = await mkdtemp(`${tmpdir()}/sysctl-`);
