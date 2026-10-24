@@ -223,6 +223,43 @@ section h2 {
     background: linear-gradient(var(--accent), var(--accent-2));
     box-shadow: 0 0 0 4px rgb(59 140 255 / 0.15);
 }
+.shots {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+.shots figure {
+    margin: 0;
+}
+.shots img,
+.shot,
+.phone img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.shots figcaption {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+.shot {
+    margin-top: 24px;
+}
+.phone {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 40px;
+    align-items: center;
+}
+.phone p {
+    color: var(--muted);
+}
+.phone img {
+    border-radius: 16px;
+}
 @media (max-width: 860px) {
     .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -230,9 +267,15 @@ section h2 {
 }
 @media (max-width: 600px) {
     .grid,
-    .flow {
+    .flow,
+    .shots,
+    .phone {
         grid-template-columns: minmax(0, 1fr);
         gap: 24px;
+    }
+    .phone img {
+        max-width: 260px;
+        margin: 0 auto;
     }
     .step:not(:last-child)::after {
         display: none;

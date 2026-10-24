@@ -3,6 +3,7 @@ import type {
     AdminHost,
     AlertChannel,
     AuditEntry,
+    EnrollSnippet,
     HostFactsRow,
     HostSummary,
     LiveSession,
@@ -367,23 +368,23 @@ Setting up libssl3:amd64 (3.0.17-1~deb12u3) ...
 Setting up openssl (3.0.17-1~deb12u3) ...
 `;
 
-/** r0: three hosts upgraded the same two packages, one also took a kernel. */
-function upgradeRun(): RunDetail {
+/** Three hosts upgraded the same two packages, one also took a kernel. r0 is the past run; `done` false is a fresh one still running. */
+function upgradeRun(id: string, done: boolean): RunDetail {
     const host = (hostId: string, output: string): RunHost => ({
         hostId,
         hostName: adminHosts.find((h) => h.id === hostId)?.name ?? "",
         login: "root",
-        status: "ok",
-        exitCode: 0,
-        output,
+        status: done ? "ok" : "running",
+        exitCode: done ? 0 : null,
+        output: done ? output : "",
     });
     return {
-        id: "r0",
+        id,
         taskId: 1,
         name: "Upgrade packages",
         script: "apt-get update && apt-get upgrade -y",
         detach: true,
-        createdAt: ago(60 * 22),
+        createdAt: id === "r0" ? ago(60 * 22) : now,
         hosts: [
             host("h1", UPGRADED),
             host("h2", UPGRADED),
@@ -521,6 +522,14 @@ const alerts: AlertChannel[] = [
     },
 ];
 
+const snippet: EnrollSnippet = {
+    snippet:
+        "echo 'Authorization: Bearer 7f3c…' | curl -fsS -H @- 'https://ssh.example.com/api/enroll' | sh",
+    windows:
+        "'Authorization: Bearer 7f3c…' | curl.exe -fsS -H '@-' 'https://ssh.example.com/api/enroll?os=windows' | Out-String | Invoke-Expression",
+    expiresAt: Math.floor(now / 1000) + 15 * 60,
+};
+
 const PROMPT = "\x1b[1;32mroot@web1\x1b[0m:\x1b[1;34m~\x1b[0m# ";
 const SHELL: Record<string, string> = {
     uptime: " 09:41:07 up 23 days,  4:12,  1 user,  load average: 0.08, 0.12, 0.09\r\n",
@@ -529,7 +538,7 @@ const SHELL: Record<string, string> = {
         "Oct 12 09:40:58 web1 sshd[48211]: pam_unix(sshd:session): session opened for user root(uid=0)\r\n",
 };
 
-/** Fakes every /api call and the terminal socket. Host tag edits stick, so a saved edit shows in the table. */
+/** Fakes every /api call and the terminal socket. Host tag and alert channel edits stick, so a saved edit shows in the table. */
 export async function mockApi(page: Page, version: string) {
     const json = (body: unknown) => ({ json: body });
     await page.route("/api/me", (r) => r.fulfill(json(me(version))));
@@ -538,11 +547,17 @@ export async function mockApi(page: Page, version: string) {
     await page.route("/api/admin/users", (r) => r.fulfill(json(users)));
     await page.route("/api/admin/sessions**", (r) => r.fulfill(json(sessions)));
     await page.route("/api/admin/audit**", (r) => r.fulfill(json(audit)));
-    await page.route("/api/admin/alerts**", (r) =>
-        r.request().method() === "GET"
-            ? r.fulfill(json(alerts))
-            : r.fulfill({ status: 204 }),
-    );
+    await page.route("/api/admin/alerts**", (r) => {
+        const req = r.request();
+        if (req.method() === "GET") return r.fulfill(json(alerts));
+        const id = Number(new URL(req.url()).pathname.split("/")[4]);
+        const channel = alerts.find((c) => c.id === id);
+        if (channel && req.method() === "PUT") {
+            const { events, tags, logins } = req.postDataJSON();
+            Object.assign(channel, { events, tags, logins });
+        }
+        return r.fulfill({ status: 204 });
+    });
     await page.route("/api/admin/facts**", (r) =>
         r.request().method() === "GET"
             ? r.fulfill(json(fleet))
@@ -551,6 +566,7 @@ export async function mockApi(page: Page, version: string) {
     await page.route("/api/admin/hosts**", (r) => {
         const req = r.request();
         if (req.method() === "GET") return r.fulfill(json(adminHosts));
+        if (req.url().endsWith("/snippet")) return r.fulfill(json(snippet));
         const id = new URL(req.url()).pathname.split("/")[4];
         const host = adminHosts.find((h) => h.id === id);
         if (host && req.method() === "PATCH")
@@ -561,18 +577,25 @@ export async function mockApi(page: Page, version: string) {
     await page.route("/api/tasks/runs", (r) =>
         r.fulfill(json(tasks.flatMap((t) => t.lastRun ?? []))),
     );
+    // Task 1 (Upgrade packages) runs get u-ids, so their run page shows the upgrade output.
     let runs = 1;
-    await page.route(/\/api\/tasks\/\d+\/run$/, (r) =>
-        r.fulfill({ status: 201, json: { id: `r${++runs}` } }),
-    );
+    await page.route(/\/api\/tasks\/\d+\/run$/, (r) => {
+        const task = r.request().url().split("/").at(-2);
+        r.fulfill({
+            status: 201,
+            json: { id: `${task === "1" ? "u" : "r"}${++runs}` },
+        });
+    });
     const polls = new Map<string, number>();
-    await page.route(/\/api\/tasks\/runs\/r\d+$/, (r) => {
+    await page.route(/\/api\/tasks\/runs\/[ru]\d+$/, (r) => {
         const id = new URL(r.request().url()).pathname.split("/").pop() ?? "";
         const n = (polls.get(id) ?? 0) + 1;
         polls.set(id, n);
         r.fulfill(
             json(
-                id === "r0" ? upgradeRun() : diskRun(id, id === "r1" || n > 1),
+                id === "r0" || id.startsWith("u")
+                    ? upgradeRun(id, id === "r0" || n > 1)
+                    : diskRun(id, id === "r1" || n > 1),
             ),
         );
     });

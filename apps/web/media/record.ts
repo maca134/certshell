@@ -8,6 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
     type Browser,
     chromium,
+    devices,
     type Locator,
     type Page,
 } from "@playwright/test";
@@ -86,7 +87,43 @@ async function shot(page: Page, name: string) {
     console.log(`docs/media/${name}.png`);
 }
 
+/** A part of the page for the README, with a little room around it; `below` takes in that much more under it. */
+async function crop(page: Page, target: Locator, name: string, below = 0) {
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(300);
+    const box = await target.boundingBox();
+    if (!box) throw new Error(`not visible: ${target}`);
+    const pad = 12;
+    const x = Math.max(0, box.x - pad);
+    const y = Math.max(0, box.y - pad);
+    await page.screenshot({
+        path: join(out, `${name}.png`),
+        clip: {
+            x,
+            y,
+            width: Math.min(viewport.width - x, box.width + 2 * pad),
+            height: Math.min(viewport.height - y, box.height + 2 * pad + below),
+        },
+    });
+    console.log(`docs/media/${name}.png`);
+}
+
+async function mobile(browser: Browser) {
+    const context = await browser.newContext({
+        ...devices["Pixel 7"],
+        baseURL: base,
+    });
+    const page = await context.newPage();
+    await mockApi(page, version);
+    await page.goto("/ssh/h1/root");
+    await page.getByText("Connected", { exact: true }).waitFor();
+    await page.keyboard.type("uptime\r");
+    await shot(page, "mobile-terminal");
+    await context.close();
+}
+
 async function screenshots(browser: Browser) {
+    await mobile(browser);
     const page = await open(browser, "/");
     await page.getByText("web1").first().waitFor();
     await shot(page, "hosts");
@@ -98,6 +135,9 @@ async function screenshots(browser: Browser) {
     await page.keyboard.type("uptime\r");
     await page.keyboard.type("journalctl -u ssh -n 2 --no-pager\r");
     await shot(page, "terminal");
+    await page.keyboard.press("Control+Shift+F");
+    await page.getByRole("textbox", { name: "Search" }).fill("Accepted");
+    await crop(page, page.locator("header"), "crop-terminal-search", 144);
 
     await page.goto("/tasks");
     await page.getByText("Upgrade packages").first().waitFor();
@@ -108,19 +148,38 @@ async function screenshots(browser: Browser) {
     await page.goto("/tasks/runs/r0");
     await page.getByText("differs from the most common output").click();
     await shot(page, "task-run-grouped");
+    await crop(
+        page,
+        page.locator("li", { hasText: "differs from" }),
+        "crop-task-diff",
+    );
 
     await page.goto("/admin/hosts");
     await page.getByRole("button", { name: "Edit web2" }).waitFor();
     await shot(page, "admin-hosts");
+    await page.getByRole("button", { name: "Enroll monitor1" }).click();
+    await page.getByRole("dialog").getByText("One-time use").waitFor();
+    await crop(page, page.getByRole("dialog"), "crop-enroll");
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Edit web2" }).click();
     await page.getByRole("dialog").getByPlaceholder("Add a tag…").click();
     await shot(page, "admin-host-tags");
+    await page.keyboard.type("ed");
+    await crop(page, page.getByRole("dialog"), "crop-host-tags");
     await page.goto("/admin/fleet");
     await page.getByText("ci-runner").first().waitFor();
     await shot(page, "admin-fleet");
+    await crop(
+        page,
+        page.getByRole("button", { name: /^Need a reboot/ }).locator(".."),
+        "crop-fleet-counts",
+    );
     await page.goto("/admin/alerts");
     await page.getByText("Ops phone").first().waitFor();
     await shot(page, "admin-alerts");
+    await page.getByRole("button", { name: "Edit Ops phone" }).click();
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+    await crop(page, page.getByRole("dialog"), "alerts-edit");
     await page.goto("/admin/users");
     await page.getByText("carol@example.com").first().waitFor();
     await shot(page, "admin-users");
@@ -189,8 +248,6 @@ async function walkthrough(page: Page) {
 
     // Tags: filter, then group.
     await click(page, tagBar.getByRole("button", { name: "prod" }));
-    await pause(650);
-    await click(page, tagBar.getByRole("button", { name: "web", exact: true }));
     await pause(750);
     await click(page, tagBar.getByRole("button", { name: "All" }));
     await pause(450);
@@ -216,24 +273,27 @@ async function walkthrough(page: Page) {
         delay: 45,
     });
     await page.keyboard.press("Enter");
-    await pause(1350);
+    await pause(900);
+    await click(page, page.getByRole("button", { name: "Search scrollback" }));
+    await page.keyboard.type("Accepted", { delay: 70 });
+    await pause(1200);
     await click(page, page.getByRole("button", { name: "Hosts" }));
     await pause(350);
 
-    // Tasks: run one on three hosts.
+    // Tasks: run one on four hosts, open the one whose output differs.
     await click(page, page.getByRole("link", { name: "Tasks" }));
     await pause(750);
     await click(
         page,
         page
             .getByRole("listitem")
-            .filter({ hasText: "Disk usage" })
+            .filter({ hasText: "Upgrade packages" })
             .getByRole("button", { name: "Run" }),
     );
     await page.getByText("exit 0").first().waitFor();
     await pause(600);
-    await click(page, page.getByText("postgres@"));
-    await pause(1200);
+    await click(page, page.getByText("differs from the most common output"));
+    await pause(1500);
 
     // Fleet: hosts that need a reboot.
     await click(page, page.getByRole("link", { name: "Fleet" }));
@@ -242,26 +302,19 @@ async function walkthrough(page: Page) {
     await click(page, page.getByRole("button", { name: /^Need a reboot/ }));
     await pause(1300);
 
-    // Admin: tag a host, with suggestions.
-    await click(page, page.getByRole("link", { name: "Hosts" }).nth(1));
-    await page.getByRole("button", { name: "Edit web2" }).waitFor();
-    await pause(900);
-    await click(page, page.getByRole("button", { name: "Edit web2" }));
-    const dialog = page.getByRole("dialog");
-    await pause(500);
-    await click(page, dialog.getByPlaceholder("Add a tag…"));
-    await page.keyboard.type("ed", { delay: 160 });
-    await pause(500);
-    await click(
-        page,
-        dialog.getByRole("button", { name: "edge", exact: true }),
-    );
-    await pause(350);
-    await page.keyboard.type("eu-west", { delay: 90 });
+    // Alerts: what a channel is sent.
+    await click(page, page.getByRole("link", { name: "Alerts" }));
+    await page.getByText("Ops phone").first().waitFor();
     await pause(600);
-    await page.keyboard.press("Enter");
-    await pause(650);
-    await click(page, dialog.getByRole("button", { name: "Save" }));
+    await click(page, page.getByRole("button", { name: "Edit Ops phone" }));
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+    await pause(500);
+    await click(page, page.getByRole("dialog").getByText("Task failed"));
+    await pause(700);
+    const save = page.getByRole("dialog").getByRole("button", { name: "Save" });
+    await save.scrollIntoViewIfNeeded();
+    await pause(400);
+    await click(page, save);
     await page.mouse.move(640, 720, { steps: 10 });
     await page.keyboard.press("Escape");
     // The closed dialog hands focus back to its Edit button; don't end on a focus ring.

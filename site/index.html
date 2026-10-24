@@ -55,7 +55,7 @@
 <span class="tok-k">root@web1:~#</span></pre>
             </div>
 
-            <video class="demo" src="docs/media/demo.mp4" width="1280" height="760" autoplay muted loop playsinline aria-label="CertShell demo: filter hosts by tag, open a terminal, run a task on several hosts, list hosts that need a reboot, tag a host"></video>
+            <video class="demo" src="docs/media/demo.mp4" width="1280" height="760" autoplay muted loop playsinline aria-label="CertShell demo: filter hosts by tag, open a terminal and search it, run a task on several hosts and open the one whose output differs, list hosts that need a reboot, edit an alert channel"></video>
 
             <section>
                 <h2>How it works</h2>
@@ -119,7 +119,7 @@
                     <div class="card">
                         <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="m7 11 2-2-2-2M11 13h4" /></svg></span>
                         <h3>A proper terminal</h3>
-                        <p>Scrollback search, full screen, and a confirm before a paste that would run commands.</p>
+                        <p>Scrollback search, full screen, and a confirm before a paste that would run commands. On phones, a key tray with Esc, Ctrl, arrows and more.</p>
                     </div>
                     <div class="card">
                         <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg></span>
@@ -145,6 +145,44 @@
             </section>
 
             <section>
+                <h2>Screenshots</h2>
+                <div class="shots">
+                    <figure>
+                        <a href="docs/media/hosts-grouped.png"><img src="docs/media/hosts-grouped.png" width="1280" height="760" loading="lazy" alt="Hosts grouped by tag, with an online dot for each" /></a>
+                        <figcaption>Hosts grouped by tag, with an online dot for each</figcaption>
+                    </figure>
+                    <figure>
+                        <a href="docs/media/terminal.png"><img src="docs/media/terminal.png" width="1280" height="760" loading="lazy" alt="A terminal: one host, one login, one 15-minute cert" /></a>
+                        <figcaption>A terminal: one host, one login, one 15-minute cert</figcaption>
+                    </figure>
+                    <figure>
+                        <a href="docs/media/admin-fleet.png"><img src="docs/media/admin-fleet.png" width="1280" height="760" loading="lazy" alt="Fleet: updates, reboots and disk use for every host" /></a>
+                        <figcaption>Fleet: updates, reboots and disk use for every host</figcaption>
+                    </figure>
+                    <figure>
+                        <a href="docs/media/admin-alerts.png"><img src="docs/media/admin-alerts.png" width="1280" height="760" loading="lazy" alt="Alerts to ntfy, Discord and more, filtered by tag or login" /></a>
+                        <figcaption>Alerts to ntfy, Discord and more, filtered by tag or login</figcaption>
+                    </figure>
+                    <figure>
+                        <a href="docs/media/admin-hosts.png"><img src="docs/media/admin-hosts.png" width="1280" height="760" loading="lazy" alt="Manage hosts, tags and the access map" /></a>
+                        <figcaption>Manage hosts, tags and the access map</figcaption>
+                    </figure>
+                    <figure>
+                        <a href="docs/media/admin-audit.png"><img src="docs/media/admin-audit.png" width="1280" height="760" loading="lazy" alt="Audit log of logins, certs, sessions and changes" /></a>
+                        <figcaption>Audit log of logins, certs, sessions and changes</figcaption>
+                    </figure>
+                </div>
+            </section>
+
+            <section class="phone">
+                <div>
+                    <h2>On your phone</h2>
+                    <p>The same terminal on a phone or tablet, with a key tray for Esc, Tab, Ctrl, Alt, arrows, Home, End and page keys. Ctrl and Alt apply to the next key, or tap again to lock them. The pencil opens a compose line for predictions, swipe typing and voice.</p>
+                </div>
+                <img src="docs/media/mobile-terminal.png" width="412" height="839" loading="lazy" alt="A CertShell terminal on a phone, with the key tray under it" />
+            </section>
+
+            <section>
                 <h2>Tasks</h2>
                 <p>Save a script and the hosts it runs on, then run it in one click. Each host gets its own short-lived cert with no terminal, the same access map applies, and you see every host's exit code and output, with identical outputs grouped and the rest shown as a diff. Detached tasks keep running even if the connection drops mid-run, e.g. during an sshd or VPN upgrade.</p>
                 <div class="term">
@@ -153,6 +191,7 @@
 <span class="g">✓</span> web2:root   ok       exit 0     38s
 <span class="r">✗</span> db1:root    failed   exit 100   12s</pre>
                 </div>
+                <img class="shot" src="docs/media/task-run-grouped.png" width="1280" height="760" loading="lazy" alt="A task run: three hosts with the same output grouped, and the one that differs shown as a diff" />
             </section>
 
             <section class="compare">
