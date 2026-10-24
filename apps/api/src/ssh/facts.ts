@@ -67,6 +67,23 @@ echo "openssh=$( (sshd -V; ssh -V) 2>&1 | grep -o 'OpenSSH_[^ ,]*' | head -n 1)"
 main </dev/null
 `;
 
+/** FACTS_SCRIPT for Windows hosts. No update counts: a Windows Update search can take minutes. */
+export const WINDOWS_FACTS_SCRIPT = String.raw`$ErrorActionPreference = 'SilentlyContinue'
+$o = Get-CimInstance Win32_OperatingSystem
+"os=$($o.Caption)"
+"kernel=$($o.Version)"
+"arch=$env:PROCESSOR_ARCHITECTURE"
+"uptime=$([long]((Get-Date) - $o.LastBootUpTime).TotalSeconds)"
+$k = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion'
+"reboot=$([int]((Test-Path "$k\Component Based Servicing\RebootPending") -or (Test-Path "$k\WindowsUpdate\Auto Update\RebootRequired")))"
+$c = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$env:SystemDrive'"
+"disk=$([int][math]::Ceiling(100 - 100 * $c.FreeSpace / $c.Size))"
+"openssh=$((cmd /c 'ssh -V 2>&1') -replace '^(OpenSSH_[^ ,]*).*', '$1')"
+`;
+
+// -EncodedCommand: runs the same from the login's shell, PowerShell or cmd.
+const WINDOWS_FACTS_REMOTE = `powershell -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(WINDOWS_FACTS_SCRIPT, "utf16le").toString("base64")}`;
+
 const TEXT = /^[^\p{Cc}]{1,200}$/u;
 const NUM = /^\d{1,12}$/;
 
@@ -108,6 +125,7 @@ export function factsCollector(db: Database, terminal: TerminalDeps) {
             pty: false,
             system: true,
         });
+        const windows = host.os === "windows";
         try {
             const proc = Bun.spawn(
                 sshArgv(terminal, {
@@ -115,10 +133,12 @@ export function factsCollector(db: Database, terminal: TerminalDeps) {
                     knownHosts: s.knownHosts,
                     login,
                     host,
-                    remote: "sh -s",
+                    remote: windows ? WINDOWS_FACTS_REMOTE : "sh -s",
                 }),
                 {
-                    stdin: new TextEncoder().encode(FACTS_SCRIPT),
+                    stdin: new TextEncoder().encode(
+                        windows ? "" : FACTS_SCRIPT,
+                    ),
                     stdout: "pipe",
                     stderr: "pipe",
                 },
@@ -146,7 +166,7 @@ export function factsCollector(db: Database, terminal: TerminalDeps) {
     async function collect(hostId: string) {
         const row = db
             .query<Host & { facts_login: string | null }, [string]>(
-                "SELECT id, name, address, host_key, facts_login FROM hosts WHERE id = ? AND host_key IS NOT NULL",
+                "SELECT id, name, address, host_key, os, facts_login FROM hosts WHERE id = ? AND host_key IS NOT NULL",
             )
             .get(hostId);
         if (!row?.facts_login || collecting.has(hostId))
