@@ -7,6 +7,7 @@ export type Host = {
     name: string;
     address: string;
     host_key: string;
+    os: string | null;
 };
 
 export function accessibleHosts(db: Database, groups: string[]): HostSummary[] {
@@ -40,7 +41,7 @@ export function allowedHost(
     return (
         db
             .query<Host, [string, string, string]>(
-                `SELECT h.id, h.name, h.address, h.host_key FROM hosts h
+                `SELECT h.id, h.name, h.address, h.host_key, h.os FROM hosts h
                  JOIN access a ON a.host_id = h.id
                  WHERE h.id = ? AND a.login = ? AND h.host_key IS NOT NULL
                    AND a.grp IN (SELECT value FROM json_each(?))
