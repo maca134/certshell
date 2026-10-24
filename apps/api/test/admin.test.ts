@@ -8,7 +8,7 @@ import {
     REMOVAL_SNIPPET,
     SSH_DIR_SH,
 } from "@repo/shared";
-import { renderSnippet } from "../src/routes/enroll";
+import { renderSnippet, renderWindowsSnippet } from "../src/routes/enroll";
 import { run } from "../src/ssh/exec";
 import { APP_URL, startApp } from "./helpers/app";
 
@@ -71,6 +71,7 @@ async function createHost(name = "web1", address = "web1.lan") {
     const body = (await res.json()) as {
         id: string;
         snippet: string;
+        windows: string;
         expiresAt: number;
     };
     return { ...body, token: tokenOf(body.snippet) };
@@ -140,10 +141,13 @@ test("create host: validates name and address", async () => {
 
 test("create host → pending host + curl | sh one-liner", async () => {
     await admin();
-    const { id, snippet, token, expiresAt } = await createHost();
+    const { id, snippet, windows, token, expiresAt } = await createHost();
     expect(id).toMatch(/^h[a-z0-9]{7}$/);
     expect(snippet).toBe(
         `echo 'Authorization: Bearer ${token}' | curl -fsS -H @- '${APP_URL}/api/enroll' | sh`,
+    );
+    expect(windows).toBe(
+        `'Authorization: Bearer ${token}' | curl.exe -fsS -H '@-' '${APP_URL}/api/enroll?os=windows' | Out-String | Invoke-Expression`,
     );
     expect(token.length).toBeGreaterThan(40);
     expect(expiresAt - Date.now() / 1000).toBeGreaterThan(590);
@@ -156,8 +160,53 @@ test("create host → pending host + curl | sh one-liner", async () => {
             tags: [],
             access: [],
             factsLogin: null,
+            os: null,
         },
     ]);
+});
+
+test("GET /api/enroll?os=windows: serves the PowerShell script, values quoted", async () => {
+    await admin();
+    const { id, token } = await createHost();
+    const res = await ctx.app.request(`${APP_URL}/api/enroll?os=windows`, {
+        headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toStartWith("& {\n");
+    expect(body).toEndWith("\n}\n");
+    expect(body).toContain(`$APP_URL = '${APP_URL}'`);
+    expect(body).toContain(`$HOST_ID = '${id}'`);
+    expect(body).toMatch(/^\$CA_PUB = 'ssh-ed25519 \S+ test-ca'$/m);
+    expect(body).toContain(`$TOKEN = '${token}'`);
+    expect(body).toContain("icacls $f /inheritance:r");
+    expect(
+        renderWindowsSnippet({
+            appUrl: "https://x",
+            hostId: "h1",
+            caPub: "it's ‘q’",
+            token: "t",
+        }),
+    ).toContain("$CA_PUB = 'it''s ‘‘q’’'");
+});
+
+test("enroll?os=windows marks the host Windows; a plain re-enroll clears it", async () => {
+    await admin();
+    const { id, token } = await createHost();
+    const key = await hostKey();
+    const post = (t: string, q: string) =>
+        ctx.app.request(`${APP_URL}/api/enroll${q}`, {
+            method: "POST",
+            headers: { authorization: `Bearer ${t}` },
+            body: key,
+        });
+    expect((await post(token, "?os=windows")).status).toBe(204);
+    expect((await hosts())[0]?.os).toBe("windows");
+    const again = (await (
+        await call("POST", `/api/admin/hosts/${id}/snippet`)
+    ).json()) as { snippet: string };
+    expect((await post(tokenOf(again.snippet), "")).status).toBe(204);
+    expect((await hosts())[0]?.os).toBeNull();
 });
 
 test("GET /api/enroll: serves script with id, CA key, token; does not burn token", async () => {

@@ -67,7 +67,7 @@ export type RunDetail = {
 
 export type AccessRule = { login: string; group: string };
 
-/** `factsLogin`: the login host facts are collected as; null = not collected. */
+/** `factsLogin`: the login host facts are collected as; null = not collected. `os`: set by the enroll script that ran; null = sh. */
 export type AdminHost = {
     id: string;
     name: string;
@@ -76,6 +76,7 @@ export type AdminHost = {
     tags: string[];
     access: AccessRule[];
     factsLogin: string | null;
+    os: "windows" | null;
 };
 
 /**
@@ -106,7 +107,12 @@ export type HostFactsRow = {
     collecting: boolean;
 };
 
-export type EnrollSnippet = { snippet: string; expiresAt: number };
+/** `snippet`: for sh; `windows`: for an elevated PowerShell. Same one-time token. */
+export type EnrollSnippet = {
+    snippet: string;
+    windows: string;
+    expiresAt: number;
+};
 
 export const ALERT_EVENTS = {
     task_failed: {
@@ -188,6 +194,9 @@ export type AuditEntry = {
 /** Single-quotes `s` for sh. */
 export const sq = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 
+/** Single-quotes `s` for PowerShell, which also reads curly single quotes as quotes. */
+export const psq = (s: string) => `'${s.replace(/['‘’‚‛]/g, "$&$&")}'`;
+
 /**
  * Runs `script` under nohup with its output in a host temp file, streamed back by tail.
  * When the connection drops, sshd closes the session's pipes: tail dies, the script doesn't.
@@ -251,3 +260,6 @@ ${SSH_DIR_SH}
 rm -f "$SSH_DIR/sshd_config.d/50-certshell.conf" "$SSH_DIR/certshell_user_ca.pub"
 sshd -t
 ${RELOAD_SSHD}`);
+
+/** Undoes the Windows enroll script. Run in an elevated PowerShell. */
+export const WINDOWS_REMOVAL_SNIPPET = `$d = "$env:ProgramData\\ssh"; Remove-Item -Force -ErrorAction SilentlyContinue "$d\\sshd_config.d\\50-certshell.conf", "$d\\certshell_user_ca.pub", "$d\\certshell_principals.ps1"; Restart-Service sshd`;

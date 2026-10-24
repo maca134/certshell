@@ -284,7 +284,13 @@ test("signSession: dropped when an admin ends the user or revokes access mid-sig
         endedAt: new Map(),
     };
     const user = { iss: "i", sub: "user-1", email: null, groups: ["g"] };
-    const host = { id: "h1", name: "h1", address: "h1.test", host_key: "k" };
+    const host = {
+        id: "h1",
+        name: "h1",
+        address: "h1.test",
+        host_key: "k",
+        os: null,
+    };
     deps.db.run(
         "INSERT INTO hosts (id, name, address, host_key) VALUES ('h1', 'h1', 'h1.test', 'k')",
     );
@@ -332,7 +338,7 @@ test("terminal: input that arrives after ssh exited is dropped, not thrown", asy
     const t = await openTerminal(
         deps,
         { iss: "i", sub: "user-1", email: null, groups: ["g"] },
-        { id: "h1", name: "h1", address: "h1.test", host_key: "k" },
+        { id: "h1", name: "h1", address: "h1.test", host_key: "k", os: null },
         "root",
         "1.2.3.4",
         { cols: 80, rows: 24, onData: () => {}, onExit: resolve },
