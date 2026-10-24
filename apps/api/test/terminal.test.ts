@@ -390,7 +390,8 @@ test("terminal: oversized frame closes the socket", async () => {
     await t.opened;
     t.send({ t: "in", d: "x".repeat(65 * 1024) });
     const { code } = await t.closed;
-    expect(code).toBe(1006);
+    // Bun ≥ 1.4.4 sends 1009 (message too big); older Bun drops the socket (1006).
+    expect([1006, 1009]).toContain(code);
 });
 
 test("admin: lists open terminals, ends one, then all of a user's", async () => {
