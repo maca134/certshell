@@ -2,6 +2,10 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.16.0 - 2026-10-25
+- Windows hosts can be enrolled (OpenSSH for Windows; tested on Windows Server 2025). The enroll dialog shows a PowerShell snippet next to the shell one; run it in PowerShell as Administrator. See README → Adding a host → Windows.
+- Windows hosts get their own removal snippet and Fleet facts (OS, build, uptime, pending reboot, `C:` usage, OpenSSH version; no update counts). Tasks run in the login's shell, PowerShell by default. **Detach** isn't available for Windows hosts.
+
 ## 1.15.1 - 2026-10-20
 - Removed: the terminal's **Pop out** button, until it works more smoothly.
 
