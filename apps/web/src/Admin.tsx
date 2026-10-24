@@ -6,6 +6,7 @@ import {
     type LiveSession,
     REMOVAL_SNIPPET,
     type SeenUser,
+    WINDOWS_REMOVAL_SNIPPET,
 } from "@repo/shared";
 import { cn } from "cn";
 import {
@@ -1026,10 +1027,18 @@ function RemoveHost({
                     <DialogDescription>
                         CertShell stops signing certs for this host right away.
                         {host.enrolled &&
-                            " To make the host stop trusting the CertShell CA, run this as root on it too."}
+                            ` To make the host stop trusting the CertShell CA, run this ${host.os === "windows" ? "in PowerShell as Administrator" : "as root"} on it too.`}
                     </DialogDescription>
                 </DialogHeader>
-                {host.enrolled && <Shell text={REMOVAL_SNIPPET} />}
+                {host.enrolled &&
+                    (host.os === "windows" ? (
+                        <Shell
+                            label="PowerShell"
+                            text={WINDOWS_REMOVAL_SNIPPET}
+                        />
+                    ) : (
+                        <Shell text={REMOVAL_SNIPPET} />
+                    ))}
                 <DialogFooter>
                     <DialogClose asChild>
                         <Button variant="outline">Cancel</Button>
@@ -1055,29 +1064,31 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     );
 }
 
-function Snippet({ snippet, expiresAt }: EnrollSnippet) {
+function Snippet({ snippet, windows, expiresAt }: EnrollSnippet) {
     return (
         <Section title="Enroll">
             <p className="text-sm text-muted-foreground">
-                Run as root on the host. One-time use, expires at{" "}
+                Run one as root on the host: Linux and BSD in a shell, Windows
+                in PowerShell as Administrator. One-time use, expires at{" "}
                 {new Date(expiresAt * 1000).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                 })}
                 .
             </p>
-            <Shell text={snippet} />
+            <Shell label="Linux / BSD" text={snippet} />
+            <Shell label="Windows (PowerShell)" text={windows} />
         </Section>
     );
 }
 
-function Shell({ text }: { text: string }) {
+function Shell({ text, label = "shell" }: { text: string; label?: string }) {
     const [copied, setCopied] = useState(false);
     return (
         <div className="overflow-hidden rounded-lg border bg-[#0e0e11]">
             <div className="flex items-center gap-2 border-b px-3 py-1.5">
                 <span className="font-mono text-xs text-muted-foreground">
-                    shell
+                    {label}
                 </span>
                 <Button
                     variant="ghost"

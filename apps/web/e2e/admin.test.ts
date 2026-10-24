@@ -8,11 +8,12 @@ const host = {
     tags: ["prod"],
     access: [{ login: "root", group: "ops" }],
     factsLogin: null,
+    os: null as "windows" | null,
 };
 
-async function openAdmin(page: Page) {
+async function openAdmin(page: Page, os: "windows" | null = null) {
     const calls: { method: string; path: string; body: unknown }[] = [];
-    const hosts = [host];
+    const hosts = [{ ...host, os }];
     await page.route("/api/me", (r) =>
         r.fulfill({
             json: {
@@ -54,12 +55,21 @@ async function openAdmin(page: Page) {
         });
         if (req.url().endsWith("/snippet"))
             return r.fulfill({
-                json: { snippet: "curl reenroll", expiresAt: 0 },
+                json: {
+                    snippet: "curl reenroll",
+                    windows: "curl.exe reenroll",
+                    expiresAt: 0,
+                },
             });
         if (req.method() === "POST") {
             hosts.push({ ...host, id: "h2", enrolled: false, access: [] });
             return r.fulfill({
-                json: { id: "h2", snippet: "curl enroll", expiresAt: 0 },
+                json: {
+                    id: "h2",
+                    snippet: "curl enroll",
+                    windows: "curl.exe enroll",
+                    expiresAt: 0,
+                },
             });
         }
         if (req.method() === "PUT" || req.method() === "PATCH")
@@ -83,7 +93,8 @@ test("add host shows the enroll snippet", async ({ page }) => {
     await dialog.getByLabel("Address").fill("10.0.0.2");
     await dialog.getByRole("button", { name: "Next" }).click();
     await expect(dialog.getByText("curl enroll")).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Copy" })).toBeVisible();
+    await expect(dialog.getByText("curl.exe enroll")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Copy" })).toHaveCount(2);
     await expect(page.getByText("2 hosts")).toBeVisible();
     await dialog.getByRole("button", { name: "Close" }).first().click();
     await expect(dialog).toBeHidden();
@@ -219,6 +230,16 @@ test("remove host shows the removal snippet, then DELETEs", async ({
         path: "/api/admin/hosts/h1",
         body: null,
     });
+});
+
+test("remove a Windows host shows the PowerShell removal snippet", async ({
+    page,
+}) => {
+    await openAdmin(page, "windows");
+    await page.getByRole("button", { name: "Remove web1" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText(/Restart-Service sshd/)).toBeVisible();
+    await expect(dialog.getByText(/rm -f/)).toHaveCount(0);
 });
 
 // On mobile the sidebar is a sheet behind the trigger.
