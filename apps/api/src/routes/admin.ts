@@ -15,6 +15,7 @@ import { type AppEnv, now } from "../lib/sessions";
 import {
     validAddress,
     validGroup,
+    LOGIN_RULE,
     validLogin,
     validName,
     validTags,
@@ -112,7 +113,12 @@ export function adminRoutes({
             input.factsLogin !== null &&
             !validLogin(input.factsLogin)
         )
-            return c.json({ error: "invalid facts login" }, 400);
+            return c.json(
+                {
+                    error: `invalid facts login ${JSON.stringify(input.factsLogin)}: ${LOGIN_RULE}`,
+                },
+                400,
+            );
         const tags =
             input?.tags === undefined
                 ? null
@@ -187,12 +193,20 @@ export function adminRoutes({
         const rules = await jsonBody(c);
         if (!Array.isArray(rules) || rules.length > 500)
             return c.json({ error: "expected a list of rules" }, 400);
-        for (const r of rules as Partial<AccessRule>[])
+        for (const r of rules as Partial<AccessRule>[]) {
+            if (typeof r?.login === "string" && !validLogin(r.login))
+                return c.json(
+                    {
+                        error: `invalid login ${JSON.stringify(r.login)}: ${LOGIN_RULE}`,
+                    },
+                    400,
+                );
             if (!validLogin(r?.login) || !validGroup(r?.group))
                 return c.json(
                     { error: `invalid rule: ${JSON.stringify(r)}` },
                     400,
                 );
+        }
         db.transaction(() => {
             db.run("DELETE FROM access WHERE host_id = ?", [id]);
             for (const r of rules as AccessRule[])

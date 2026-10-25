@@ -24,6 +24,9 @@ export const validTags = (a: unknown): a is string[] =>
 export const validLogin = (s: unknown): s is string =>
     typeof s === "string" && LOGIN.test(s);
 
+export const LOGIN_RULE =
+    "use lowercase letters, digits, _ and -, starting with a letter or _ (on Windows, the account name in lowercase)";
+
 // Runs in the target login's shell; it only ever reaches ssh as one argv element.
 export const validScript = (s: unknown): s is string =>
     typeof s === "string" &&
