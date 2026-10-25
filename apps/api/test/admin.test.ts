@@ -8,6 +8,7 @@ import {
     REMOVAL_SNIPPET,
     SSH_DIR_SH,
 } from "@repo/shared";
+import { LOGIN_RULE } from "../src/lib/validate";
 import { renderSnippet, renderWindowsSnippet } from "../src/routes/enroll";
 import { run } from "../src/ssh/exec";
 import { APP_URL, startApp } from "./helpers/app";
@@ -575,6 +576,23 @@ test("access map: validated, replaces rules, only enrolled hosts reach users", a
         { login: "root", group: "g" },
     ])
         expect((await put(bad)).status).toBe(400);
+    expect(
+        await (
+            await put([{ login: "Administrator", group: "certshell-admins" }])
+        ).json(),
+    ).toEqual({
+        error: `invalid login "Administrator": ${LOGIN_RULE}`,
+    });
+    expect(
+        await (await put([{ login: "root", group: "" }])).json(),
+    ).toEqual({ error: 'invalid rule: {"login":"root","group":""}' });
+    expect(
+        await (
+            await call("PATCH", `/api/admin/hosts/${id}`, {
+                factsLogin: "Administrator",
+            })
+        ).json(),
+    ).toEqual({ error: `invalid facts login "Administrator": ${LOGIN_RULE}` });
 
     const rules = [
         { login: "root", group: "certshell-admins" },
