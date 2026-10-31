@@ -13,7 +13,7 @@ services:
       traefik.enable: "false"
 
   web-dev:
-    image: oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b
+    image: oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e
     working_dir: /app/apps/web
     command: ["bun", "run", "dev"]
     environment:
