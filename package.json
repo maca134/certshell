@@ -20,9 +20,9 @@
         "media": "bun run --filter web media"
     },
     "devDependencies": {
-        "@biomejs/biome": "2.5.15",
+        "@biomejs/biome": "2.6.3",
         "@playwright/mcp": "0.0.83",
-        "wrangler": "4.149.0"
+        "wrangler": "4.152.0"
     },
     "overrides": {
         "sharp": "0.35.5",
