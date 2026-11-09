@@ -22,7 +22,7 @@ RUN bun install --frozen-lockfile --production --filter api
 # checked against Go's checksum database. Bump SHOUTRRR/X_NET by hand; Dependabot bumps the Go image.
 FROM --platform=$BUILDPLATFORM golang:1.27.3-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS shoutrrr
 ARG TARGETOS TARGETARCH
-ARG SHOUTRRR=v0.21.2 X_NET=v0.61.0
+ARG SHOUTRRR=v0.21.2 X_NET=v0.62.0
 WORKDIR /build
 RUN go mod init build && \
     go get github.com/nicholas-fedor/shoutrrr/shoutrrr@$SHOUTRRR golang.org/x/net@$X_NET && \
