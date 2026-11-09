@@ -583,9 +583,9 @@ test("access map: validated, replaces rules, only enrolled hosts reach users", a
     ).toEqual({
         error: `invalid login "Administrator": ${LOGIN_RULE}`,
     });
-    expect(
-        await (await put([{ login: "root", group: "" }])).json(),
-    ).toEqual({ error: 'invalid rule: {"login":"root","group":""}' });
+    expect(await (await put([{ login: "root", group: "" }])).json()).toEqual({
+        error: 'invalid rule: {"login":"root","group":""}',
+    });
     expect(
         await (
             await call("PATCH", `/api/admin/hosts/${id}`, {

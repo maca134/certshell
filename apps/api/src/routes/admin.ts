@@ -13,9 +13,9 @@ import { audit } from "../lib/audit";
 import { jsonBody, writeGuards } from "../lib/http";
 import { type AppEnv, now } from "../lib/sessions";
 import {
+    LOGIN_RULE,
     validAddress,
     validGroup,
-    LOGIN_RULE,
     validLogin,
     validName,
     validTags,
