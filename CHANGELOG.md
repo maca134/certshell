@@ -2,8 +2,9 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
-## 1.16.2 - 2026-11-09
+## 1.16.3 - 2026-11-09
 - Admin: when a login name is refused, the error now says why and which names are allowed.
+- Image: fixes HIGH vulnerabilities in `apt` (CVE-2026-109518), `zlib` (CVE-2026-76844, CVE-2026-85091) and the `x/net` module in the bundled `shoutrrr` (CVE-2026-78661). 1.16.2 was tagged but never published: its image failed the vulnerability scan.
 - Updated the bun base image, the `pocket-id` image in `compose.yaml`, and dependencies.
 
 ## 1.16.1 - 2026-10-25
