@@ -2,6 +2,10 @@
 
 Versions follow [semver](https://semver.org). Images: `ghcr.io/maca134/certshell:<version>`.
 
+## 1.16.2 - 2026-11-09
+- Admin: when a login name is refused, the error now says why and which names are allowed.
+- Updated the bun base image, the `pocket-id` image in `compose.yaml`, and dependencies.
+
 ## 1.16.1 - 2026-10-25
 - The bundled `shoutrrr` (alerts) is built with Go 1.27.3, fixing CVE-2026-111943 (`crypto/x509`). 1.16.0 was tagged but never published: its image failed the vulnerability scan.
 
