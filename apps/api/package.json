@@ -8,11 +8,11 @@
     },
     "dependencies": {
         "@repo/shared": "workspace:*",
-        "hono": "^4.13.14",
-        "openid-client": "^6.8.8"
+        "hono": "^4.13.19",
+        "openid-client": "^6.9.1"
     },
     "devDependencies": {
-        "@types/bun": "^1.4.4",
+        "@types/bun": "^1.4.5",
         "typescript": "~7.0.2"
     }
 }
