@@ -1,5 +1,5 @@
 # Bun stages run on the build host; their output is arch-independent, so arm64 only emulates apt-get.
-FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS web
+FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:3dddea58e1f8f2240eca906b023fedb944f9a8352515a35309fd0c879fe00aaa AS web
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
@@ -10,7 +10,7 @@ COPY packages/shared packages/shared
 COPY apps/web apps/web
 RUN bun run --filter web build
 
-FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS api
+FROM --platform=$BUILDPLATFORM oven/bun:1-debian@sha256:3dddea58e1f8f2240eca906b023fedb944f9a8352515a35309fd0c879fe00aaa AS api
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
@@ -29,7 +29,7 @@ RUN go mod init build && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
     go build -trimpath -ldflags "-s -w" -o /shoutrrr github.com/nicholas-fedor/shoutrrr/shoutrrr
 
-FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e
+FROM oven/bun:1-debian@sha256:3dddea58e1f8f2240eca906b023fedb944f9a8352515a35309fd0c879fe00aaa
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends openssh-client && \
     rm -rf /var/lib/apt/lists/* && install -d -o 1000 -g 1000 /data
 WORKDIR /app
